@@ -6,7 +6,7 @@ import type { RestaurantStore, Role } from './store.ts'
 
 async function createStore(role: Role): Promise<RestaurantStore> {
   // Env values are inlined at build time, so a local-only build drops the Supabase chunk entirely.
-  if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  if (import.meta.env.VITE_SUPABASE_URL && (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY)) {
     const { SupabaseStore } = await import('./supabaseStore.ts')
     return new SupabaseStore(role)
   }

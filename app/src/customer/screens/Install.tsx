@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { canPromptInstall, detectPlatform, isStandalone, promptInstall, subscribeInstall, wasInstalled } from '../../pwa/install.ts'
+import { canPromptInstall, isStandalone, promptInstall, subscribeInstall, wasInstalled } from '../../pwa/install.ts'
+import { detectPlatform } from '../../pwa/platform.ts'
 import { Tono } from '../../ui/Tono.tsx'
 import x from './Install.module.css'
 
@@ -19,7 +20,7 @@ export function Install() {
   const nav = useNavigate()
   const canPrompt = useSyncExternalStore(subscribeInstall, canPromptInstall)
   const installed = useSyncExternalStore(subscribeInstall, wasInstalled)
-  const [platform] = useState(() => detectPlatform())
+  const [platform] = useState(() => detectPlatform(navigator.userAgent, navigator.maxTouchPoints ?? 0))
   const [standalone] = useState(() => isStandalone())
   const [waited, setWaited] = useState(false)
   const [busy, setBusy] = useState(false)

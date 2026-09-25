@@ -44,13 +44,3 @@ export async function promptInstall(): Promise<boolean> {
 /** Opened from the home-screen icon rather than a browser tab. */
 export const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true
-
-export type Platform = 'ios' | 'android' | 'inapp' | 'desktop'
-
-/** Which instructions to show. In-app browsers (Instagram, Facebook…) can't install at all. */
-export function detectPlatform(ua = navigator.userAgent, touchPoints = navigator.maxTouchPoints ?? 0): Platform {
-  if (/Instagram|FBAN|FBAV|FB_IAB|Line\/|TikTok|musical_ly/i.test(ua)) return 'inapp'
-  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && touchPoints > 1)) return 'ios'
-  if (/Android/i.test(ua)) return 'android'
-  return 'desktop'
-}

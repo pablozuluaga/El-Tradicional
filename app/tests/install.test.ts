@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { detectPlatform } from '../src/pwa/install.ts'
+import { detectPlatform } from '../src/pwa/platform.ts'
 
 test('detectPlatform picks the right install instructions', () => {
   const android = 'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36'

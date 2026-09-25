@@ -1,0 +1,22 @@
+.backdrop { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+.sheet { background: #fff; border-radius: 26px 26px 0 0; padding: 24px 22px max(28px, var(--safe-bottom)); box-shadow: 0 -20px 44px rgba(0,0,0,.3); animation: obUp .35s ease; color: var(--ink); }
+.row { display: flex; gap: 15px; align-items: flex-start; }
+.title { font-family: var(--serif); font-size: 24px; line-height: 1.05; }
+.body { font-size: 13.5px; color: var(--body); line-height: 1.55; margin-top: 8px; }
+.input { flex: 1; min-width: 0; width: 100%; border: 1px solid var(--line-3); border-radius: 12px; padding: 13px 14px; font-size: 14px; color: var(--ink); outline: none; }
+.input:focus { border-color: rgba(200,22,29,.5); }
+.submit { width: 100%; margin-top: 14px; height: 52px; border: none; border-radius: 15px; background: var(--red); color: #fff; cursor: pointer; font-weight: 600; font-size: 15px; }
+.hint { font-size: 11.5px; color: var(--faint); margin-top: 10px; text-align: center; }
+.dots { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 18px 0 15px; }
+.dot { width: 7px; height: 7px; border-radius: 4px; background: #E1DAD0; display: block; transition: width .2s; }
+.dotOn { width: 22px; background: var(--red); }
+.actions { display: flex; gap: 12px; align-items: center; }
+.skip { border: none; background: transparent; color: var(--muted); cursor: pointer; font-size: 13.5px; font-weight: 600; padding: 14px 6px; }
+.next { flex: 1; height: 52px; border: none; border-radius: 15px; background: var(--red); color: #fff; cursor: pointer; font-weight: 600; font-size: 15px; }
+.helper { position: absolute; right: 16px; bottom: calc(96px + var(--safe-bottom)); z-index: 40; width: 58px; height: 58px; border-radius: 50%; border: none; background: #fff; box-shadow: 0 10px 22px -6px rgba(20,17,14,.5); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+
+.nav { flex: none; border-top: 1px solid var(--line); background: #fff; display: flex; padding: 10px 12px max(22px, var(--safe-bottom)); }
+.tab { flex: 1; border: none; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; position: relative; color: var(--faint); }
+.tabOn { color: var(--red); }
+.tabIcon { font-size: 18px; position: relative; height: 22px; display: flex; align-items: center; justify-content: center; }
+.badge { position: absolute; top: -4px; right: 22px; background: var(--red); color: #fff; font-size: 10px; font-weight: 700; min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }

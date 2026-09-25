@@ -1,0 +1,23 @@
+.body { padding: 10px 22px 20px; }
+.modeRow { display: flex; gap: 9px; margin-bottom: 18px; }
+.mode { flex: 1; padding: 13px; border-radius: 13px; border: 1.5px solid rgba(20,17,14,.12); background: #fff; cursor: pointer; font-weight: 500; color: var(--ink); font-size: 13.333px; }
+.modeOn { border-color: var(--red); background: var(--pink); font-weight: 600; }
+.selectWrap { position: relative; margin-bottom: 18px; }
+.select { width: 100%; appearance: none; -webkit-appearance: none; border: 1.5px solid var(--line-3); border-radius: 13px; padding: 13px 40px 13px 14px; font-size: 14px; color: var(--ink); background: #fff; outline: none; cursor: pointer; }
+.select:invalid { color: var(--muted); }
+.caret { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); font-size: 12px; }
+.stack { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.addr { text-align: left; border: 1.5px solid rgba(20,17,14,.12); background: #fff; cursor: pointer; padding: 12px 15px; border-radius: 13px; color: var(--ink); }
+.addrOn { border-color: var(--red); background: var(--pink); }
+.addrLine { font-size: 14px; font-weight: 500; }
+.addrOn .addrLine { font-weight: 600; }
+.addrSub { font-size: 12px; color: var(--body); margin-top: 2px; }
+.form { display: flex; flex-direction: column; gap: 8px; background: #fff; border: 1px solid rgba(20,17,14,.1); border-radius: 14px; padding: 14px; }
+.saveBtn { border: none; background: var(--ink); color: #fff; cursor: pointer; padding: 11px; border-radius: 11px; font-size: 13.5px; font-weight: 600; }
+.addNew { border: 1px dashed rgba(20,17,14,.24); background: transparent; cursor: pointer; padding: 12px; border-radius: 13px; font-size: 13.5px; color: var(--body); font-weight: 500; }
+.phone { width: 100%; border: 1px solid var(--line-3); border-radius: 13px; padding: 12px 14px; font-size: 13.5px; color: var(--ink); outline: none; margin-bottom: 18px; }
+.pay { display: flex; justify-content: space-between; align-items: center; border: 1.5px solid rgba(20,17,14,.12); background: #fff; cursor: pointer; padding: 13px 15px; border-radius: 13px; font-size: 14px; font-weight: 500; color: var(--ink); }
+.payOn { border-color: var(--red); background: var(--pink); font-weight: 600; }
+.hours { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.row { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--body); margin-bottom: 6px; }
+.total { display: flex; justify-content: space-between; font-weight: 700; font-size: 16px; margin-bottom: 10px; border-top: 1px solid var(--line); padding-top: 10px; }

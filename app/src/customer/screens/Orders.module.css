@@ -1,0 +1,16 @@
+.head { flex: none; padding: 16px 22px 6px; }
+.sub { font-size: 12.5px; color: var(--muted); }
+.body { padding: 8px 22px 20px; }
+.list { display: flex; flex-direction: column; gap: 14px; }
+.card { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 15px; box-shadow: 0 6px 16px -12px rgba(20,17,14,.4); }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.id { font-weight: 600; font-size: 14.5px; }
+.when { font-size: 11.5px; color: var(--muted); }
+.items { font-size: 12.5px; color: var(--body); margin-top: 4px; line-height: 1.4; }
+.rejected { margin-top: 12px; background: var(--pink); border: 1px solid rgba(200,22,29,.25); border-radius: 12px; padding: 11px 13px; font-size: 12.5px; color: var(--red-dark); }
+.steps { display: flex; justify-content: space-between; margin-top: 14px; gap: 2px; }
+.step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.stepDone { width: 16px; height: 16px; border-radius: 50%; background: var(--green); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+.stepTodo { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #d8d0c2; display: block; }
+.stepLabel { font-size: 8.5px; color: var(--muted); text-align: center; line-height: 1.1; }
+.chatBtn { position: relative; margin-top: 14px; width: 100%; border: 1.5px solid var(--line-3); background: #fff; color: var(--ink); cursor: pointer; padding: 12px; border-radius: 12px; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }

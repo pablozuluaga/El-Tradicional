@@ -1,0 +1,81 @@
+:root {
+  --ink: #14110E;
+  --ink-2: #2b261e;
+  --red: #C8161D;
+  --red-dark: #A11117;
+  --red-deep: #7a0d12;
+  --pink: #FBE7E7;
+  --cream: #F5F2ED;
+  --tip-bg: #FFF8EE;
+  --tip-border: #F0DFC0;
+  --muted: #7c756a;
+  --body: #5c554b;
+  --faint: #9a8f7d;
+  --green: #2F7D46;
+  --gold: #E0A83B;
+  --peach: #F0B7A0;
+  --line: rgba(20, 17, 14, .08);
+  --line-2: rgba(20, 17, 14, .12);
+  --line-3: rgba(20, 17, 14, .14);
+  --dot: #FF3B30;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --sans: Geist, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: #E7E4DE;
+  font-family: var(--sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a { color: var(--red); text-decoration: none; }
+
+button, input, textarea, select { font-family: var(--sans); }
+button { -webkit-appearance: none; appearance: none; margin: 0; }
+input, textarea, select { font-size: 16px; }
+
+@keyframes pop { from { transform: scale(.97); opacity: .4 } to { transform: scale(1); opacity: 1 } }
+@keyframes obUp { from { transform: translateY(34px); opacity: .3 } to { transform: translateY(0); opacity: 1 } }
+@keyframes mBob { 0%, 100% { transform: translateY(0) rotate(-2deg) } 50% { transform: translateY(-4px) rotate(2deg) } }
+@keyframes bite { 0%, 100% { transform: translate(0, 0) } 50% { transform: translate(-5px, -6px) } }
+
+.noscroll { scrollbar-width: none; }
+.noscroll::-webkit-scrollbar { display: none; }
+
+.xscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: var(--red) transparent; }
+.xscroll::-webkit-scrollbar { height: 6px; }
+.xscroll::-webkit-scrollbar-thumb { background: rgba(200, 22, 29, .5); border-radius: 3px; }
+.xscroll::-webkit-scrollbar-track { background: transparent; }
+
+.serif { font-family: var(--serif); font-weight: 400; }
+.bob { animation: mBob 2.6s ease-in-out infinite; }
+
+/* Phone-sized app column: full screen on phones, centered on desktop. */
+.app-shell {
+  position: relative;
+  height: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: var(--safe-top);
+}
+.app-shell.light { background: #FFFFFF; color: var(--ink); }
+.app-shell.dark { background: var(--ink); color: #fff; }
+@media (min-width: 480px) {
+  .app-shell { box-shadow: 0 0 60px -20px rgba(20, 17, 14, .35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001s !important; animation-iteration-count: 1 !important; transition-duration: 0s !important; }
+}

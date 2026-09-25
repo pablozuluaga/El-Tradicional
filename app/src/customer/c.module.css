@@ -1,0 +1,43 @@
+/* Layout */
+.scroll { flex: 1; overflow-y: auto; min-height: 0; }
+.header { flex: none; padding: 16px 22px 6px; display: flex; align-items: center; gap: 12px; }
+.headerTitle { font-family: var(--serif); font-size: 24px; }
+.pageTitle { font-family: var(--serif); font-size: 27px; }
+.footer { flex: none; border-top: 1px solid var(--line); padding: 14px 22px max(20px, var(--safe-bottom)); background: #fff; }
+
+/* Buttons */
+.primary { width: 100%; height: 54px; border: none; border-radius: 15px; background: var(--red); color: #fff; cursor: pointer; font-weight: 600; font-size: 15px; }
+.primary:disabled { opacity: .6; cursor: default; }
+.darkBtn { border: none; background: var(--ink); color: #fff; padding: 12px 22px; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 13.333px; }
+
+/* Dish card (menu + favorites) */
+.dishCard { display: flex; gap: 14px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 12px; cursor: pointer; box-shadow: 0 6px 16px -12px rgba(20,17,14,.4); text-align: left; width: 100%; font: inherit; color: inherit; }
+.dishCard[aria-disabled='true'] { cursor: default; }
+.thumb { width: 74px; height: 74px; border-radius: 13px; flex: none; position: relative; background: #eee9e0; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.soldOverlay { position: absolute; inset: 0; background: rgba(20,17,14,.62); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10.5px; font-weight: 600; text-align: center; padding: 4px; }
+.dishBody { flex: 1; min-width: 0; }
+.dishNameRow { display: flex; align-items: center; gap: 7px; }
+.dishName { font-weight: 600; font-size: 15px; }
+.tag { font-size: 9.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--red); background: var(--pink); padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+.dishDesc { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.dishPrice { font-weight: 600; font-size: 14px; margin-top: 6px; }
+.dishList { display: flex; flex-direction: column; gap: 12px; }
+
+/* Selectable option rows */
+.optRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1.5px solid rgba(20,17,14,.12); background: #fff; cursor: pointer; padding: 12px 15px; border-radius: 13px; font-size: 14px; font-weight: 500; color: var(--ink); text-align: left; width: 100%; }
+.optRow.sel { border-color: var(--red); background: var(--pink); font-weight: 600; }
+.optMark { color: #cfc6b5; font-size: 15px; flex: none; }
+.sel .optMark { color: var(--red); }
+.optOut { display: flex; align-items: center; justify-content: space-between; border: 1.5px solid rgba(20,17,14,.06); background: var(--cream); padding: 12px 15px; border-radius: 13px; font-size: 14px; color: #b3a894; }
+
+/* Inputs */
+.input { width: 100%; border: 1px solid var(--line-3); border-radius: 11px; padding: 11px 13px; font-size: 13.5px; color: var(--ink); outline: none; background: #fff; }
+.input:focus, .textarea:focus { border-color: rgba(200,22,29,.5); }
+.textarea { width: 100%; border: 1px solid var(--line-3); border-radius: 13px; padding: 12px 14px; font-size: 13.5px; color: var(--ink); background: #fff; resize: none; outline: none; }
+.label { font-weight: 600; font-size: 14px; margin-bottom: 9px; }
+.req { color: var(--red); }
+.optional { font-weight: 400; color: var(--muted); }
+
+.empty { text-align: center; color: var(--muted); padding: 50px 20px; font-size: 14px; }
+.error { font-size: 12.5px; color: var(--red-dark); background: var(--pink); border-radius: 10px; padding: 9px 12px; margin-bottom: 10px; line-height: 1.4; }

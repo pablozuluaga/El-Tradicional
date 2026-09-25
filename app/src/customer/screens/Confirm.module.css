@@ -1,0 +1,20 @@
+.wrap { flex: 1; overflow-y: auto; min-height: 0; }
+.inner { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 30px; }
+.check { width: 84px; height: 84px; border-radius: 50%; background: var(--red); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 42px; margin-bottom: 22px; animation: pop .35s ease; flex: none; }
+.title { font-family: var(--serif); font-size: 30px; line-height: 1.1; }
+.text { font-size: 14px; color: var(--body); margin-top: 10px; line-height: 1.5; }
+.loyal { margin-top: 22px; background: var(--pink); border: 1.5px dashed var(--red); border-radius: 16px; padding: 16px 20px; width: 100%; }
+.loyalHead { font-size: 12px; color: var(--red); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.loyalText { font-size: 14px; margin-top: 5px; color: var(--ink); }
+.review { margin-top: 20px; background: #fff; border: 1px solid rgba(20,17,14,.1); border-radius: 16px; padding: 16px; width: 100%; text-align: left; }
+.reviewTitle { font-weight: 600; font-size: 14px; }
+.reviewSub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.stars { display: flex; gap: 6px; margin: 12px 0 10px; }
+.star { border: none; background: transparent; cursor: pointer; font-size: 30px; line-height: 1; color: #d8d0c2; padding: 0; }
+.starOn { color: var(--gold); }
+.comment { width: 100%; border: 1px solid var(--line-3); border-radius: 12px; padding: 11px 13px; font-size: 13px; color: var(--ink); resize: none; outline: none; margin-bottom: 10px; }
+.ig { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: linear-gradient(120deg, #F58529, #DD2A7B, #8134AF); color: #fff; padding: 12px; border-radius: 12px; font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+.google { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: #fff; border: 1.5px solid var(--line-3); color: var(--ink); padding: 12px; border-radius: 12px; font-size: 13.5px; font-weight: 600; }
+.thanks { font-size: 12px; color: var(--green); margin-top: 8px; text-align: center; font-weight: 600; }
+.again { margin-top: 18px; width: 100%; border: none; background: var(--red); color: #fff; padding: 15px; border-radius: 14px; font-weight: 600; font-size: 15px; cursor: pointer; }
+.track { margin-top: 10px; width: 100%; border: 1.5px solid rgba(20,17,14,.16); background: #fff; color: var(--ink); padding: 14px; border-radius: 14px; font-weight: 600; font-size: 14px; cursor: pointer; }

@@ -121,6 +121,7 @@ export function Home() {
             <button type="button" className={h.footLink} onClick={() => nav(P.menu)}>Ver el menú</button>
             <button type="button" className={h.footLink} onClick={() => nav(P.corp)}>Almuerzos empresariales</button>
             <button type="button" className={h.footLink} onClick={() => nav(P.profile)}>Mi perfil</button>
+            <button type="button" className={h.footLink} onClick={() => nav('/instalar')}>Instala la app</button>
           </div>
           <div className={h.footCol}>
             <div className={h.footHead}>Contacto</div>

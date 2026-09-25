@@ -8,7 +8,7 @@
 --   3. Authentication → Users → "Add user" for the owner (email + password), then:
 --        insert into public.owners (user_id)
 --        select id from auth.users where email = 'CORREO-DEL-DUENO';
---   4. In the app, set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (publishable key) and rebuild.
+--   4. In the app, set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (or VITE_SUPABASE_ANON_KEY) and rebuild.
 --
 -- Security model: customers and the owner can READ what row-level security allows,
 -- but every WRITE except owner settings goes through the security-definer functions below.

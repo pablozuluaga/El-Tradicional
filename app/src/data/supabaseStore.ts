@@ -13,6 +13,14 @@ const OWNER_WINDOW_DAYS = 7
 const OPEN_STATUSES = '(nuevo,aceptado,camino)'
 const REPORT_LIMIT = 5000
 
+/** Owner login errors, in Spanish, by Supabase auth error code. */
+function signInMessage(e: { code?: string; status?: number; message?: string }): string {
+  if (e.code === 'email_not_confirmed') return 'Esta cuenta aún no está confirmada. Confírmala en Supabase (Authentication → Users) e intenta de nuevo.'
+  if (e.code === 'invalid_credentials' || e.status === 400) return 'Correo o contraseña incorrectos.'
+  if (e.status === 429 || e.code === 'over_request_rate_limit') return 'Demasiados intentos. Espera un momento e intenta de nuevo.'
+  return 'No pudimos iniciar sesión. Revisa tu conexión e intenta de nuevo.'
+}
+
 const fail = (e: { message?: string } | null, fallback = 'No se pudo completar la acción. Revisa tu conexión.'): never => {
   throw new StoreError(e?.message && !/fetch|network/i.test(e.message) ? e.message : fallback)
 }
@@ -323,7 +331,7 @@ export class SupabaseStore implements RestaurantStore {
 
   async signIn(email: string, password: string) {
     const { data, error } = await this.sb.auth.signInWithPassword({ email, password })
-    if (error) fail(null, 'Correo o contraseña incorrectos.')
+    if (error) fail(null, signInMessage(error))
     this.uid = data.user?.id ?? null
     try {
       await this.enterOwner()

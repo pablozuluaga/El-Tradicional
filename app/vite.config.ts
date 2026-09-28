@@ -12,11 +12,15 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false, // src/pwa/update.ts registers it and reloads on new versions
       includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'owner-apple-touch-icon.png', 'owner-icon-192.png', 'assets/logo.jpeg'],
       // Two apps from one site: public/manifest.webmanifest (customers, /) and
       // public/admin.webmanifest (owner, /admin), linked from index.html and admin.html.
       manifest: false,
       workbox: {
+        // take over right away; src/pwa/update.ts then reloads open pages onto the new version
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallback: '/index.html',
         // /admin must get admin.html (its manifest makes "Add to Home Screen" open the panel).
         navigateFallbackDenylist: [/^\/admin(\/|$)/],

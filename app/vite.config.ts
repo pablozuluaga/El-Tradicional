@@ -4,20 +4,31 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    // Two pages, one bundle: index.html (customer app) and admin.html (owner panel at /admin).
+    rolldownOptions: { input: { index: 'index.html', admin: 'admin.html' } },
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'owner-apple-touch-icon.png', 'owner-icon-192.png', 'assets/logo.jpeg'],
       // Two apps from one site: public/manifest.webmanifest (customers, /) and
-      // public/admin.webmanifest (owner, /admin); index.html links the right one.
+      // public/admin.webmanifest (owner, /admin), linked from index.html and admin.html.
       manifest: false,
       workbox: {
         navigateFallback: '/index.html',
+        // /admin must get admin.html (its manifest makes "Add to Home Screen" open the panel).
+        navigateFallbackDenylist: [/^\/admin(\/|$)/],
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
         // The report generator is only used by the owner; fetch it on demand instead of precaching it.
         globIgnores: ['**/exceljs*.js'],
         runtimeCaching: [
+          {
+            urlPattern: ({ request, url }) => request.mode === 'navigate' && /^\/admin(\/|$)/.test(url.pathname),
+            handler: 'NetworkFirst',
+            options: { cacheName: 'et-admin-page', networkTimeoutSeconds: 4 },
+          },
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/assets/') && /\.(webp|jpe?g|png)$/.test(url.pathname),
             handler: 'CacheFirst',

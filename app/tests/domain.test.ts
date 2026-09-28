@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { defaultSettings } from '../src/domain/catalog.ts'
-import { allDishes, categories, dailyDish, dayOffKey, dishById, effRem, initialProtein } from '../src/domain/menu.ts'
+import { allDishes, bogotaDay, categories, dailyDish, dayOffKey, dishById, effRem, initialProtein, isDishSoldOut, serviceDay } from '../src/domain/menu.ts'
 import { deliveryFee, discountFor, orderTotal, subtotal } from '../src/domain/pricing.ts'
 import { eligibility, eligibilityFromCount, loyaltyCard, profileStats } from '../src/domain/loyalty.ts'
 import { advanceLabel, advanceStep, canReject, clientSteps, hasUnread, itemsDetail, itemsSummary } from '../src/domain/orders.ts'
@@ -18,7 +18,7 @@ test('fmt uses Colombian thousands separator', () => {
 test('no dish of the day until the owner picks one', () => {
   const s = defaultSettings()
   assert.equal(dailyDish(s), null)
-  assert.deepEqual(allDishes(s).map(d => d.id), ['paisa', 'especial', 'trucha', 'tilapia'])
+  assert.deepEqual(allDishes(s).map(d => d.id), ['paisa', 'especial', 'cazuela', 'trucha', 'tilapia'])
   assert.deepEqual(categories(s), ['Todos', 'Especiales', 'Pescados'])
 })
 
@@ -67,14 +67,67 @@ test('description overrides apply to specials and daily menus', () => {
 test('sold-out default protein is not preselected', () => {
   const s = { ...defaultSettings(), platoDia: 'viernes' as const }
   const d = dailyDish(s)!
-  assert.equal(initialProtein(s, d), 'res')
-  assert.equal(initialProtein({ ...s, soldProteins: { res: true } }, d), null)
+  assert.equal(initialProtein(s, d), 'costilla')
+  assert.equal(initialProtein({ ...s, soldProteins: { costilla: true } }, d), null)
   assert.equal(initialProtein(s, dishById(s, 'especial')!), null)
 })
 
 test('effRem returns the dish removable list', () => {
   const s = defaultSettings()
-  assert.deepEqual(effRem(dishById(s, 'especial')!, {}).map(r => r.label), ['Arroz', 'Papa a la francesa', 'Maduro', 'Aguacate', 'Huevo'])
+  assert.deepEqual(effRem(dishById(s, 'especial')!, {}).map(r => r.label), ['Arroz', 'Papa a la francesa', 'Maduro', 'Aguacate', 'Huevo', 'Ensalada', 'Arepa'])
+})
+
+test('only the fish, Bandeja Paisa and Cazuela come without soup; nothing asks ensalada o arepa', () => {
+  const s = { ...defaultSettings(), platoDia: 'martes' as const }
+  const soupOf = (id: string) => dishById(s, id)!.groups!.find(g => g.id === 'sopa')?.options.map(o => o.label) ?? null
+  assert.deepEqual(soupOf('especial'), ['Sopa de tortilla', 'Frijoles', 'Sin sopa'])
+  assert.deepEqual(soupOf('dia'), ['Sopa de tortilla', 'Frijoles', 'Sin sopa'])
+  for (const id of ['paisa', 'cazuela', 'trucha', 'tilapia']) assert.equal(soupOf(id), null, id)
+  assert.ok(allDishes(s).every(d => (d.groups ?? []).every(g => g.id === 'sopa')))
+  const caz = dishById(s, 'cazuela')!
+  assert.equal(caz.price, 35000)
+  assert.equal(caz.proteins, true)
+})
+
+test('owner soups: a day uses its own list, new soups and switched-off ones apply to every soup dish', () => {
+  const s = { ...defaultSettings(), platoDia: 'lunes' as const,
+    daySoups: { lunes: [{ id: 'campesina', label: 'Sopa campesina' }, { id: 'sopa1', label: 'Sopa de lentejas' }] },
+    dayOff: { [dayOffKey('lunes', 'sopa', 'campesina')]: true } }
+  assert.deepEqual(dishById(s, 'especial')!.groups![0].options.map(o => o.label), ['Sopa de lentejas'])
+  assert.deepEqual(dishById(s, 'dia')!.groups![0].options.map(o => o.label), ['Sopa de lentejas'])
+  // weekend dishes are soups: no soup choice for them, but Bandeja Especial still has one
+  const sab = { ...defaultSettings(), platoDia: 'sabado' as const }
+  assert.equal(dishById(sab, 'dia')!.groups!.length, 0)
+  assert.deepEqual(dishById(sab, 'especial')!.groups![0].options.map(o => o.id), ['frijoles', 'sinsopa'])
+})
+
+test('with no published menu, soup dishes use today (Colombia time)', () => {
+  const s = defaultSettings()
+  // 2026-09-29 03:00 UTC is still Monday 28 in Bogotá
+  const now = new Date('2026-09-29T03:00:00Z')
+  assert.equal(bogotaDay(now), 'lunes')
+  assert.equal(serviceDay(s, now), 'lunes')
+  assert.equal(dishById(s, 'especial', now)!.groups![0].options[0].label, 'Sopa campesina')
+})
+
+test('Lengua is offered only on Saturdays; Friday brings costilla', () => {
+  const prots = (day: 'sabado' | 'lunes') => dishById({ ...defaultSettings(), platoDia: day }, 'especial')!.protList!.map(p => p.id)
+  assert.ok(prots('sabado').includes('lengua'))
+  assert.ok(!prots('lunes').includes('lengua'))
+  assert.equal(dishById({ ...defaultSettings(), platoDia: 'sabado' }, 'trucha')!.protList, undefined)
+  assert.equal(dailyDish({ ...defaultSettings(), platoDia: 'viernes' })!.protList![0].label, 'Costilla')
+})
+
+test('owner-created dishes join the menu with their options and can be sold out', () => {
+  const s = { ...defaultSettings(), platoDia: 'jueves' as const,
+    customDishes: [{ id: 'plato1', name: 'Lomo', cat: 'Especiales' as const, price: 30000, desc: 'Lomo', soup: true, proteins: false, drink: true, rem: ['Arroz', 'Papa'] }] }
+  const d = dishById(s, 'plato1')!
+  assert.equal(d.price, 30000)
+  assert.equal(d.drink, true)
+  assert.equal(d.proteins, false)
+  assert.equal(d.groups![0].options[0].label, 'Sopa de guineo')
+  assert.deepEqual(d.rem.map(r => r.label), ['Arroz', 'Papa'])
+  assert.equal(isDishSoldOut({ ...s, soldDishes: { plato1: true } }, d), true)
 })
 
 const line = (p: Partial<CartLine> = {}): CartLine => ({
@@ -164,4 +217,12 @@ test('report rows: date range, rejected excluded, value = subtotal - discount', 
   assert.equal(rows[0].celular, '')
   assert.equal(rows[1].celular, '3001234567')
   assert.equal(reportRows([mkOrder()], '', '').length, 1)
+})
+
+test('an order with a dish the owner deleted is refused', async () => {
+  const { validateDraft } = await import('../src/domain/placement.ts')
+  const draft = { customerId: 'c', name: 'Ana', email: 'a@b.co', phone: '', origin: 'recoger' as const, zoneId: null, zoneLabel: null,
+    address: '', addressNotes: '', items: '1x Lomo', itemsList: ['1x Lomo'], lines: [{ dishId: 'plato1', name: 'Lomo', qty: 1, unit: 30000 }], subtotal: 30000, delivery: 0, pay: 'efectivo' }
+  assert.match(validateDraft(draft, defaultSettings())!, /Lomo ya no está en el menú/)
+  assert.equal(validateDraft({ ...draft, lines: [{ dishId: 'paisa', name: 'Bandeja Paisa', qty: 1, unit: 35000 }] }, defaultSettings()), null)
 })

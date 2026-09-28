@@ -27,8 +27,13 @@ create table if not exists public.settings (
   juices         jsonb not null default '[{"id":"guandolo","label":"Guandolo","out":false},{"id":"jugo","label":"Jugo","out":false}]'::jsonb,
   promos         jsonb not null default '[{"id":"primer","title":"-20% en tu primer pedido","sub":"Se aplica automáticamente en tu primera compra por la app.","active":true},{"id":"diez","title":"-20% al completar 10 pedidos","sub":"Completa 10 pedidos y el siguiente va con -20%.","active":true}]'::jsonb,
   desc_overrides jsonb not null default '{}'::jsonb,
+  day_soups      jsonb not null default '{}'::jsonb,
+  custom_dishes  jsonb not null default '[]'::jsonb,
   updated_at     timestamptz not null default now()
 );
+-- Columns added after the first release (re-running this file adds them to an existing project).
+alter table public.settings add column if not exists day_soups     jsonb not null default '{}'::jsonb;
+alter table public.settings add column if not exists custom_dishes jsonb not null default '[]'::jsonb;
 insert into public.settings (id) values (1) on conflict (id) do nothing;
 
 create or replace function public.touch_updated_at() returns trigger

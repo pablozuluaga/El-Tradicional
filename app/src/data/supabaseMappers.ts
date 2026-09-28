@@ -12,6 +12,9 @@ export interface SettingsRow {
   juices: Settings['juices'] | null
   promos: Settings['promos'] | null
   desc_overrides: Record<string, string> | null
+  /** added later; missing until the project runs the updated schema.sql */
+  day_soups?: Settings['daySoups'] | null
+  custom_dishes?: Settings['customDishes'] | null
 }
 
 export interface OrderRow {
@@ -57,6 +60,8 @@ export function rowToSettings(r: SettingsRow): Settings {
     juices: r.juices ?? d.juices,
     promos: r.promos ?? d.promos,
     descOverrides: r.desc_overrides ?? {},
+    daySoups: r.day_soups ?? {},
+    customDishes: r.custom_dishes ?? [],
   }
 }
 
@@ -69,6 +74,8 @@ const SETTINGS_COLUMNS: Record<keyof Settings, keyof SettingsRow> = {
   juices: 'juices',
   promos: 'promos',
   descOverrides: 'desc_overrides',
+  daySoups: 'day_soups',
+  customDishes: 'custom_dishes',
 }
 
 /** Only the changed columns, for `update settings set …`. */

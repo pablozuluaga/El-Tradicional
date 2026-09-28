@@ -1,5 +1,5 @@
-import { DAILY_MENUS, MENU, PROTEINS, WEEKEND } from './catalog.ts'
-import type { DailyMenu, DayId, Dish, Opt, OptionGroup, Settings } from './types.ts'
+import { DAILY_MENUS, DAY_ORDER, MENU, PROTEINS, R, SATURDAY_PROTEINS, WEEKEND } from './catalog.ts'
+import type { CustomDish, DailyMenu, DayId, Dish, Opt, OptionGroup, Settings } from './types.ts'
 
 export const DAILY_ID = 'dia'
 export const DEFAULT_DAILY_IMG = '/assets/menu-dia.webp'
@@ -14,15 +14,28 @@ export const descOf = (s: Settings, id: string, fallback: string) => {
 
 export const dailyMenuFor = (day: DayId | null): DailyMenu | null => (day ? DAILY_MENUS.find(m => m.day === day) ?? null : null)
 
+/** Weekday in Colombia (UTC-5 all year). */
+export const bogotaDay = (now: Date): DayId => DAY_ORDER[(new Date(now.getTime() - 5 * 3600_000).getUTCDay() + 6) % 7]
+
+/** The day the kitchen is serving: the published menu's day, or today's date when none is published. */
+export const serviceDay = (s: Settings, now = new Date()): DayId => s.platoDia ?? bogotaDay(now)
+
+/** The day's soup list as the owner left it (including the ones switched off). */
+export const daySoupList = (s: Settings, day: DayId): Opt[] => s.daySoups?.[day] ?? dailyMenuFor(day)?.sopas ?? []
+
+/** The soups a customer can pick that day. */
+export const soupsFor = (s: Settings, day: DayId): Opt[] => daySoupList(s, day).filter(o => !isDayOff(s, day, 'sopa', o.id))
+
+const soupGroup = (s: Settings, day: DayId): OptionGroup[] => {
+  const options = soupsFor(s, day)
+  return options.length ? [{ id: 'sopa', short: 'sopa', title: 'Elige tu sopa', sub: 'Incluida · escoge una', options }] : []
+}
+
 /** The owner-selected dish of the day, shaped like any other dish (or null if none is published). */
 export function dailyDish(s: Settings): Dish | null {
   const m = dailyMenuFor(s.platoDia)
   if (!m) return null
-  const groups: OptionGroup[] = []
-  if (m.sopas) {
-    const so = m.sopas.filter(o => !isDayOff(s, m.day, 'sopa', o.id))
-    if (so.length) groups.push({ id: 'sopa', short: 'sopa', title: 'Elige tu sopa', sub: 'Incluida · escoge una', options: so })
-  }
+  const groups = m.soupDish ? [] : soupGroup(s, m.day)
   const protList = (m.proteins ?? []).filter(o => !isDayOff(s, m.day, 'prot', o.id))
   const defProt = protList.some(x => x.id === m.defProt) ? m.defProt! : (protList[0]?.id ?? null)
   const weekend = WEEKEND.includes(m.day)
@@ -45,15 +58,34 @@ export function dailyDish(s: Settings): Dish | null {
   }
 }
 
-export const specials = (s: Settings): Dish[] => MENU.map(d => ({ ...d, desc: descOf(s, d.id, d.desc) }))
+export const DEFAULT_CUSTOM_IMG = '/assets/menu-dia.webp'
 
-/** Every dish the customer can see today: dish of the day first, then the fixed specials. */
-export function allDishes(s: Settings): Dish[] {
-  const d = dailyDish(s)
-  return [...(d ? [d] : []), ...specials(s)]
+const customToDish = (c: CustomDish): Dish => ({
+  id: c.id, cat: c.cat, name: c.name, price: c.price, img: DEFAULT_CUSTOM_IMG, avail: true,
+  soup: c.soup, proteins: c.proteins, drink: c.drink, desc: c.desc, rem: R(...c.rem),
+})
+
+/** Proteins offered by the fixed and owner-created dishes on a given day (Lengua only on Saturdays). */
+export const proteinsForDay = (day: DayId): Opt[] => (day === 'sabado' ? [...PROTEINS, ...SATURDAY_PROTEINS] : PROTEINS)
+
+/** The fixed dishes plus the ones the owner created, with that day's soups and proteins. */
+export function specials(s: Settings, now = new Date()): Dish[] {
+  const day = serviceDay(s, now)
+  return [...MENU, ...(s.customDishes ?? []).map(customToDish)].map(d => ({
+    ...d,
+    desc: descOf(s, d.id, d.desc),
+    groups: [...(d.soup ? soupGroup(s, day) : []), ...(d.groups ?? [])],
+    ...(d.proteins ? { protList: proteinsForDay(day) } : {}),
+  }))
 }
 
-export const dishById = (s: Settings, id: string): Dish | null => allDishes(s).find(d => d.id === id) ?? null
+/** Every dish the customer can see today: dish of the day first, then the fixed specials. */
+export function allDishes(s: Settings, now = new Date()): Dish[] {
+  const d = dailyDish(s)
+  return [...(d ? [d] : []), ...specials(s, now)]
+}
+
+export const dishById = (s: Settings, id: string, now = new Date()): Dish | null => allDishes(s, now).find(d => d.id === id) ?? null
 
 export const isDishSoldOut = (s: Settings, d: Dish) => !d.avail || !!s.soldDishes[d.id]
 

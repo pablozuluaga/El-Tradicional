@@ -12,11 +12,16 @@ export const PROTEINS: Opt[] = [
   { id: 'molida', label: 'Carne molida' },
 ]
 
+/** Only offered on Saturdays, in the dishes with a protein choice. */
+export const SATURDAY_PROTEINS: Opt[] = [{ id: 'lengua', label: 'Lengua' }]
+
 const sopa = (id: string, label: string): Opt[] => [
   { id, label },
   { id: 'frijoles', label: 'Frijoles' },
   { id: 'sinsopa', label: 'Sin sopa' },
 ]
+
+const WEEKEND_SOPAS: Opt[] = [{ id: 'frijoles', label: 'Frijoles' }, { id: 'sinsopa', label: 'Sin sopa' }]
 
 export const DAY_ORDER: DayId[] = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo']
 export const WEEKEND: DayId[] = ['sabado', 'domingo']
@@ -45,11 +50,13 @@ export const DAILY_MENUS: DailyMenu[] = [
   { day: 'viernes', label: 'Viernes', price: 20000, priceDom: 20000, drink: false,
     desc: 'Crema de ahuyama o de fríjoles acompañada de proteína al gusto, arroz, papa criolla frita, maduro, ensalada y arepa.',
     sopas: sopa('ahuyama', 'Crema de ahuyama'),
-    proteins: [...PROTEINS], defProt: 'res',
+    proteins: [{ id: 'costilla', label: 'Costilla' }, ...PROTEINS], defProt: 'costilla',
     rem: R('Arroz', 'Papa criolla frita', 'Maduro', 'Ensalada', 'Arepa') },
-  { day: 'sabado', label: 'Sábado', name: 'Mondongo', price: 35000, priceDom: 35000, drink: true, img: '/assets/mondongo.webp',
+  // Mondongo and sancocho are soups themselves: no soup choice. Their `sopas` are what the other
+  // dishes with soup (e.g. Bandeja Especial) offer that day.
+  { day: 'sabado', label: 'Sábado', name: 'Mondongo', soupDish: true, sopas: WEEKEND_SOPAS, price: 35000, priceDom: 35000, drink: true, img: '/assets/mondongo.webp',
     desc: 'Arroz, aguacate, banano, arepa y ensalada. Guandolo o jugo.', rem: R('Arroz', 'Aguacate', 'Banano', 'Arepa', 'Ensalada') },
-  { day: 'domingo', label: 'Domingo', name: 'Sancocho trifásico', price: 35000, priceDom: 35000, drink: true, img: '/assets/sancocho.webp',
+  { day: 'domingo', label: 'Domingo', name: 'Sancocho trifásico', soupDish: true, sopas: WEEKEND_SOPAS, price: 35000, priceDom: 35000, drink: true, img: '/assets/sancocho.webp',
     desc: 'Arroz, aguacate, arepa y ensalada. Guandolo o jugo.', rem: R('Arroz', 'Aguacate', 'Arepa', 'Ensalada') },
 ]
 
@@ -57,10 +64,12 @@ export const MENU: Dish[] = [
   { id: 'paisa', cat: 'Especiales', name: 'Bandeja Paisa', price: 35000, tag: 'La favorita', img: '/assets/bandeja-paisa.webp', avail: true, drink: true, proteins: true,
     desc: 'Arroz, frijol, ensalada, papa a la francesa, maduro, chorizo, molida, chicharrón, aguacate, huevo y arepa. Guandolo o jugo.',
     rem: R('Arroz', 'Frijol', 'Ensalada', 'Papa a la francesa', 'Maduro', 'Chorizo', 'Molida', 'Chicharrón', 'Aguacate', 'Huevo', 'Arepa') },
-  { id: 'especial', cat: 'Especiales', name: 'Bandeja Especial', price: 25000, tag: 'A elección', img: '/assets/bandeja-especial.webp', avail: true, proteins: true,
-    desc: 'Res, cerdo, pollo, molida o chicharrón, con arroz, papa a la francesa, maduro, aguacate y huevo. Ensalada o arepa.',
-    groups: [{ id: 'acomp', short: 'ensalada o arepa', title: '¿Ensalada o arepa?', sub: 'Escoge una', options: [{ id: 'ensalada', label: 'Ensalada' }, { id: 'arepa', label: 'Arepa' }] }],
-    rem: R('Arroz', 'Papa a la francesa', 'Maduro', 'Aguacate', 'Huevo') },
+  { id: 'especial', cat: 'Especiales', name: 'Bandeja Especial', price: 25000, tag: 'A elección', img: '/assets/bandeja-especial.webp', avail: true, soup: true, proteins: true,
+    desc: 'Sopa del día. Res, cerdo, pollo, molida o chicharrón, con arroz, papa a la francesa, maduro, aguacate, huevo, ensalada y arepa.',
+    rem: R('Arroz', 'Papa a la francesa', 'Maduro', 'Aguacate', 'Huevo', 'Ensalada', 'Arepa') },
+  { id: 'cazuela', cat: 'Especiales', name: 'Cazuela de Frijoles', price: 35000, img: '/assets/cazuela.webp', avail: true, proteins: true,
+    desc: 'Frijoles con chicharrón, chorizo, carne molida, maduro y aguacate. Con arroz y arepa.',
+    rem: R('Chicharrón', 'Chorizo', 'Carne molida', 'Maduro', 'Aguacate', 'Arroz', 'Arepa') },
   { id: 'trucha', cat: 'Pescados', name: 'Trucha', price: 35000, img: '/assets/trucha.webp', avail: true,
     desc: 'Arroz con coco, patacón, ensalada y aguacate. Sopa de pescado y guandolo.',
     rem: R('Arroz con coco', 'Patacón', 'Ensalada', 'Aguacate', 'Sopa de pescado', 'Guandolo') },
@@ -144,6 +153,8 @@ export const defaultSettings = (): Settings => ({
   juices: DEFAULT_JUICES.map(j => ({ ...j })),
   promos: DEFAULT_PROMOS.map(p => ({ ...p })),
   descOverrides: {},
+  daySoups: {},
+  customDishes: [],
 })
 
 export const ORDER_NUM_START = 1043

@@ -1,5 +1,6 @@
 import { EMAIL_RE } from './format.ts'
 import { eligibilityFromCount } from './loyalty.ts'
+import { dishById } from './menu.ts'
 import { discountFor, orderTotal } from './pricing.ts'
 import type { DiscountKind, OrderDraft, Settings } from './types.ts'
 
@@ -13,6 +14,8 @@ export function validateDraft(d: OrderDraft, s: Settings): string | null {
     if (!d.zoneId) return 'Selecciona tu barrio.'
     if (!d.address.trim()) return 'Escribe la dirección de entrega.'
   }
+  const gone = d.lines.find(l => l.dishId !== 'dia' && !dishById(s, l.dishId))
+  if (gone) return `${gone.name} ya no está en el menú. Quítalo del carrito para continuar.`
   const sold = d.lines.find(l => s.soldDishes[l.dishId])
   if (sold) return `${sold.name} se agotó. Quítalo del carrito para continuar.`
   if (d.lines.some(l => l.dishId === 'dia') && !s.platoDia) return 'El menú del día ya no está disponible. Quítalo del carrito para continuar.'

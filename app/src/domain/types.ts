@@ -19,6 +19,8 @@ export interface Dish {
   avail: boolean
   availNote?: string
   drink?: boolean
+  /** true when the dish comes with a soup (the day's soups, see `soupsFor`) */
+  soup?: boolean
   /** true when the customer must pick a protein */
   proteins?: boolean
   /** protein list for this dish (daily menus); defaults to PROTEINS */
@@ -38,10 +40,27 @@ export interface DailyMenu {
   drink: boolean
   img?: string
   desc: string
-  sopas?: Opt[]
+  /** default soups for the day (the owner can change them); also offered by dishes with `soup` */
+  sopas: Opt[]
+  /** the dish itself is a soup (mondongo, sancocho): no soup choice */
+  soupDish?: boolean
   proteins?: Opt[]
   defProt?: string
   rem: Opt[]
+}
+
+/** A dish the owner created from the panel. */
+export interface CustomDish {
+  id: string
+  name: string
+  cat: 'Especiales' | 'Pescados'
+  price: number
+  desc: string
+  soup: boolean
+  proteins: boolean
+  drink: boolean
+  /** ingredients the customer can ask to leave out */
+  rem: string[]
 }
 
 export interface Juice { id: string; label: string; out: boolean }
@@ -57,6 +76,9 @@ export interface Settings {
   juices: Juice[]
   promos: Promo[]
   descOverrides: Record<string, string>
+  /** the owner's soup list per day; a day missing here uses its default soups */
+  daySoups: Partial<Record<DayId, Opt[]>>
+  customDishes: CustomDish[]
 }
 
 export interface CartLine {

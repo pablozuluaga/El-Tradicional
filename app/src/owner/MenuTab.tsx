@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { newId } from '../domain/ids.ts'
-import { DAILY_MENUS, PROTEINS } from '../domain/catalog.ts'
+import { DAILY_MENUS, PROTEINS, SATURDAY_PROTEINS } from '../domain/catalog.ts'
 import { fmt } from '../domain/format.ts'
 import { dailyMenuFor, dayOffKey, descOf, isDayOff, specials } from '../domain/menu.ts'
 import type { DayId, Opt, Settings } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { Toggle } from '../ui/ui.tsx'
+import { NewDishForm } from './NewDishForm.tsx'
+import { SoupsPanel } from './SoupsPanel.tsx'
 import o from './o.module.css'
 
 const GREEN = '#2F7D46', RED = '#C8161D'
@@ -42,6 +44,7 @@ export function MenuTab() {
   const s = useSnapshot().settings
   const [editing, setEditing] = useState<string | null>(null)
   const [newJuice, setNewJuice] = useState('')
+  const [creating, setCreating] = useState(false)
   const upd = (fn: (s: Settings) => Partial<Settings>) => { void store.updateSettings(fn) }
   const m = dailyMenuFor(s.platoDia)
 
@@ -84,10 +87,9 @@ export function MenuTab() {
             <div style={{ fontWeight: 600, fontSize: 15, marginTop: 4 }}>{m.name ?? 'Menú del día'}</div>
             <DescEditor key={m.day} id={m.day} current={descOf(s, m.day, m.desc)} editing={editing === m.day} onEdit={() => setEditing(m.day)} onClose={() => setEditing(null)} />
             <div style={{ fontSize: 12.5, marginTop: 6 }}>{fmt(m.price)}</div>
-            {(m.sopas || m.proteins) && (
+            {m.proteins && (
               <div style={{ marginTop: 13 }}>
-                {m.sopas && <><div className={o.optHead}>Sopas · toca para quitar o poner</div>{dayOpts(m.day, 'sopa', m.sopas)}</>}
-                {m.proteins && <><div className={o.optHead} style={{ margin: '13px 0 7px' }}>Proteínas · toca para quitar o poner</div>{dayOpts(m.day, 'prot', m.proteins)}</>}
+                <div className={o.optHead}>Proteínas · toca para quitar o poner</div>{dayOpts(m.day, 'prot', m.proteins)}
               </div>
             )}
             <button type="button" className={o.smallGhost} style={{ marginTop: 10, color: '#fff', borderRadius: 10, fontSize: 12.5, fontWeight: 600, padding: '8px 14px' }} onClick={() => upd(() => ({ platoDia: null }))}>Quitar del menú</button>
@@ -96,6 +98,8 @@ export function MenuTab() {
           <div style={{ marginTop: 12, fontSize: 12.5, color: '#a08a7a' }}>Sin elegir: el menú del día no aparece en la app del cliente.</div>
         )}
       </div>
+
+      <SoupsPanel />
 
       <div className={o.label}>Bebidas: incluidas con el plato</div>
       <div className={o.list} style={{ gap: 9, marginBottom: 12 }}>
@@ -117,7 +121,7 @@ export function MenuTab() {
 
       <div className={o.label}>Proteínas: apaga lo que se agotó</div>
       <div className={o.list} style={{ gap: 9, marginBottom: 18 }}>
-        {PROTEINS.map(p => {
+        {[...PROTEINS, ...SATURDAY_PROTEINS.map(p => ({ ...p, label: p.label + ' (solo sábados)' }))].map(p => {
           const out = !!s.soldProteins[p.id]
           return (
             <div key={p.id} className={o.row}>
@@ -133,6 +137,7 @@ export function MenuTab() {
       <div className={o.list} style={{ gap: 9 }}>
         {specials(s).map(d => {
           const out = !!s.soldDishes[d.id]
+          const custom = s.customDishes.some(c => c.id === d.id)
           return (
             <div key={d.id} className={o.row} style={{ display: 'block' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
@@ -143,9 +148,16 @@ export function MenuTab() {
               <div style={{ marginTop: 4 }}>
                 <DescEditor key={d.id} id={d.id} current={d.desc} editing={editing === d.id} onEdit={() => setEditing(d.id)} onClose={() => setEditing(null)} />
               </div>
+              {custom && (
+                <button type="button" className={o.quitar} style={{ marginTop: 8 }}
+                  onClick={() => { if (confirm(`¿Eliminar ${d.name} del menú?`)) upd(st => ({ customDishes: st.customDishes.filter(c => c.id !== d.id) })) }}>Eliminar plato</button>
+              )}
             </div>
           )
         })}
+        {creating
+          ? <NewDishForm onDone={() => setCreating(false)} />
+          : <button type="button" className={o.redBtn} style={{ padding: 12 }} onClick={() => setCreating(true)}>+ Crear plato</button>}
       </div>
     </>
   )

@@ -6,7 +6,21 @@
     <meta name="theme-color" content="#FFFFFF" />
     <meta name="description" content="El Tradicional · Cocina típica en Envigado. Pide tu almuerzo a domicilio o para recoger." />
     <link rel="icon" type="image/png" href="/icon-192.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" id="app-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" id="app-manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" id="app-title" content="El Tradicional" />
+    <script>
+      // The owner panel installs as its own app ("ET Dueño", opens at /admin, dark icon).
+      // Swap before the browser reads the manifest so "Install" / "Add to Home Screen" picks it up.
+      if (location.pathname === '/admin' || location.pathname.indexOf('/admin/') === 0) {
+        document.getElementById('app-manifest').setAttribute('href', '/admin.webmanifest')
+        document.getElementById('app-touch-icon').setAttribute('href', '/owner-apple-touch-icon.png')
+        document.getElementById('app-title').setAttribute('content', 'ET Dueño')
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', '#14110E')
+        document.title = 'Panel · El Tradicional'
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />

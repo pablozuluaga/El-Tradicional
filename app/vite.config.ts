@@ -8,22 +8,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'assets/logo.jpeg'],
-      manifest: {
-        name: 'El Tradicional',
-        short_name: 'El Tradicional',
-        description: 'Cocina típica · Envigado. Pide tu almuerzo a domicilio o para recoger.',
-        lang: 'es-CO',
-        start_url: '/',
-        scope: '/',
-        display: 'standalone',
-        background_color: '#FFFFFF',
-        theme_color: '#C8161D',
-        icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-        ],
-      },
+      includeAssets: ['apple-touch-icon.png', 'icon-192.png', 'owner-apple-touch-icon.png', 'owner-icon-192.png', 'assets/logo.jpeg'],
+      // Two apps from one site: public/manifest.webmanifest (customers, /) and
+      // public/admin.webmanifest (owner, /admin); index.html links the right one.
+      manifest: false,
       workbox: {
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],

@@ -12,9 +12,6 @@ export const PROTEINS: Opt[] = [
   { id: 'molida', label: 'Carne molida' },
 ]
 
-/** Only offered on Saturdays, in the dishes with a protein choice. */
-export const SATURDAY_PROTEINS: Opt[] = [{ id: 'lengua', label: 'Lengua' }]
-
 const sopa = (id: string, label: string): Opt[] => [
   { id, label },
   { id: 'frijoles', label: 'Frijoles' },
@@ -28,55 +25,73 @@ export const WEEKEND: DayId[] = ['sabado', 'domingo']
 
 export const DAILY_MENUS: DailyMenu[] = [
   { day: 'lunes', label: 'Lunes', price: 20000, priceDom: 20000, drink: true,
-    desc: 'Sopa campesina o de fríjoles acompañada de proteína al gusto, arroz, ensalada, papa, yuca cocinada y arepa.',
+    desc: 'Carne especial del día: sudado de pollo. Sopa campesina o de fríjoles acompañada de proteína al gusto, arroz, ensalada, papa, yuca cocinada y arepa.',
     sopas: sopa('campesina', 'Sopa campesina'),
-    proteins: [{ id: 'sudadopollo', label: 'Sudado de pollo' }, ...PROTEINS], defProt: 'sudadopollo',
+    specialProts: [{ id: 'sudadopollo', label: 'Sudado de pollo' }], proteinChoice: true, defProt: 'sudadopollo',
     rem: R('Arroz', 'Ensalada', 'Papa', 'Yuca cocinada', 'Arepa') },
   { day: 'martes', label: 'Martes', price: 20000, priceDom: 20000, drink: true,
-    desc: 'Sopa de tortilla o de fríjoles acompañada de proteína al gusto, arroz, papa a la francesa, maduro y arepa.',
+    desc: 'Carne especial del día: carne desmechada o sobrebarriga. Sopa de tortilla o de fríjoles acompañada de proteína al gusto, arroz, papa a la francesa, maduro y arepa.',
     sopas: sopa('tortilla', 'Sopa de tortilla'),
-    proteins: [{ id: 'desmechada', label: 'Carne desmechada' }, { id: 'sobrebarriga', label: 'Sobrebarriga' }, ...PROTEINS], defProt: 'desmechada',
+    specialProts: [{ id: 'desmechada', label: 'Carne desmechada' }, { id: 'sobrebarriga', label: 'Sobrebarriga' }], proteinChoice: true, defProt: 'desmechada',
     rem: R('Arroz', 'Papa a la francesa', 'Maduro', 'Arepa') },
   { day: 'miercoles', label: 'Miércoles', price: 20000, priceDom: 20000, drink: true, img: '/assets/menu-miercoles.webp',
-    desc: 'Sopa de pastas o de fríjoles acompañada de proteína al gusto, arroz, papas a la francesa, maduro, ensalada y arepa.',
+    desc: 'Carne especial del día: albóndigas. Sopa de pastas o de fríjoles acompañada de proteína al gusto, arroz, papas a la francesa, maduro, ensalada y arepa.',
     sopas: sopa('pastas', 'Sopa de pastas'),
-    proteins: [{ id: 'albondigas', label: 'Albóndigas' }, ...PROTEINS], defProt: 'albondigas',
+    specialProts: [{ id: 'albondigas', label: 'Albóndigas' }], proteinChoice: true, defProt: 'albondigas',
     rem: R('Arroz', 'Papas a la francesa', 'Maduro', 'Ensalada', 'Arepa') },
   { day: 'jueves', label: 'Jueves', price: 20000, priceDom: 20000, drink: true, img: '/assets/menu-jueves.webp',
-    desc: 'Sopa de guineo o de fríjoles acompañada de proteína al gusto, arroz, papa y yuca cocinada, maduro, ensalada y arepa.',
+    desc: 'Carne especial del día: posta sudada. Sopa de guineo o de fríjoles acompañada de proteína al gusto, arroz, papa y yuca cocinada, maduro, ensalada y arepa.',
     sopas: sopa('guineo', 'Sopa de guineo'),
-    proteins: [{ id: 'posta', label: 'Posta sudada' }, ...PROTEINS], defProt: 'posta',
+    specialProts: [{ id: 'posta', label: 'Posta sudada' }], proteinChoice: true, defProt: 'posta',
     rem: R('Arroz', 'Papa cocinada', 'Yuca cocinada', 'Maduro', 'Ensalada', 'Arepa') },
-  { day: 'viernes', label: 'Viernes', price: 20000, priceDom: 20000, drink: false,
-    desc: 'Crema de ahuyama o de fríjoles acompañada de proteína al gusto, arroz, papa criolla frita, maduro, ensalada y arepa.',
+  { day: 'viernes', label: 'Viernes', price: 20000, priceDom: 20000, drink: true,
+    desc: 'Carne especial del día: costillas. Crema de ahuyama o de fríjoles acompañada de proteína al gusto, arroz, papa criolla frita, maduro, ensalada y arepa.',
     sopas: sopa('ahuyama', 'Crema de ahuyama'),
-    proteins: [{ id: 'costilla', label: 'Costilla' }, ...PROTEINS], defProt: 'costilla',
+    specialProts: [{ id: 'costilla', label: 'Costillas' }], proteinChoice: true, defProt: 'costilla',
     rem: R('Arroz', 'Papa criolla frita', 'Maduro', 'Ensalada', 'Arepa') },
-  // Mondongo and sancocho are soups themselves: no soup choice. Their `sopas` are what the other
-  // dishes with soup (e.g. Bandeja Especial) offer that day.
-  { day: 'sabado', label: 'Sábado', name: 'Mondongo', soupDish: true, sopas: WEEKEND_SOPAS, price: 35000, priceDom: 35000, drink: true, img: '/assets/mondongo.webp',
+  // Mondongo and sancocho are soups themselves: no soup and no protein choice. The day's soups and
+  // special proteins go to the other dishes that offer them (Bandeja Especial, Cazuela…).
+  { day: 'sabado', label: 'Sábado', name: 'Mondongo', soupDish: true, sopas: WEEKEND_SOPAS, proteinChoice: false,
+    specialProts: [{ id: 'lengua', label: 'Lengua' }], price: 35000, priceDom: 35000, drink: true, img: '/assets/mondongo.webp',
     desc: 'Arroz, aguacate, banano, arepa y ensalada. Guandolo o jugo.', rem: R('Arroz', 'Aguacate', 'Banano', 'Arepa', 'Ensalada') },
-  { day: 'domingo', label: 'Domingo', name: 'Sancocho trifásico', soupDish: true, sopas: WEEKEND_SOPAS, price: 35000, priceDom: 35000, drink: true, img: '/assets/sancocho.webp',
+  { day: 'domingo', label: 'Domingo', name: 'Sancocho trifásico', soupDish: true, sopas: WEEKEND_SOPAS, proteinChoice: false,
+    specialProts: [{ id: 'sudadoposta', label: 'Sudado de posta' }], price: 35000, priceDom: 35000, drink: true, img: '/assets/sancocho.webp',
     desc: 'Arroz, aguacate, arepa y ensalada. Guandolo o jugo.', rem: R('Arroz', 'Aguacate', 'Arepa', 'Ensalada') },
 ]
+
+export const EXTRAS_CAT = 'Bebidas y postres'
+export const EXTRA_JUICE_IDS = ['jugoagua', 'jugoleche']
+export const DESSERT_ID = 'postre'
 
 export const MENU: Dish[] = [
   { id: 'paisa', cat: 'Especiales', name: 'Bandeja Paisa', price: 35000, tag: 'La favorita', img: '/assets/bandeja-paisa.webp', avail: true, drink: true, proteins: true,
     desc: 'Arroz, frijol, ensalada, papa a la francesa, maduro, chorizo, molida, chicharrón, aguacate, huevo y arepa. Guandolo o jugo.',
     rem: R('Arroz', 'Frijol', 'Ensalada', 'Papa a la francesa', 'Maduro', 'Chorizo', 'Molida', 'Chicharrón', 'Aguacate', 'Huevo', 'Arepa') },
-  { id: 'especial', cat: 'Especiales', name: 'Bandeja Especial', price: 25000, tag: 'A elección', img: '/assets/bandeja-especial.webp', avail: true, soup: true, proteins: true,
+  { id: 'especial', cat: 'Especiales', name: 'Bandeja Especial', price: 25000, tag: 'A elección', img: '/assets/bandeja-especial.webp', avail: true, soup: true, proteins: true, drink: true,
     desc: 'Sopa del día. Res, cerdo, pollo, molida o chicharrón, con arroz, papa a la francesa, maduro, aguacate, huevo, ensalada y arepa.',
     rem: R('Arroz', 'Papa a la francesa', 'Maduro', 'Aguacate', 'Huevo', 'Ensalada', 'Arepa') },
-  { id: 'cazuela', cat: 'Especiales', name: 'Cazuela de Frijoles', price: 35000, img: '/assets/cazuela.webp', avail: true, proteins: true,
-    desc: 'Frijoles con chicharrón, chorizo, carne molida, maduro y aguacate. Con arroz y arepa.',
-    rem: R('Chicharrón', 'Chorizo', 'Carne molida', 'Maduro', 'Aguacate', 'Arroz', 'Arepa') },
-  { id: 'trucha', cat: 'Pescados', name: 'Trucha', price: 35000, img: '/assets/trucha.webp', avail: true,
+  { id: 'cazuela', cat: 'Especiales', name: 'Cazuela de Frijoles', price: 35000, img: '/assets/cazuela.webp', avail: true, proteins: true, drink: true,
+    desc: 'Sopa de frijoles, maicitos, ripio de papa, platanitos, chicharrón, aguacate, chorizo, arroz y arepa.',
+    rem: R('Maicitos', 'Ripio de papa', 'Platanitos', 'Chicharrón', 'Aguacate', 'Chorizo', 'Arroz', 'Arepa') },
+  { id: 'lengua', cat: 'Especiales', name: 'Lengua', price: 35000, tag: 'Solo sábados', img: '/assets/menu-dia.webp', avail: true, days: ['sabado'], soup: true, drink: true,
+    desc: 'Lengua acompañada de arroz, papa cocinada, yuca cocinada, ensalada, arepa y la sopa del día.',
+    rem: R('Arroz', 'Papa cocinada', 'Yuca cocinada', 'Ensalada', 'Arepa') },
+  { id: 'trucha', cat: 'Pescados', name: 'Trucha', price: 35000, img: '/assets/trucha.webp', avail: true, drink: true,
     desc: 'Arroz con coco, patacón, ensalada y aguacate. Sopa de pescado y guandolo.',
     rem: R('Arroz con coco', 'Patacón', 'Ensalada', 'Aguacate', 'Sopa de pescado', 'Guandolo') },
-  { id: 'tilapia', cat: 'Pescados', name: 'Tilapia', price: 35000, img: '/assets/tilapia.webp', avail: true,
+  { id: 'tilapia', cat: 'Pescados', name: 'Tilapia', price: 35000, img: '/assets/tilapia.webp', avail: true, drink: true,
     desc: 'Arroz con coco, patacón, ensalada y aguacate. Sopa de pescado y guandolo.',
     rem: R('Arroz con coco', 'Patacón', 'Ensalada', 'Aguacate', 'Sopa de pescado', 'Guandolo') },
+  // Bought apart (every dish already includes a juice).
+  { id: 'jugoagua', cat: EXTRAS_CAT, name: 'Jugo en agua', price: 10000, icon: '🥤', avail: true, desc: 'Jugo natural en agua, aparte del que incluye tu plato.', rem: [] },
+  { id: 'jugoleche', cat: EXTRAS_CAT, name: 'Jugo en leche', price: 12000, icon: '🥛', avail: true, desc: 'Jugo natural en leche, aparte del que incluye tu plato.', rem: [] },
+  { id: 'postre', cat: EXTRAS_CAT, name: 'Postre', price: 13000, icon: '🍰', avail: true, desc: 'Postre de la casa. Escoge el sabor.', rem: [],
+    groups: [{ id: 'sabor', short: 'sabor', title: 'Elige el sabor', sub: 'Escoge uno', options: [] }] },
 ]
+
+export const DESSERT_FLAVORS: Opt[] = [
+  'Limón', 'Café', 'Tiramisú', 'Cheesecake Oreo', 'Maracuyá', 'Napoleón', 'Arequipe', 'Cheesecake Milo', 'Cheesecake Mora',
+].map(label => ({ id: label.normalize('NFD').replace(/[^a-zA-Z]/g, '').toLowerCase(), label }))
 
 export const FEATURED_IDS = ['paisa', 'especial', 'trucha']
 
@@ -109,7 +124,11 @@ export const ZONES: Zone[] = [
   { id: 'portal', label: 'El Portal', fee: 5000 },
   { id: 'san_mateo', label: 'San Mateo', fee: 2000 },
   { id: 'camino_verde', label: 'Camino Verde', fee: 5000 },
+  { id: 'viviendas_sur', label: 'Viviendas del Sur', fee: 10000 },
 ]
+
+/** Barrio not in the list: the customer types it and the owner sets the fee on the order. */
+export const OTHER_ZONE_ID = 'otro'
 
 export const PAYS = [
   { id: 'efectivo', label: 'Efectivo (contra entrega)' },
@@ -154,6 +173,8 @@ export const defaultSettings = (): Settings => ({
   promos: DEFAULT_PROMOS.map(p => ({ ...p })),
   descOverrides: {},
   daySoups: {},
+  dayProteins: {},
+  soldFlavors: {},
   customDishes: [],
 })
 

@@ -306,6 +306,12 @@ export class SupabaseStore implements RestaurantStore {
     await this.refreshOrder(num)
   }
 
+  async setDeliveryFee(num: number, fee: number) {
+    const { error } = await this.sb.rpc('set_delivery_fee', { p_num: num, p_fee: Math.round(fee) })
+    if (error) fail(error)
+    await this.refreshOrder(num)
+  }
+
   private rangeQuery(from: string, to: string, head: boolean) {
     const { desde, hasta } = reportRange(from, to)
     let q = head

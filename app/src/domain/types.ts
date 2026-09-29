@@ -16,9 +16,13 @@ export interface Dish {
   priceDom?: number
   tag?: string
   img?: string
+  /** shown instead of a photo (juices, desserts) */
+  icon?: string
   avail: boolean
   availNote?: string
   drink?: boolean
+  /** only served on these days (e.g. Lengua on Saturdays); every day when missing */
+  days?: DayId[]
   /** true when the dish comes with a soup (the day's soups, see `soupsFor`) */
   soup?: boolean
   /** true when the customer must pick a protein */
@@ -42,9 +46,12 @@ export interface DailyMenu {
   desc: string
   /** default soups for the day (the owner can change them); also offered by dishes with `soup` */
   sopas: Opt[]
+  /** default special proteins of the day (the owner can add or remove them) */
+  specialProts: Opt[]
   /** the dish itself is a soup (mondongo, sancocho): no soup choice */
   soupDish?: boolean
-  proteins?: Opt[]
+  /** weekday menus: the customer picks the protein (the day's specials first, then PROTEINS) */
+  proteinChoice: boolean
   defProt?: string
   rem: Opt[]
 }
@@ -78,6 +85,10 @@ export interface Settings {
   descOverrides: Record<string, string>
   /** the owner's soup list per day; a day missing here uses its default soups */
   daySoups: Partial<Record<DayId, Opt[]>>
+  /** the owner's special proteins per day; a day missing here uses its defaults */
+  dayProteins: Partial<Record<DayId, Opt[]>>
+  /** dessert flavors switched off */
+  soldFlavors: Record<string, boolean>
   customDishes: CustomDish[]
 }
 
@@ -120,6 +131,8 @@ export interface Order {
   discount: number
   discountKind: DiscountKind | null
   delivery: number
+  /** barrio "Otro": the owner still has to set the delivery fee */
+  deliveryPending: boolean
   total: number
   pay: string
   createdAt: string

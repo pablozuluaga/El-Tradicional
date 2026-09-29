@@ -29,11 +29,15 @@ create table if not exists public.settings (
   desc_overrides jsonb not null default '{}'::jsonb,
   day_soups      jsonb not null default '{}'::jsonb,
   custom_dishes  jsonb not null default '[]'::jsonb,
+  day_proteins   jsonb not null default '{}'::jsonb,
+  sold_flavors   jsonb not null default '{}'::jsonb,
   updated_at     timestamptz not null default now()
 );
 -- Columns added after the first release (re-running this file adds them to an existing project).
 alter table public.settings add column if not exists day_soups     jsonb not null default '{}'::jsonb;
 alter table public.settings add column if not exists custom_dishes jsonb not null default '[]'::jsonb;
+alter table public.settings add column if not exists day_proteins  jsonb not null default '{}'::jsonb;
+alter table public.settings add column if not exists sold_flavors  jsonb not null default '{}'::jsonb;
 insert into public.settings (id) values (1) on conflict (id) do nothing;
 
 create or replace function public.touch_updated_at() returns trigger
@@ -73,6 +77,7 @@ create table if not exists public.orders (
   discount       integer not null default 0 check (discount >= 0),
   discount_kind  text check (discount_kind in ('primer','diez')),
   delivery       integer not null default 0 check (delivery >= 0),
+  delivery_pending boolean not null default false,
   total          integer not null check (total >= 0),
   pay            text not null check (char_length(pay) <= 80),
   status         text not null default 'nuevo' check (status in ('nuevo','aceptado','camino','listo','rechazado')),
@@ -84,6 +89,8 @@ create table if not exists public.orders (
   owner_seen_id  bigint not null default 0,
   created_at     timestamptz not null default now()
 );
+-- barrio "Otro": the owner sets the delivery fee afterwards (added after the first release)
+alter table public.orders add column if not exists delivery_pending boolean not null default false;
 create index if not exists orders_customer_idx on public.orders (customer_id);
 create index if not exists orders_email_idx on public.orders (lower(email));
 create index if not exists orders_created_idx on public.orders (created_at desc);
@@ -180,7 +187,9 @@ declare
   v_email text := trim(coalesce(p->>'email', ''));
   v_origin text := p->>'origin';
   v_sub int := (p->>'subtotal')::int;
-  v_delivery int := case when p->>'origin' = 'domicilio' then coalesce((p->>'delivery')::int, 0) else 0 end;
+  v_pending boolean := p->>'origin' = 'domicilio' and p->>'zone_id' = 'otro';
+  v_delivery int := case when p->>'origin' = 'domicilio' and not coalesce(p->>'zone_id' = 'otro', false)
+                         then coalesce((p->>'delivery')::int, 0) else 0 end;
   elig jsonb;
   v_discount int;
   o public.orders;
@@ -200,6 +209,7 @@ begin
   if v_sub is null or v_sub < 0 or v_delivery < 0 then raise exception 'Valores inválidos.'; end if;
   if v_origin = 'domicilio' then
     if coalesce(p->>'zone_id', '') = '' then raise exception 'Selecciona tu barrio.'; end if;
+    if v_pending and char_length(trim(coalesce(p->>'zone_label', ''))) = 0 then raise exception 'Escribe el nombre de tu barrio.'; end if;
     if char_length(trim(coalesce(p->>'address', ''))) = 0 then raise exception 'Escribe la dirección de entrega.'; end if;
   end if;
   if exists (select 1 from jsonb_array_elements(p->'lines') l where coalesce((s.sold_dishes ->> (l->>'dishId'))::boolean, false)) then
@@ -213,15 +223,15 @@ begin
   v_discount := round(v_sub * (elig->>'rate')::numeric);
 
   insert into public.orders (customer_id, name, email, phone, origin, zone_id, zone_label, address, address_notes,
-                             items, items_list, lines, subtotal, discount, discount_kind, delivery, total, pay)
+                             items, items_list, lines, subtotal, discount, discount_kind, delivery, delivery_pending, total, pay)
   values (uid, trim(p->>'name'), v_email, coalesce(nullif(trim(p->>'phone'), ''), '—'), v_origin,
           case when v_origin = 'domicilio' then p->>'zone_id' end,
-          case when v_origin = 'domicilio' then p->>'zone_label' end,
+          case when v_origin = 'domicilio' then left(trim(p->>'zone_label'), 80) end,
           case when v_origin = 'domicilio' then trim(p->>'address') else 'Recoge en el local' end,
           case when v_origin = 'domicilio' then trim(coalesce(p->>'address_notes', '')) else '' end,
           p->>'items', p->'items_list', p->'lines', v_sub, v_discount,
           case when v_discount > 0 then elig->>'kind' end,
-          v_delivery, greatest(0, v_sub - v_discount + v_delivery), coalesce(p->>'pay', 'Efectivo (contra entrega)'))
+          v_delivery, coalesce(v_pending, false), greatest(0, v_sub - v_discount + v_delivery), coalesce(p->>'pay', 'Efectivo (contra entrega)'))
   returning * into o;
 
   insert into public.order_messages (order_num, sender, body)
@@ -256,6 +266,27 @@ begin
   update public.orders set status = 'rechazado', reject_reason = r where num = p_num returning * into o;
   insert into public.order_messages (order_num, sender, body)
   values (p_num, 'dueno', 'Lamentamos informarte que no pudimos procesar tu pedido: ' || r || '. Acepta nuestras disculpas.');
+  return o;
+end $$;
+
+create or replace function public._money(p int) returns text
+language sql immutable set search_path = '' as $$ select '$' || replace(to_char(p, 'FM999,999,999'), ',', '.') $$;
+
+-- Barrio "Otro": the owner sets the delivery fee; the total is updated and the customer is told by chat.
+create or replace function public.set_delivery_fee(p_num bigint, p_fee int) returns public.orders
+language plpgsql security definer set search_path = '' as $$
+declare o public.orders;
+begin
+  if not public.is_owner() then raise exception 'Solo el dueño puede actualizar pedidos.' using errcode = '42501'; end if;
+  if p_fee is null or p_fee < 0 or p_fee > 100000 then raise exception 'Valor de domicilio inválido.'; end if;
+  select * into o from public.orders where num = p_num for update;
+  if not found then raise exception 'Pedido no encontrado.'; end if;
+  if o.origin <> 'domicilio' or o.status in ('listo', 'rechazado') then raise exception 'Este pedido ya no se puede cambiar.'; end if;
+  update public.orders set delivery = p_fee, delivery_pending = false, total = greatest(0, subtotal - discount + p_fee)
+  where num = p_num returning * into o;
+  insert into public.order_messages (order_num, sender, body)
+  values (p_num, 'dueno', 'El domicilio a ' || coalesce(o.zone_label, 'tu barrio') || ' cuesta ' || public._money(p_fee)
+                          || '. El total de tu pedido queda en ' || public._money(o.total) || '.');
   return o;
 end $$;
 
@@ -306,10 +337,12 @@ end $$;
 -- Functions are executable by PUBLIC by default; only signed-in users may call the API ones.
 revoke execute on function public.is_owner(), public._eligibility(uuid, text), public._next_status(text), public._status_note(text, text),
   public.discount_eligibility(text), public.place_order(jsonb), public.advance_order(bigint), public.reject_order(bigint, text),
-  public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean), public.touch_updated_at()
+  public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean), public.touch_updated_at(),
+  public._money(int), public.set_delivery_fee(bigint, int)
   from public, anon;
 grant execute on function public.is_owner(), public.discount_eligibility(text), public.place_order(jsonb), public.advance_order(bigint),
-  public.reject_order(bigint, text), public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean)
+  public.reject_order(bigint, text), public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean),
+  public.set_delivery_fee(bigint, int)
   to authenticated;
 revoke execute on function public._eligibility(uuid, text) from authenticated;
 

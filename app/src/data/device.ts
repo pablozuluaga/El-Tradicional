@@ -16,6 +16,8 @@ export interface DeviceState {
   cart: CartLine[]
   mode: Origin
   zone: string
+  /** barrio typed by the customer when `zone` is "Otro" */
+  zoneOther: string
   pay: string
   phone: string
   lastOrderNum: number | null
@@ -34,7 +36,7 @@ const initial = (): DeviceState => ({
   gateDone: false, tourDone: false,
   addresses: [], selectedAddr: 'new',
   cart: [],
-  mode: 'domicilio', zone: '', pay: 'efectivo', phone: '',
+  mode: 'domicilio', zone: '', zoneOther: '', pay: 'efectivo', phone: '',
   lastOrderNum: null,
 })
 

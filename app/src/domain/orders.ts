@@ -1,4 +1,5 @@
 import type { CartLine, Order, OrderLine, OrderStatus, Origin, Sender } from './types.ts'
+import { fmt } from './format.ts'
 import { unitPrice } from './pricing.ts'
 
 export const WELCOME_MSG = 'Hemos recibido tu pedido. Si necesitas algo, puedes escribirnos por este chat. 🙌'
@@ -32,6 +33,12 @@ export function itemsDetail(cart: CartLine[]): string[] {
 
 export const orderLines = (cart: CartLine[], mode: Origin): OrderLine[] =>
   cart.map(c => ({ dishId: c.dishId, name: c.name, qty: c.qty, unit: unitPrice(c, mode) }))
+
+/** Chat note when the owner sets the fee for a barrio outside the list (same text as `set_delivery_fee`). */
+export const deliveryFeeNote = (barrio: string, fee: number, total: number) =>
+  `El domicilio a ${barrio} cuesta ${fmt(fee)}. El total de tu pedido queda en ${fmt(total)}.`
+
+export const MAX_DELIVERY_FEE = 100000
 
 export const originLabel = (o: Origin) => (o === 'domicilio' ? 'Domicilio' : 'Recoger en el local')
 

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { newId } from '../../domain/ids.ts'
 import { useNavigate } from 'react-router-dom'
-import { PAYS, ZONES } from '../../domain/catalog.ts'
+import { OTHER_ZONE_ID, PAYS, ZONES } from '../../domain/catalog.ts'
 import { fmt } from '../../domain/format.ts'
 import { discountName } from '../../domain/loyalty.ts'
 import { itemsDetail, itemsSummary, orderLines } from '../../domain/orders.ts'
-import { deliveryFee, discountFor, orderTotal, subtotal, zoneById } from '../../domain/pricing.ts'
+import { deliveryFee, discountFor, isOtherZone, orderTotal, subtotal, zoneById } from '../../domain/pricing.ts'
 import type { OrderDraft } from '../../domain/types.ts'
 import type { Address } from '../../data/device.ts'
 import { useDevice, useSnapshot, useStore } from '../../data/hooks.ts'
@@ -26,7 +26,10 @@ export function Checkout() {
   const [busy, setBusy] = useState(false)
 
   const dom = dev.mode === 'domicilio'
-  const zone = zoneById(dev.zone)
+  const other = isOtherZone(dev.mode, dev.zone || null)
+  const otherName = dev.zoneOther.trim()
+  // "Otro" isn't in ZONES: the customer types the barrio and the owner sets the fee on the order
+  const zone = other ? { id: OTHER_ZONE_ID, label: otherName, fee: 0 } : zoneById(dev.zone)
   const sub = subtotal(dev.cart, dev.mode)
   const discount = discountFor(sub, snap.eligibility.rate)
   const fee = deliveryFee(dev.mode, dev.zone || null)
@@ -50,6 +53,7 @@ export function Checkout() {
     let addr = saved
     if (dom) {
       if (!zone) { setError('Selecciona tu barrio.'); return }
+      if (other && !otherName) { setError('Escribe el nombre de tu barrio.'); return }
       addr = formOpen ? saveAddr() : saved
       if (!addr) { setError('Escribe la dirección de entrega.'); return }
     }
@@ -100,10 +104,18 @@ export function Checkout() {
             <div className={k.selectWrap}>
               <select id="barrio" required className={k.select} value={dev.zone} onChange={e => { setDev({ zone: e.target.value }); setError('') }}>
                 <option value="" disabled>Selecciona tu barrio…</option>
-                {ZONES.map(z => <option key={z.id} value={z.id}>{z.label + (z.fee === 0 ? ' — Sin costo' : ' — ' + fmt(z.fee))}</option>)}
+                {ZONES.map(z => <option key={z.id} value={z.id}>{z.label}</option>)}
+                <option value={OTHER_ZONE_ID}>Otro (escribe tu barrio)</option>
               </select>
               <span className={k.caret}>▾</span>
             </div>
+            {other && (
+              <>
+                <input className={k.phone} style={{ marginTop: -8 }} value={dev.zoneOther} onChange={e => { setDev({ zoneOther: e.target.value }); setError('') }}
+                  placeholder="¿En qué barrio estás?" aria-label="Tu barrio" maxLength={80} autoFocus />
+                <div className={k.hours} style={{ marginTop: -10, marginBottom: 18 }}>Te confirmamos por el chat el valor del domicilio a tu barrio.</div>
+              </>
+            )}
 
             <div className={c.label}>¿A dónde lo llevamos? <span className={c.req}>*</span></div>
             <div className={k.stack}>
@@ -150,9 +162,9 @@ export function Checkout() {
         <div className={k.row}><span>Subtotal</span><span>{fmt(sub)}</span></div>
         {discount > 0 && <div className={k.row} style={{ color: 'var(--red)' }}><span>{discountName(snap.eligibility.kind)}</span><span>−{fmt(discount)}</span></div>}
         <div className={k.row} style={{ marginBottom: 10 }}>
-          <span>Domicilio ({dom ? (zone ? zone.label : '—') : 'recoge en local'})</span><span>{dom ? fmt(fee) : 'Recoge'}</span>
+          <span>Domicilio{dom ? '' : ' (recoge en local)'}</span><span>{!dom ? 'Recoge' : other ? 'Por confirmar' : zone ? fmt(fee) : '—'}</span>
         </div>
-        <div className={k.total}><span>Total</span><span>{fmt(total)}</span></div>
+        <div className={k.total}><span>Total{other ? ' + domicilio' : ''}</span><span>{fmt(total)}</span></div>
         {error && <div className={c.error} role="alert">{error}</div>}
         <button type="button" className={c.primary} disabled={busy} onClick={place}>{busy ? 'Enviando…' : 'Hacer pedido'}</button>
       </div>

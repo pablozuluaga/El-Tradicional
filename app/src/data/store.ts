@@ -31,6 +31,8 @@ export interface RestaurantStore {
   updateSettings(fn: (s: Settings) => Partial<Settings>): Promise<void>
   advanceOrder(num: number): Promise<void>
   rejectOrder(num: number, reason: string): Promise<void>
+  /** Barrio "Otro": sets the delivery fee, updates the total and tells the customer by chat. */
+  setDeliveryFee(num: number, fee: number): Promise<void>
   reportRows(from: string, to: string): Promise<ReportRow[]>
   reportCount(from: string, to: string): Promise<number>
 

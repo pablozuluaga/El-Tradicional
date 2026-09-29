@@ -1,6 +1,7 @@
 import { defaultSettings, ORDER_NUM_START } from '../domain/catalog.ts'
 import { countingOrders, eligibility, emailUsedElsewhere } from '../domain/loyalty.ts'
-import { advanceStep, canReject, lastMessageId, normalizeReason, rejectNote, WELCOME_MSG } from '../domain/orders.ts'
+import { advanceStep, canReject, deliveryFeeNote, lastMessageId, MAX_DELIVERY_FEE, normalizeReason, rejectNote, WELCOME_MSG } from '../domain/orders.ts'
+import { isOtherZone, orderTotal } from '../domain/pricing.ts'
 import { finalizeTotals, validateDraft } from '../domain/placement.ts'
 import { reportRows } from '../domain/report.ts'
 import type { ChatMessage, Order, OrderDraft, Settings } from '../domain/types.ts'
@@ -116,6 +117,8 @@ export class LocalStore implements RestaurantStore {
     this.write(d => {
       const err = validateDraft(draft, d.settings)
       if (err) throw new StoreError(err)
+      const deliveryPending = isOtherZone(draft.origin, draft.zoneId)
+      if (deliveryPending) draft = { ...draft, delivery: 0 }
       const count = countingOrders(d.orders, this.deviceId).length
       const totals = finalizeTotals(draft, count, emailUsedElsewhere(d.orders, this.deviceId, draft.email))
       const welcome = this.msg(d, 'dueno', WELCOME_MSG)
@@ -126,6 +129,7 @@ export class LocalStore implements RestaurantStore {
         customerId: this.deviceId,
         num,
         ...totals,
+        deliveryPending,
         createdAt: new Date().toISOString(),
         status: 'nuevo',
         rejectReason: null,
@@ -157,6 +161,18 @@ export class LocalStore implements RestaurantStore {
       o.status = 'rechazado'
       o.rejectReason = r
       o.chat.push(this.msg(d, 'dueno', rejectNote(r)))
+    })
+  }
+
+  async setDeliveryFee(num: number, fee: number) {
+    const f = Math.round(fee)
+    if (!(f >= 0 && f <= MAX_DELIVERY_FEE)) throw new StoreError('Valor de domicilio inválido.')
+    this.mutOrder(num, (o, d) => {
+      if (o.origin !== 'domicilio' || o.status === 'listo' || o.status === 'rechazado') throw new StoreError('Este pedido ya no se puede cambiar.')
+      o.delivery = f
+      o.total = orderTotal(o.subtotal, o.discount, f)
+      o.deliveryPending = false
+      o.chat.push(this.msg(d, 'dueno', deliveryFeeNote(o.zoneLabel ?? 'tu barrio', f, o.total)))
     })
   }
 

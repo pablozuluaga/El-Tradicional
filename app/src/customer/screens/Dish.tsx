@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { newId } from '../../domain/ids.ts'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { fmt } from '../../domain/format.ts'
-import { dishById, effRem, initialProtein, isDishSoldOut, proteinsOf } from '../../domain/menu.ts'
+import { DESSERT_ID, EXTRA_JUICE_IDS } from '../../domain/catalog.ts'
+import { dishById, effRem, flavorsFor, initialProtein, isDishSoldOut, isExtra, proteinsOf } from '../../domain/menu.ts'
 import type { CartLine, Dish as DishT, Settings } from '../../domain/types.ts'
 import { useDevice, useSnapshot } from '../../data/hooks.ts'
 import { BackButton } from '../../ui/ui.tsx'
@@ -27,6 +28,15 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
   const [removed, setRemoved] = useState<Record<string, boolean>>({})
   const [qty, setQty] = useState(1)
   const [note, setNote] = useState('')
+  // juices and desserts bought apart, offered at the end of every main dish
+  const [extraQty, setExtraQty] = useState<Record<string, number>>({})
+  const [flavors, setFlavors] = useState<Record<string, boolean>>({})
+  const offerExtras = !isExtra(d)
+  const juices = offerExtras ? EXTRA_JUICE_IDS.map(id => dishById(s, id)).filter((j): j is DishT => !!j && !isDishSoldOut(s, j)) : []
+  const dessert = offerExtras ? dishById(s, DESSERT_ID) : null
+  const dessertOn = !!dessert && !isDishSoldOut(s, dessert)
+  const pickedFlavors = dessertOn ? flavorsFor(s).filter(f => flavors[f.id]) : []
+  const extrasTotal = juices.reduce((t, j) => t + j.price * (extraQty[j.id] ?? 0), 0) + (dessert ? dessert.price * pickedFlavors.length : 0)
 
   const groups = d.groups ?? []
   const prots = d.proteins ? proteinsOf(d) : []
@@ -51,15 +61,23 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
       note: note.trim(),
       removed: rem.filter(r => removed[r.id]).map(r => r.label),
     }
-    setDev(st => ({ cart: [...st.cart, line] }))
+    const extra = (x: DishT, n: number, opts: string[] = []): CartLine => ({
+      key: newId(), dishId: x.id, name: x.name, cat: x.cat, basePrice: x.price, domPrice: x.priceDom || x.price, qty: n,
+      opts, proteinLabel: null, juiceLabel: null, note: '', removed: [],
+    })
+    const extras = [
+      ...juices.filter(j => (extraQty[j.id] ?? 0) > 0).map(j => extra(j, extraQty[j.id])),
+      ...(dessert ? pickedFlavors.map(f => extra(dessert, 1, [f.label])) : []),
+    ]
+    setDev(st => ({ cart: [...st.cart, line, ...extras] }))
     nav(P.cart)
   }
 
   return (
     <>
       <div className={`${c.scroll} noscroll`}>
-        <div className={x.hero}>
-          {d.img && <img src={d.img} alt={d.name} />}
+        <div className={`${x.hero} ${d.img ? '' : x.heroShort}`}>
+          {d.img ? <img src={d.img} alt={d.name} /> : d.icon && <span className={x.heroIcon} aria-hidden="true">{d.icon}</span>}
           <BackButton overPhoto onClick={() => nav(P.menu)} />
         </div>
         <div className={x.head}>
@@ -134,6 +152,38 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
           <div className={x.groupSub}>Ej: bien caliente · sin sal · empacar aparte…</div>
           <textarea className={c.textarea} value={note} onChange={e => setNote(e.target.value)} placeholder="Escribe aquí si necesitas algo especial" rows={3} maxLength={300} />
         </div>
+        {offerExtras && (
+          <div className={x.section}>
+            <div className={x.groupTitle}>¿Algo más? <span className={c.optional} style={{ fontSize: 12 }}>(opcional)</span></div>
+            <div className={x.groupSub}>Todos los platos incluyen jugo. Si quieres otro, pídelo aparte:</div>
+            {juices.map(j => {
+              const n = extraQty[j.id] ?? 0
+              const set = (v: number) => setExtraQty(q => ({ ...q, [j.id]: Math.max(0, Math.min(20, v)) }))
+              return (
+                <div key={j.id} className={x.extraRow}>
+                  <span>{j.name}<span className={x.extraPrice}>{fmt(j.price)}</span></span>
+                  <div className={x.miniStep}>
+                    <button type="button" className={x.miniBtn} aria-label={`Menos ${j.name}`} onClick={() => set(n - 1)}>–</button>
+                    <span className={x.miniQty} aria-live="polite">{n}</span>
+                    <button type="button" className={x.miniBtn} aria-label={`Más ${j.name}`} onClick={() => set(n + 1)}>+</button>
+                  </div>
+                </div>
+              )
+            })}
+            {dessertOn && dessert && (
+              <>
+                <div className={x.groupTitle} style={{ marginTop: 14 }}>Postres<span className={x.extraPrice}>{fmt(dessert.price)} c/u</span></div>
+                <div className={x.groupSub}>Toca los sabores que quieras</div>
+                <div className={x.wrap}>
+                  {flavorsFor(s).map(f => (
+                    <button key={f.id} type="button" aria-pressed={!!flavors[f.id]} className={`${x.pill} ${flavors[f.id] ? x.pillSel : ''}`}
+                      onClick={() => setFlavors(v => ({ ...v, [f.id]: !v[f.id] }))}>{f.label}{flavors[f.id] ? ' ✓' : ''}</button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
         <div style={{ height: 96 }} />
       </div>
       <div className={x.bar}>
@@ -143,7 +193,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
           <button type="button" className={x.stepBtn} aria-label="Más" onClick={() => setQty(q => Math.min(20, q + 1))}>+</button>
         </div>
         {canAdd
-          ? <button type="button" className={x.add} onClick={add}>Agregar · {fmt(d.price * qty)}</button>
+          ? <button type="button" className={x.add} onClick={add}>Agregar · {fmt(d.price * qty + extrasTotal)}</button>
           : <div className={x.blocked}>{hint}</div>}
       </div>
     </>

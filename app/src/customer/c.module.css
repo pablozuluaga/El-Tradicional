@@ -15,6 +15,7 @@
 .dishCard[aria-disabled='true'] { cursor: default; }
 .thumb { width: 74px; height: 74px; border-radius: 13px; flex: none; position: relative; background: #eee9e0; overflow: hidden; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumbIcon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 34px; }
 .soldOverlay { position: absolute; inset: 0; background: rgba(20,17,14,.62); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10.5px; font-weight: 600; text-align: center; padding: 4px; }
 .dishBody { flex: 1; min-width: 0; }
 .dishNameRow { display: flex; align-items: center; gap: 7px; }

@@ -15,6 +15,8 @@ export interface SettingsRow {
   /** added later; missing until the project runs the updated schema.sql */
   day_soups?: Settings['daySoups'] | null
   custom_dishes?: Settings['customDishes'] | null
+  day_proteins?: Settings['dayProteins'] | null
+  sold_flavors?: Settings['soldFlavors'] | null
 }
 
 export interface OrderRow {
@@ -35,6 +37,8 @@ export interface OrderRow {
   discount: number
   discount_kind: string | null
   delivery: number
+  /** added later; missing until the project runs the updated schema.sql */
+  delivery_pending?: boolean | null
   total: number
   pay: string
   status: string
@@ -61,6 +65,8 @@ export function rowToSettings(r: SettingsRow): Settings {
     promos: r.promos ?? d.promos,
     descOverrides: r.desc_overrides ?? {},
     daySoups: r.day_soups ?? {},
+    dayProteins: r.day_proteins ?? {},
+    soldFlavors: r.sold_flavors ?? {},
     customDishes: r.custom_dishes ?? [],
   }
 }
@@ -75,6 +81,8 @@ const SETTINGS_COLUMNS: Record<keyof Settings, keyof SettingsRow> = {
   promos: 'promos',
   descOverrides: 'desc_overrides',
   daySoups: 'day_soups',
+  dayProteins: 'day_proteins',
+  soldFlavors: 'sold_flavors',
   customDishes: 'custom_dishes',
 }
 
@@ -106,6 +114,7 @@ export function rowToOrder(r: OrderRow, chat: ChatMessage[]): Order {
     discount: r.discount,
     discountKind: (r.discount_kind as DiscountKind | null) ?? null,
     delivery: r.delivery,
+    deliveryPending: !!r.delivery_pending,
     total: r.total,
     pay: r.pay,
     createdAt: r.created_at,

@@ -1,4 +1,4 @@
-import { ZONES } from './catalog.ts'
+import { OTHER_ZONE_ID, ZONES } from './catalog.ts'
 import type { CartLine, Origin } from './types.ts'
 
 export const unitPrice = (c: CartLine, mode: Origin) => (mode === 'domicilio' ? c.domPrice || c.basePrice : c.basePrice)
@@ -7,8 +7,11 @@ export const subtotal = (cart: CartLine[], mode: Origin) => cart.reduce((t, c) =
 
 export const zoneById = (id: string | null) => (id ? ZONES.find(z => z.id === id) ?? null : null)
 
-/** The barrio fee replaces any delivery base price; pickup is always free. */
+/** The barrio fee replaces any delivery base price; pickup is always free, and "Otro" waits for the owner. */
 export const deliveryFee = (mode: Origin, zoneId: string | null) => (mode === 'domicilio' ? zoneById(zoneId)?.fee ?? 0 : 0)
+
+/** Barrio "Otro" (typed by the customer): the owner sets the delivery fee on the order. */
+export const isOtherZone = (mode: Origin, zoneId: string | null) => mode === 'domicilio' && zoneId === OTHER_ZONE_ID
 
 export const discountFor = (sub: number, rate: number) => Math.round(sub * rate)
 

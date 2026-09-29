@@ -1,4 +1,4 @@
-import { DAILY_MENUS, DAY_ORDER, MENU, PROTEINS, R, SATURDAY_PROTEINS, WEEKEND } from './catalog.ts'
+import { DAILY_MENUS, DAY_ORDER, DESSERT_FLAVORS, DESSERT_ID, EXTRAS_CAT, MENU, PROTEINS, R, WEEKEND } from './catalog.ts'
 import type { CustomDish, DailyMenu, DayId, Dish, Opt, OptionGroup, Settings } from './types.ts'
 
 export const DAILY_ID = 'dia'
@@ -26,6 +26,16 @@ export const daySoupList = (s: Settings, day: DayId): Opt[] => s.daySoups?.[day]
 /** The soups a customer can pick that day. */
 export const soupsFor = (s: Settings, day: DayId): Opt[] => daySoupList(s, day).filter(o => !isDayOff(s, day, 'sopa', o.id))
 
+/** The day's special proteins as the owner left them (including the ones switched off). */
+export const dayProteinList = (s: Settings, day: DayId): Opt[] => s.dayProteins?.[day] ?? dailyMenuFor(day)?.specialProts ?? []
+
+/** The day's special proteins a customer can pick. */
+export const specialProteinsFor = (s: Settings, day: DayId): Opt[] => dayProteinList(s, day).filter(o => !isDayOff(s, day, 'prot', o.id))
+
+/** True when that day's menu del día carries the protein choice (weekdays); otherwise the day's
+ *  special proteins go to the other dishes with a protein choice (weekends: lengua, sudado de posta). */
+const menuHasProteins = (day: DayId) => !!dailyMenuFor(day)?.proteinChoice
+
 const soupGroup = (s: Settings, day: DayId): OptionGroup[] => {
   const options = soupsFor(s, day)
   return options.length ? [{ id: 'sopa', short: 'sopa', title: 'Elige tu sopa', sub: 'Incluida · escoge una', options }] : []
@@ -36,7 +46,9 @@ export function dailyDish(s: Settings): Dish | null {
   const m = dailyMenuFor(s.platoDia)
   if (!m) return null
   const groups = m.soupDish ? [] : soupGroup(s, m.day)
-  const protList = (m.proteins ?? []).filter(o => !isDayOff(s, m.day, 'prot', o.id))
+  const protList = m.proteinChoice
+    ? [...specialProteinsFor(s, m.day), ...PROTEINS.filter(o => !isDayOff(s, m.day, 'prot', o.id))]
+    : []
   const defProt = protList.some(x => x.id === m.defProt) ? m.defProt! : (protList[0]?.id ?? null)
   const weekend = WEEKEND.includes(m.day)
   return {
@@ -65,18 +77,32 @@ const customToDish = (c: CustomDish): Dish => ({
   soup: c.soup, proteins: c.proteins, drink: c.drink, desc: c.desc, rem: R(...c.rem),
 })
 
-/** Proteins offered by the fixed and owner-created dishes on a given day (Lengua only on Saturdays). */
-export const proteinsForDay = (day: DayId): Opt[] => (day === 'sabado' ? [...PROTEINS, ...SATURDAY_PROTEINS] : PROTEINS)
+/** Proteins offered by the fixed and owner-created dishes on a given day. */
+export const proteinsForDay = (s: Settings, day: DayId): Opt[] =>
+  menuHasProteins(day) ? PROTEINS : [...PROTEINS, ...specialProteinsFor(s, day)]
 
-/** The fixed dishes plus the ones the owner created, with that day's soups and proteins. */
-export function specials(s: Settings, now = new Date()): Dish[] {
+const flavorGroup = (s: Settings): OptionGroup => ({
+  id: 'sabor', short: 'sabor', title: 'Elige el sabor', sub: 'Escoge uno',
+  options: DESSERT_FLAVORS.filter(f => !s.soldFlavors?.[f.id]),
+})
+
+/** Dessert flavors the customer can pick now. */
+export const flavorsFor = (s: Settings): Opt[] => flavorGroup(s).options
+
+/**
+ * The fixed dishes plus the ones the owner created, with that day's soups and proteins.
+ * Dishes limited to other days (Lengua on Saturdays) are left out unless `allDays` (owner panel).
+ */
+export function specials(s: Settings, now = new Date(), allDays = false): Dish[] {
   const day = serviceDay(s, now)
-  return [...MENU, ...(s.customDishes ?? []).map(customToDish)].map(d => ({
-    ...d,
-    desc: descOf(s, d.id, d.desc),
-    groups: [...(d.soup ? soupGroup(s, day) : []), ...(d.groups ?? [])],
-    ...(d.proteins ? { protList: proteinsForDay(day) } : {}),
-  }))
+  return [...MENU, ...(s.customDishes ?? []).map(customToDish)]
+    .filter(d => allDays || !d.days || d.days.includes(day))
+    .map(d => ({
+      ...d,
+      desc: descOf(s, d.id, d.desc),
+      groups: [...(d.soup ? soupGroup(s, day) : []), ...(d.id === DESSERT_ID ? [flavorGroup(s)] : (d.groups ?? []))],
+      ...(d.proteins ? { protList: proteinsForDay(s, day) } : {}),
+    }))
 }
 
 /** Every dish the customer can see today: dish of the day first, then the fixed specials. */
@@ -87,15 +113,21 @@ export function allDishes(s: Settings, now = new Date()): Dish[] {
 
 export const dishById = (s: Settings, id: string, now = new Date()): Dish | null => allDishes(s, now).find(d => d.id === id) ?? null
 
-export const isDishSoldOut = (s: Settings, d: Dish) => !d.avail || !!s.soldDishes[d.id]
+/** Off when the owner switched it off, or when a required choice has nothing left (all dessert flavors off). */
+export const isDishSoldOut = (s: Settings, d: Dish) => !d.avail || !!s.soldDishes[d.id] || (d.groups ?? []).some(g => g.options.length === 0)
 
 export const proteinsOf = (d: Dish): Opt[] => d.protList ?? PROTEINS
 
 /** Menu category chips; "Menú del día" only while a weekday menu is published. */
 export function categories(s: Settings): string[] {
   const d = dailyDish(s)
-  return d && d.cat === 'Menú del día' ? ['Todos', 'Menú del día', 'Especiales', 'Pescados'] : ['Todos', 'Especiales', 'Pescados']
+  return d && d.cat === 'Menú del día'
+    ? ['Todos', 'Menú del día', 'Especiales', 'Pescados', EXTRAS_CAT]
+    : ['Todos', 'Especiales', 'Pescados', EXTRAS_CAT]
 }
+
+/** Juices and desserts sold apart (not a main dish). */
+export const isExtra = (d: Pick<Dish, 'cat'>) => d.cat === EXTRAS_CAT
 
 /** Removable items; a group option may carry its own list (kept from the prototype). */
 export function effRem(d: Dish, choices: Record<string, string>): Opt[] {

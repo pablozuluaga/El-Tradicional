@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { newId } from '../domain/ids.ts'
-import { DAILY_MENUS, PROTEINS, SATURDAY_PROTEINS } from '../domain/catalog.ts'
+import { DAILY_MENUS, DESSERT_FLAVORS, PROTEINS } from '../domain/catalog.ts'
 import { fmt } from '../domain/format.ts'
-import { dailyMenuFor, dayOffKey, descOf, isDayOff, specials } from '../domain/menu.ts'
+import { dailyMenuFor, dayOffKey, dayProteinList, descOf, isDayOff, specials } from '../domain/menu.ts'
 import type { DayId, Opt, Settings } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { Toggle } from '../ui/ui.tsx'
 import { NewDishForm } from './NewDishForm.tsx'
-import { SoupsPanel } from './SoupsPanel.tsx'
+import { DayListPanel } from './DayListPanel.tsx'
 import o from './o.module.css'
 
 const GREEN = '#2F7D46', RED = '#C8161D'
@@ -87,9 +87,9 @@ export function MenuTab() {
             <div style={{ fontWeight: 600, fontSize: 15, marginTop: 4 }}>{m.name ?? 'Menú del día'}</div>
             <DescEditor key={m.day} id={m.day} current={descOf(s, m.day, m.desc)} editing={editing === m.day} onEdit={() => setEditing(m.day)} onClose={() => setEditing(null)} />
             <div style={{ fontSize: 12.5, marginTop: 6 }}>{fmt(m.price)}</div>
-            {m.proteins && (
+            {m.proteinChoice && (
               <div style={{ marginTop: 13 }}>
-                <div className={o.optHead}>Proteínas · toca para quitar o poner</div>{dayOpts(m.day, 'prot', m.proteins)}
+                <div className={o.optHead}>Proteínas · toca para quitar o poner</div>{dayOpts(m.day, 'prot', [...dayProteinList(s, m.day), ...PROTEINS])}
               </div>
             )}
             <button type="button" className={o.smallGhost} style={{ marginTop: 10, color: '#fff', borderRadius: 10, fontSize: 12.5, fontWeight: 600, padding: '8px 14px' }} onClick={() => upd(() => ({ platoDia: null }))}>Quitar del menú</button>
@@ -99,7 +99,8 @@ export function MenuTab() {
         )}
       </div>
 
-      <SoupsPanel />
+      <DayListPanel kind="sopa" />
+      <DayListPanel kind="prot" />
 
       <div className={o.label}>Bebidas: incluidas con el plato</div>
       <div className={o.list} style={{ gap: 9, marginBottom: 12 }}>
@@ -121,7 +122,7 @@ export function MenuTab() {
 
       <div className={o.label}>Proteínas: apaga lo que se agotó</div>
       <div className={o.list} style={{ gap: 9, marginBottom: 18 }}>
-        {[...PROTEINS, ...SATURDAY_PROTEINS.map(p => ({ ...p, label: p.label + ' (solo sábados)' }))].map(p => {
+        {PROTEINS.map(p => {
           const out = !!s.soldProteins[p.id]
           return (
             <div key={p.id} className={o.row}>
@@ -133,15 +134,29 @@ export function MenuTab() {
         })}
       </div>
 
+      <div className={o.label}>Postres: activa o apaga cada sabor</div>
+      <div className={o.list} style={{ gap: 9, marginBottom: 18 }}>
+        {DESSERT_FLAVORS.map(f => {
+          const out = !!s.soldFlavors[f.id]
+          return (
+            <div key={f.id} className={o.row}>
+              <span style={{ fontSize: 14, fontWeight: 500, color: out ? '#8b8070' : '#fff' }}>{f.label}</span>
+              <Toggle on={!out} onBg={GREEN} offBg={RED} label={`Postre ${f.label}: ${out ? 'apagado' : 'disponible'}`}
+                onClick={() => upd(st => ({ soldFlavors: { ...st.soldFlavors, [f.id]: !st.soldFlavors[f.id] } }))} />
+            </div>
+          )
+        })}
+      </div>
+
       <div className={o.label}>Platos: apaga los que no hay hoy · edita su descripción</div>
       <div className={o.list} style={{ gap: 9 }}>
-        {specials(s).map(d => {
+        {specials(s, undefined, true).map(d => {
           const out = !!s.soldDishes[d.id]
           const custom = s.customDishes.some(c => c.id === d.id)
           return (
             <div key={d.id} className={o.row} style={{ display: 'block' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                <div><span style={{ fontSize: 14, fontWeight: 500, color: out ? '#8b8070' : '#fff' }}>{d.name}</span><span style={{ fontSize: 12, color: '#8b8070', marginLeft: 8 }}>{fmt(d.price)}</span></div>
+                <div><span style={{ fontSize: 14, fontWeight: 500, color: out ? '#8b8070' : '#fff' }}>{d.name}</span><span style={{ fontSize: 12, color: '#8b8070', marginLeft: 8 }}>{fmt(d.price)}{d.days ? ' · solo ' + d.days.map(x => DAILY_MENUS.find(m => m.day === x)?.label.toLowerCase() + 's').join(', ') : ''}</span></div>
                 <Toggle on={!out} onBg={GREEN} offBg={RED} label={`${d.name}: ${out ? 'agotado' : 'disponible'}`}
                   onClick={() => upd(st => ({ soldDishes: { ...st.soldDishes, [d.id]: !st.soldDishes[d.id] } }))} />
               </div>

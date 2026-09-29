@@ -57,7 +57,7 @@ export function Home() {
       <div className={h.quick}>
         <button type="button" className={`${h.quickBtn} ${h.quickRed}`} onClick={() => order('domicilio')}>
           <span className={h.quickEmoji}>🛵</span><span className={h.quickTitle}>Pedir a domicilio</span>
-          <span className={h.quickSub} style={{ color: 'rgba(255,255,255,.85)' }}>Llega en 35–45 min</span>
+          <span className={h.quickSub} style={{ color: 'rgba(255,255,255,.85)' }}>Llega en 45 min – 1 hora</span>
         </button>
         <button type="button" className={`${h.quickBtn} ${h.quickDark}`} onClick={() => order('recoger')}>
           <span className={h.quickEmoji}>🍽️</span><span className={h.quickTitle}>Recoger en el local</span>

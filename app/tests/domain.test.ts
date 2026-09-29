@@ -18,8 +18,9 @@ test('fmt uses Colombian thousands separator', () => {
 test('no dish of the day until the owner picks one', () => {
   const s = defaultSettings()
   assert.equal(dailyDish(s), null)
-  assert.deepEqual(allDishes(s).map(d => d.id), ['paisa', 'especial', 'cazuela', 'trucha', 'tilapia'])
-  assert.deepEqual(categories(s), ['Todos', 'Especiales', 'Pescados'])
+  const lunes = new Date('2026-09-28T17:00:00Z')
+  assert.deepEqual(allDishes(s, lunes).map(d => d.id), ['paisa', 'especial', 'cazuela', 'trucha', 'tilapia', 'jugoagua', 'jugoleche', 'postre'])
+  assert.deepEqual(categories(s), ['Todos', 'Especiales', 'Pescados', 'Bebidas y postres'])
 })
 
 test('weekday menu: unnamed, sopas + sin sopa, default protein, day toggles', () => {
@@ -32,7 +33,7 @@ test('weekday menu: unnamed, sopas + sin sopa, default protein, day toggles', ()
   assert.deepEqual(d.groups![0].options.map(o => o.label), ['Sopa campesina', 'Frijoles', 'Sin sopa'])
   assert.equal(d.defProt, 'sudadopollo')
   assert.deepEqual(d.protList!.map(p => p.id), ['sudadopollo', 'res', 'cerdo', 'pollo', 'chicharron', 'molida'])
-  assert.deepEqual(categories(s), ['Todos', 'Menú del día', 'Especiales', 'Pescados'])
+  assert.deepEqual(categories(s), ['Todos', 'Menú del día', 'Especiales', 'Pescados', 'Bebidas y postres'])
   // owner switches off the soup and the default protein
   s.dayOff = { [dayOffKey('lunes', 'sopa', 'campesina')]: true, [dayOffKey('lunes', 'prot', 'sudadopollo')]: true }
   const d2 = dailyDish(s)!
@@ -40,11 +41,12 @@ test('weekday menu: unnamed, sopas + sin sopa, default protein, day toggles', ()
   assert.equal(d2.defProt, 'res')
 })
 
-test('martes puts desmechada and sobrebarriga first; viernes has no drink', () => {
+test('martes puts desmechada and sobrebarriga first; every day includes the juice', () => {
   const m = dailyDish({ ...defaultSettings(), platoDia: 'martes' })!
   assert.deepEqual(m.protList!.slice(0, 2).map(p => p.label), ['Carne desmechada', 'Sobrebarriga'])
   assert.equal(m.drink, true)
-  assert.equal(dailyDish({ ...defaultSettings(), platoDia: 'viernes' })!.drink, false)
+  assert.equal(dailyDish({ ...defaultSettings(), platoDia: 'viernes' })!.drink, true)
+  assert.match(m.desc, /^Carne especial del día: carne desmechada o sobrebarriga\./)
 })
 
 test('weekend dishes keep their names, go under Especiales, no protein choice', () => {
@@ -54,7 +56,7 @@ test('weekend dishes keep their names, go under Especiales, no protein choice', 
   assert.equal(d.cat, 'Especiales')
   assert.equal(d.proteins, false)
   assert.equal(d.price, 35000)
-  assert.deepEqual(categories(s), ['Todos', 'Especiales', 'Pescados'])
+  assert.deepEqual(categories(s), ['Todos', 'Especiales', 'Pescados', 'Bebidas y postres'])
   assert.equal(dailyDish({ ...defaultSettings(), platoDia: 'domingo' })!.name, 'Sancocho trifásico')
 })
 
@@ -83,7 +85,8 @@ test('only the fish, Bandeja Paisa and Cazuela come without soup; nothing asks e
   assert.deepEqual(soupOf('especial'), ['Sopa de tortilla', 'Frijoles', 'Sin sopa'])
   assert.deepEqual(soupOf('dia'), ['Sopa de tortilla', 'Frijoles', 'Sin sopa'])
   for (const id of ['paisa', 'cazuela', 'trucha', 'tilapia']) assert.equal(soupOf(id), null, id)
-  assert.ok(allDishes(s).every(d => (d.groups ?? []).every(g => g.id === 'sopa')))
+  assert.ok(allDishes(s).every(d => (d.groups ?? []).every(g => g.id === 'sopa' || (d.id === 'postre' && g.id === 'sabor'))))
+  assert.ok(allDishes(s).filter(d => d.cat !== 'Bebidas y postres').every(d => d.drink), 'every dish includes the juice')
   const caz = dishById(s, 'cazuela')!
   assert.equal(caz.price, 35000)
   assert.equal(caz.proteins, true)
@@ -115,7 +118,7 @@ test('Lengua is offered only on Saturdays; Friday brings costilla', () => {
   assert.ok(prots('sabado').includes('lengua'))
   assert.ok(!prots('lunes').includes('lengua'))
   assert.equal(dishById({ ...defaultSettings(), platoDia: 'sabado' }, 'trucha')!.protList, undefined)
-  assert.equal(dailyDish({ ...defaultSettings(), platoDia: 'viernes' })!.protList![0].label, 'Costilla')
+  assert.equal(dailyDish({ ...defaultSettings(), platoDia: 'viernes' })!.protList![0].label, 'Costillas')
 })
 
 test('owner-created dishes join the menu with their options and can be sold out', () => {
@@ -225,4 +228,49 @@ test('an order with a dish the owner deleted is refused', async () => {
     address: '', addressNotes: '', items: '1x Lomo', itemsList: ['1x Lomo'], lines: [{ dishId: 'plato1', name: 'Lomo', qty: 1, unit: 30000 }], subtotal: 30000, delivery: 0, pay: 'efectivo' }
   assert.match(validateDraft(draft, defaultSettings())!, /Lomo ya no está en el menú/)
   assert.equal(validateDraft({ ...draft, lines: [{ dishId: 'paisa', name: 'Bandeja Paisa', qty: 1, unit: 35000 }] }, defaultSettings()), null)
+})
+
+test('Sunday offers sudado de posta in the protein dishes; owner-added special proteins apply to their day', () => {
+  const dom = { ...defaultSettings(), platoDia: 'domingo' as const }
+  assert.ok(dishById(dom, 'especial')!.protList!.some(p => p.label === 'Sudado de posta'))
+  assert.ok(dishById(dom, 'cazuela')!.protList!.some(p => p.label === 'Sudado de posta'))
+  // weekday specials stay in the menu del día only
+  const mie = { ...defaultSettings(), platoDia: 'miercoles' as const, dayProteins: { miercoles: [{ id: 'albondigas', label: 'Albóndigas' }, { id: 'prot1', label: 'Lomo' }] } }
+  assert.deepEqual(dailyDish(mie)!.protList!.slice(0, 2).map(p => p.label), ['Albóndigas', 'Lomo'])
+  assert.ok(!dishById(mie, 'especial')!.protList!.some(p => p.label === 'Lomo'))
+  // switched off
+  const off = { ...mie, dayOff: { [dayOffKey('miercoles', 'prot', 'prot1')]: true } }
+  assert.ok(!dailyDish(off)!.protList!.some(p => p.label === 'Lomo'))
+})
+
+test('Lengua is a Saturday-only dish with the day soup; desserts follow the owner flavor switches', () => {
+  const sab = { ...defaultSettings(), platoDia: 'sabado' as const }
+  const l = dishById(sab, 'lengua')!
+  assert.equal(l.groups![0].id, 'sopa')
+  assert.deepEqual(l.rem.map(r => r.label), ['Arroz', 'Papa cocinada', 'Yuca cocinada', 'Ensalada', 'Arepa'])
+  assert.equal(dishById({ ...defaultSettings(), platoDia: 'lunes' }, 'lengua'), null)
+  const postre = dishById(sab, 'postre')!
+  assert.equal(postre.price, 13000)
+  assert.equal(postre.groups![0].options.length, 9)
+  const noLimon = { ...sab, soldFlavors: { limon: true } }
+  assert.ok(!dishById(noLimon, 'postre')!.groups![0].options.some(o => o.id === 'limon'))
+  const none = { ...sab, soldFlavors: Object.fromEntries(dishById(sab, 'postre')!.groups![0].options.map(o => [o.id, true])) }
+  assert.equal(isDishSoldOut(none, dishById(none, 'postre')!), true, 'no flavors left → sold out')
+  assert.equal(dishById(sab, 'jugoagua')!.price, 10000)
+  assert.equal(dishById(sab, 'jugoleche')!.price, 12000)
+})
+
+test('barrio Otro: fee waits for the owner; Viviendas del Sur costs 10.000', async () => {
+  const { deliveryFee, isOtherZone } = await import('../src/domain/pricing.ts')
+  const { deliveryFeeNote } = await import('../src/domain/orders.ts')
+  assert.equal(deliveryFee('domicilio', 'viviendas_sur'), 10000)
+  assert.equal(deliveryFee('domicilio', 'otro'), 0)
+  assert.equal(isOtherZone('domicilio', 'otro'), true)
+  assert.equal(isOtherZone('recoger', 'otro'), false)
+  assert.equal(deliveryFeeNote('La Paz', 9000, 44000), 'El domicilio a La Paz cuesta $9.000. El total de tu pedido queda en $44.000.')
+  const { validateDraft } = await import('../src/domain/placement.ts')
+  const draft = { customerId: 'c', name: 'Ana', email: 'a@b.co', phone: '', origin: 'domicilio' as const, zoneId: 'otro', zoneLabel: ' ',
+    address: 'Calle 1', addressNotes: '', items: '1 Paisa', itemsList: ['1× Paisa'], lines: [{ dishId: 'paisa', name: 'Bandeja Paisa', qty: 1, unit: 35000 }], subtotal: 35000, delivery: 0, pay: 'efectivo' }
+  assert.equal(validateDraft(draft, defaultSettings()), 'Escribe el nombre de tu barrio.')
+  assert.equal(validateDraft({ ...draft, zoneLabel: 'La Paz' }, defaultSettings()), null)
 })

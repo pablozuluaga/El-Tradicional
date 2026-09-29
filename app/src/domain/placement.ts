@@ -1,3 +1,4 @@
+import { OTHER_ZONE_ID } from './catalog.ts'
 import { EMAIL_RE } from './format.ts'
 import { eligibilityFromCount } from './loyalty.ts'
 import { dishById } from './menu.ts'
@@ -12,6 +13,7 @@ export function validateDraft(d: OrderDraft, s: Settings): string | null {
   if (!d.itemsList.length) return 'Tu carrito está vacío.'
   if (d.origin === 'domicilio') {
     if (!d.zoneId) return 'Selecciona tu barrio.'
+    if (d.zoneId === OTHER_ZONE_ID && !d.zoneLabel?.trim()) return 'Escribe el nombre de tu barrio.'
     if (!d.address.trim()) return 'Escribe la dirección de entrega.'
   }
   const gone = d.lines.find(l => l.dishId !== 'dia' && !dishById(s, l.dishId))

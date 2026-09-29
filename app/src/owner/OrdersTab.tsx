@@ -57,6 +57,7 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
   const [err, setErr] = useState('')
+  const [fee, setFee] = useState('')
   const st = OWNER_BADGE[ord.status]
   const n = STAGE[ord.status]
   const done = ord.status === 'listo'
@@ -92,7 +93,7 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
           {(ord.itemsList.length ? ord.itemsList : [ord.items]).map((l, i) => <div key={i} className={o.dText} style={{ color: '#e7ddce' }}>• {l}</div>)}
           <div className={o.dRow} style={{ marginTop: 6 }}><span style={{ color: '#8b8070' }}>Pago</span><span style={{ textAlign: 'right' }}>{ord.pay}</span></div>
           {ord.discount > 0 && <div className={o.dRow}><span style={{ color: '#8b8070' }}>{discountName(ord.discountKind)}</span><span>−{fmt(ord.discount)}</span></div>}
-          {dom && <div className={o.dRow}><span style={{ color: '#8b8070' }}>Domicilio</span><span>{fmt(ord.delivery)}</span></div>}
+          {dom && <div className={o.dRow}><span style={{ color: '#8b8070' }}>Domicilio</span><span>{ord.deliveryPending ? 'Por definir' : fmt(ord.delivery)}</span></div>}
           {(ord.reviewStars || ord.reviewComment) && (
             <div className={o.dRow}><span style={{ color: '#8b8070' }}>Calificación</span>
               <span style={{ textAlign: 'right' }}>{ord.reviewStars ? <span style={{ color: '#E0A83B' }}>{'★'.repeat(ord.reviewStars)}<span style={{ color: '#4a453c' }}>{'★'.repeat(5 - ord.reviewStars)}</span></span> : null}{ord.reviewComment ? <div style={{ fontSize: 12, color: '#c9bfae' }}>“{ord.reviewComment}”</div> : null}</span>
@@ -102,7 +103,7 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
       )}
 
       <div className={o.actions}>
-        <div className={o.total}>{fmt(ord.total)}</div>
+        <div className={o.total}>{fmt(ord.total)}{ord.deliveryPending && <span style={{ fontSize: 11, color: '#F6C88B', display: 'block' }}>+ domicilio</span>}</div>
         <div className={o.btnRow}>
           <button type="button" className={o.chatBtn} onClick={onChat}>💬 Chat{hasUnread(ord, 'dueno') && <UnreadDot size={12} top={-5} right={-5} ring="#201C18" />}</button>
           {canReject(ord.status) && <button type="button" className={o.rejectBtn} aria-label={`Rechazar ${orderId(ord.num)}`} onClick={() => { setRejecting(true); setReason('') }}>✕</button>}
@@ -110,6 +111,20 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
           {done && <span style={{ fontSize: 12, color: '#7d9c86', fontWeight: 600 }}>✓ Entregado</span>}
         </div>
       </div>
+      {ord.deliveryPending && !faded && (
+        <form className={o.rejectBox} style={{ borderColor: 'rgba(246,200,139,.35)' }}
+          onSubmit={e => { e.preventDefault(); const v = Number(fee.replace(/\D/g, '')); if (fee.trim()) run(store.setDeliveryFee(ord.num, v).then(() => setFee(''))) }}>
+          <div style={{ fontSize: 12, color: '#F6C88B', fontWeight: 600, marginBottom: 8 }}>
+            Barrio fuera de la lista: {ord.zoneLabel}. ¿Cuánto vale el domicilio?
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className={o.darkInput} style={{ flex: 1, fontSize: 12.5, padding: '10px 12px', borderRadius: 10 }} value={fee} onChange={e => setFee(e.target.value)}
+              placeholder="Ej: 8000" inputMode="numeric" aria-label={`Valor del domicilio ${orderId(ord.num)}`} maxLength={9} />
+            <button type="submit" className={o.redBtn} style={{ padding: '9px 16px', borderRadius: 10, fontSize: 12.5 }}>Guardar</button>
+          </div>
+          <div style={{ fontSize: 11, color: '#a89d8c', marginTop: 7 }}>Al guardar, el total se actualiza y el cliente recibe el valor por el chat.</div>
+        </form>
+      )}
       {rejecting && canReject(ord.status) && (
         <div className={o.rejectBox}>
           <div style={{ fontSize: 12, color: '#F0A0A0', fontWeight: 600, marginBottom: 8 }}>¿Por qué se rechaza?</div>

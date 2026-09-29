@@ -15,7 +15,7 @@ export function NewDishForm({ onDone }: { onDone: () => void }) {
   const [desc, setDesc] = useState('')
   const [soup, setSoup] = useState(true)
   const [proteins, setProteins] = useState(true)
-  const [drink, setDrink] = useState(false)
+  const [drink, setDrink] = useState(true)
   const [rem, setRem] = useState('')
   const [err, setErr] = useState('')
 
@@ -49,7 +49,7 @@ export function NewDishForm({ onDone }: { onDone: () => void }) {
       <textarea className={o.textarea} style={{ marginTop: 0 }} rows={3} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Descripción: qué trae el plato" aria-label="Descripción del plato" maxLength={400} />
       <label style={check}><input type="checkbox" checked={soup} onChange={e => setSoup(e.target.checked)} /> Trae sopa (la sopa del día)</label>
       <label style={check}><input type="checkbox" checked={proteins} onChange={e => setProteins(e.target.checked)} /> El cliente elige la proteína</label>
-      <label style={check}><input type="checkbox" checked={drink} onChange={e => setDrink(e.target.checked)} /> Incluye bebida</label>
+      <label style={check}><input type="checkbox" checked={drink} onChange={e => setDrink(e.target.checked)} /> Incluye jugo o guandolo (el cliente escoge)</label>
       <input className={o.darkInput} value={rem} onChange={e => setRem(e.target.value)} placeholder="Qué se puede quitar, separado por comas (ej. Arroz, Maduro)" aria-label="Ingredientes que se pueden quitar" maxLength={300} />
       {err && <div role="alert" style={{ fontSize: 12.5, color: '#F0B7A0' }}>{err}</div>}
       <div style={{ display: 'flex', gap: 8 }}>

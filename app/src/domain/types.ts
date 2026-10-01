@@ -23,6 +23,8 @@ export interface Dish {
   drink?: boolean
   /** only served on these days (e.g. Lengua on Saturdays); every day when missing */
   days?: DayId[]
+  /** hidden until the owner switches it on (`Settings.dishOn`), e.g. leftover mondongo on Sundays */
+  optIn?: boolean
   /** true when the dish comes with a soup (the day's soups, see `soupsFor`) */
   soup?: boolean
   /** true when the customer must pick a protein */
@@ -89,6 +91,12 @@ export interface Settings {
   dayProteins: Partial<Record<DayId, Opt[]>>
   /** dessert flavors switched off */
   soldFlavors: Record<string, boolean>
+  /** the owner's dessert flavors; null = the default list (DESSERT_FLAVORS) */
+  dessertFlavors: Opt[] | null
+  /** flavors for the juices bought apart (en agua / en leche) */
+  juiceFlavors: Juice[]
+  /** opt-in dishes the owner switched on (see `Dish.optIn`) */
+  dishOn: Record<string, boolean>
   customDishes: CustomDish[]
 }
 

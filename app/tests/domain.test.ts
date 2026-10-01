@@ -274,3 +274,23 @@ test('barrio Otro: fee waits for the owner; Viviendas del Sur costs 10.000', asy
   assert.equal(validateDraft(draft, defaultSettings()), 'Escribe el nombre de tu barrio.')
   assert.equal(validateDraft({ ...draft, zoneLabel: 'La Paz' }, defaultSettings()), null)
 })
+
+test('Mondongo on Sundays only when the owner switches it on', () => {
+  const dom = { ...defaultSettings(), platoDia: 'domingo' as const }
+  assert.equal(dishById(dom, 'mondongo'), null)
+  const on = { ...dom, dishOn: { mondongo: true } }
+  assert.equal(dishById(on, 'mondongo')!.price, 35000)
+  assert.equal(dishById({ ...on, platoDia: 'lunes' }, 'mondongo'), null, 'only Sundays')
+})
+
+test('juice flavors: none until the owner creates them; dessert flavors can be edited', () => {
+  const s = { ...defaultSettings(), platoDia: 'lunes' as const }
+  assert.deepEqual(dishById(s, 'jugoagua')!.groups, [])
+  const withFlavors = { ...s, juiceFlavors: [{ id: 'mora', label: 'Mora', out: false }, { id: 'lulo', label: 'Lulo', out: true }] }
+  assert.deepEqual(dishById(withFlavors, 'jugoleche')!.groups![0].options.map(o => o.label), ['Mora'])
+  const allOut = { ...s, juiceFlavors: [{ id: 'lulo', label: 'Lulo', out: true }] }
+  assert.equal(isDishSoldOut(allOut, dishById(allOut, 'jugoagua')!), true, 'every flavor off → sold out')
+  const custom = { ...s, dessertFlavors: [{ id: 'pf1', label: 'Brownie' }] }
+  assert.deepEqual(dishById(custom, 'postre')!.groups![0].options.map(o => o.label), ['Brownie'])
+  assert.equal(dailyDish({ ...s, platoDia: 'viernes' })!.img, '/assets/menu-viernes.webp')
+})

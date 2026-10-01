@@ -1,0 +1,2 @@
+.bg { position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover; filter: blur(16px) saturate(1.1); opacity: .55; }
+.fg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }

@@ -36,7 +36,8 @@ export default defineConfig({
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/assets/') && /\.(webp|jpe?g|png)$/.test(url.pathname),
             handler: 'CacheFirst',
-            options: { cacheName: 'et-images', expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 } },
+            // bump the name when photos change under the same file name (old cache is deleted in src/pwa/update.ts)
+            options: { cacheName: 'et-images-v2', expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 } },
           },
           {
             urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',

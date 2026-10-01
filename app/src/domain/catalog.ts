@@ -44,7 +44,7 @@ export const DAILY_MENUS: DailyMenu[] = [
     sopas: sopa('guineo', 'Sopa de guineo'),
     specialProts: [{ id: 'posta', label: 'Posta sudada' }], proteinChoice: true, defProt: 'posta',
     rem: R('Arroz', 'Papa cocinada', 'Yuca cocinada', 'Maduro', 'Ensalada', 'Arepa') },
-  { day: 'viernes', label: 'Viernes', price: 20000, priceDom: 20000, drink: true,
+  { day: 'viernes', label: 'Viernes', price: 20000, priceDom: 20000, drink: true, img: '/assets/menu-viernes.webp',
     desc: 'Carne especial del día: costillas. Crema de ahuyama o de fríjoles acompañada de proteína al gusto, arroz, papa criolla frita, maduro, ensalada y arepa.',
     sopas: sopa('ahuyama', 'Crema de ahuyama'),
     specialProts: [{ id: 'costilla', label: 'Costillas' }], proteinChoice: true, defProt: 'costilla',
@@ -73,6 +73,9 @@ export const MENU: Dish[] = [
   { id: 'cazuela', cat: 'Especiales', name: 'Cazuela de Frijoles', price: 35000, img: '/assets/cazuela.webp', avail: true, proteins: true, drink: true,
     desc: 'Sopa de frijoles, maicitos, ripio de papa, platanitos, chicharrón, aguacate, chorizo, arroz y arepa.',
     rem: R('Maicitos', 'Ripio de papa', 'Platanitos', 'Chicharrón', 'Aguacate', 'Chorizo', 'Arroz', 'Arepa') },
+  // Saturday's mondongo, offered on Sundays only when the owner switches it on (when there is leftover).
+  { id: 'mondongo', cat: 'Especiales', name: 'Mondongo', price: 35000, tag: 'Hoy también', img: '/assets/mondongo.webp', avail: true, days: ['domingo'], optIn: true, drink: true,
+    desc: 'Arroz, aguacate, banano, arepa y ensalada. Guandolo o jugo.', rem: R('Arroz', 'Aguacate', 'Banano', 'Arepa', 'Ensalada') },
   { id: 'lengua', cat: 'Especiales', name: 'Lengua', price: 35000, tag: 'Solo sábados', img: '/assets/menu-dia.webp', avail: true, days: ['sabado'], soup: true, drink: true,
     desc: 'Lengua acompañada de arroz, papa cocinada, yuca cocinada, ensalada, arepa y la sopa del día.',
     rem: R('Arroz', 'Papa cocinada', 'Yuca cocinada', 'Ensalada', 'Arepa') },
@@ -175,6 +178,9 @@ export const defaultSettings = (): Settings => ({
   daySoups: {},
   dayProteins: {},
   soldFlavors: {},
+  dessertFlavors: null,
+  juiceFlavors: [],
+  dishOn: {},
   customDishes: [],
 })
 

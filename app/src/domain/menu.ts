@@ -1,4 +1,4 @@
-import { DAILY_MENUS, DAY_ORDER, DESSERT_FLAVORS, DESSERT_ID, EXTRAS_CAT, MENU, PROTEINS, R, WEEKEND } from './catalog.ts'
+import { DAILY_MENUS, DAY_ORDER, DESSERT_FLAVORS, DESSERT_ID, EXTRA_JUICE_IDS, EXTRAS_CAT, MENU, PROTEINS, R, WEEKEND } from './catalog.ts'
 import type { CustomDish, DailyMenu, DayId, Dish, Opt, OptionGroup, Settings } from './types.ts'
 
 export const DAILY_ID = 'dia'
@@ -81,13 +81,23 @@ const customToDish = (c: CustomDish): Dish => ({
 export const proteinsForDay = (s: Settings, day: DayId): Opt[] =>
   menuHasProteins(day) ? PROTEINS : [...PROTEINS, ...specialProteinsFor(s, day)]
 
-const flavorGroup = (s: Settings): OptionGroup => ({
-  id: 'sabor', short: 'sabor', title: 'Elige el sabor', sub: 'Escoge uno',
-  options: DESSERT_FLAVORS.filter(f => !s.soldFlavors?.[f.id]),
-})
+/** The dessert flavors as the owner left them (including the ones switched off). */
+export const dessertFlavorList = (s: Settings): Opt[] => s.dessertFlavors ?? DESSERT_FLAVORS
 
 /** Dessert flavors the customer can pick now. */
-export const flavorsFor = (s: Settings): Opt[] => flavorGroup(s).options
+export const flavorsFor = (s: Settings): Opt[] => dessertFlavorList(s).filter(f => !s.soldFlavors?.[f.id])
+
+/** Juice flavors (for the juices bought apart) the customer can pick now. */
+export const juiceFlavorsFor = (s: Settings): Opt[] => (s.juiceFlavors ?? []).filter(j => !j.out).map(({ id, label }) => ({ id, label }))
+
+const flavorGroup = (options: Opt[]): OptionGroup => ({ id: 'sabor', short: 'sabor', title: 'Elige el sabor', sub: 'Escoge uno', options })
+
+/** Desserts always ask the flavor; the juices apart only once the owner has created flavors. */
+function flavorGroups(s: Settings, d: Dish): OptionGroup[] {
+  if (d.id === DESSERT_ID) return [flavorGroup(flavorsFor(s))]
+  if (EXTRA_JUICE_IDS.includes(d.id)) return (s.juiceFlavors ?? []).length ? [flavorGroup(juiceFlavorsFor(s))] : []
+  return d.groups ?? []
+}
 
 /**
  * The fixed dishes plus the ones the owner created, with that day's soups and proteins.
@@ -96,11 +106,11 @@ export const flavorsFor = (s: Settings): Opt[] => flavorGroup(s).options
 export function specials(s: Settings, now = new Date(), allDays = false): Dish[] {
   const day = serviceDay(s, now)
   return [...MENU, ...(s.customDishes ?? []).map(customToDish)]
-    .filter(d => allDays || !d.days || d.days.includes(day))
+    .filter(d => allDays || ((!d.days || d.days.includes(day)) && (!d.optIn || !!s.dishOn?.[d.id])))
     .map(d => ({
       ...d,
       desc: descOf(s, d.id, d.desc),
-      groups: [...(d.soup ? soupGroup(s, day) : []), ...(d.id === DESSERT_ID ? [flavorGroup(s)] : (d.groups ?? []))],
+      groups: [...(d.soup ? soupGroup(s, day) : []), ...flavorGroups(s, d)],
       ...(d.proteins ? { protList: proteinsForDay(s, day) } : {}),
     }))
 }

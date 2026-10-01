@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { newId } from '../domain/ids.ts'
-import { DAILY_MENUS, DESSERT_FLAVORS, PROTEINS } from '../domain/catalog.ts'
+import { DAILY_MENUS, PROTEINS } from '../domain/catalog.ts'
 import { fmt } from '../domain/format.ts'
-import { dailyMenuFor, dayOffKey, dayProteinList, descOf, isDayOff, specials } from '../domain/menu.ts'
+import { dailyMenuFor, dayOffKey, dayProteinList, descOf, isDayOff, isExtra, specials } from '../domain/menu.ts'
 import type { DayId, Opt, Settings } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { Toggle } from '../ui/ui.tsx'
 import { NewDishForm } from './NewDishForm.tsx'
 import { DayListPanel } from './DayListPanel.tsx'
+import { ExtrasPanel } from './ExtrasPanel.tsx'
 import o from './o.module.css'
 
 const GREEN = '#2F7D46', RED = '#C8161D'
@@ -43,7 +43,6 @@ export function MenuTab() {
   const store = useStore()
   const s = useSnapshot().settings
   const [editing, setEditing] = useState<string | null>(null)
-  const [newJuice, setNewJuice] = useState('')
   const [creating, setCreating] = useState(false)
   const upd = (fn: (s: Settings) => Partial<Settings>) => { void store.updateSettings(fn) }
   const m = dailyMenuFor(s.platoDia)
@@ -63,12 +62,7 @@ export function MenuTab() {
     </div>
   )
 
-  const addJuice = () => {
-    const v = newJuice.trim()
-    if (!v) return
-    upd(st => ({ juices: [...st.juices, { id: newId('j'), label: v, out: false }] }))
-    setNewJuice('')
-  }
+
 
   return (
     <>
@@ -102,24 +96,6 @@ export function MenuTab() {
       <DayListPanel kind="sopa" />
       <DayListPanel kind="prot" />
 
-      <div className={o.label}>Bebidas: incluidas con el plato</div>
-      <div className={o.list} style={{ gap: 9, marginBottom: 12 }}>
-        {s.juices.map(j => (
-          <div key={j.id} className={o.row}>
-            <span style={{ fontSize: 14, fontWeight: 500, color: j.out ? '#8b8070' : '#fff' }}>{j.label}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <button type="button" className={o.quitar} onClick={() => upd(st => ({ juices: st.juices.filter(x => x.id !== j.id) }))}>Quitar</button>
-              <Toggle on={!j.out} onBg={GREEN} offBg={RED} label={`${j.label}: ${j.out ? 'agotado' : 'disponible'}`}
-                onClick={() => upd(st => ({ juices: st.juices.map(x => x.id === j.id ? { ...x, out: !x.out } : x) }))} />
-            </div>
-          </div>
-        ))}
-        <form style={{ display: 'flex', gap: 8 }} onSubmit={e => { e.preventDefault(); addJuice() }}>
-          <input className={o.darkInput} style={{ flex: 1, background: '#201C18' }} value={newJuice} onChange={e => setNewJuice(e.target.value)} placeholder="Agregar bebida" aria-label="Nueva bebida" maxLength={40} />
-          <button type="submit" className={o.redBtn} style={{ padding: '0 18px' }}>Añadir</button>
-        </form>
-      </div>
-
       <div className={o.label}>Proteínas: apaga lo que se agotó</div>
       <div className={o.list} style={{ gap: 9, marginBottom: 18 }}>
         {PROTEINS.map(p => {
@@ -134,31 +110,20 @@ export function MenuTab() {
         })}
       </div>
 
-      <div className={o.label}>Postres: activa o apaga cada sabor</div>
-      <div className={o.list} style={{ gap: 9, marginBottom: 18 }}>
-        {DESSERT_FLAVORS.map(f => {
-          const out = !!s.soldFlavors[f.id]
-          return (
-            <div key={f.id} className={o.row}>
-              <span style={{ fontSize: 14, fontWeight: 500, color: out ? '#8b8070' : '#fff' }}>{f.label}</span>
-              <Toggle on={!out} onBg={GREEN} offBg={RED} label={`Postre ${f.label}: ${out ? 'apagado' : 'disponible'}`}
-                onClick={() => upd(st => ({ soldFlavors: { ...st.soldFlavors, [f.id]: !st.soldFlavors[f.id] } }))} />
-            </div>
-          )
-        })}
-      </div>
-
       <div className={o.label}>Platos: apaga los que no hay hoy · edita su descripción</div>
       <div className={o.list} style={{ gap: 9 }}>
-        {specials(s, undefined, true).map(d => {
-          const out = !!s.soldDishes[d.id]
+        {specials(s, undefined, true).filter(d => !isExtra(d)).map(d => {
+          // opt-in dishes (mondongo on Sundays) are off until switched on; the rest are on until sold out
+          const out = d.optIn ? !s.dishOn[d.id] : !!s.soldDishes[d.id]
           const custom = s.customDishes.some(c => c.id === d.id)
           return (
             <div key={d.id} className={o.row} style={{ display: 'block' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                <div><span style={{ fontSize: 14, fontWeight: 500, color: out ? '#8b8070' : '#fff' }}>{d.name}</span><span style={{ fontSize: 12, color: '#8b8070', marginLeft: 8 }}>{fmt(d.price)}{d.days ? ' · solo ' + d.days.map(x => DAILY_MENUS.find(m => m.day === x)?.label.toLowerCase() + 's').join(', ') : ''}</span></div>
-                <Toggle on={!out} onBg={GREEN} offBg={RED} label={`${d.name}: ${out ? 'agotado' : 'disponible'}`}
-                  onClick={() => upd(st => ({ soldDishes: { ...st.soldDishes, [d.id]: !st.soldDishes[d.id] } }))} />
+                <div><span style={{ fontSize: 14, fontWeight: 500, color: out ? '#8b8070' : '#fff' }}>{d.name}</span><span style={{ fontSize: 12, color: '#8b8070', marginLeft: 8 }}>{fmt(d.price)}{d.days ? ' · solo ' + d.days.map(x => DAILY_MENUS.find(m => m.day === x)?.label.toLowerCase() + 's').join(', ') : ''}{d.optIn ? ', cuando sobra' : ''}</span></div>
+                <Toggle on={!out} onBg={GREEN} offBg={RED} label={`${d.name}: ${out ? (d.optIn ? 'apagado' : 'agotado') : 'disponible'}`}
+                  onClick={() => upd(st => d.optIn
+                    ? { dishOn: { ...st.dishOn, [d.id]: !st.dishOn[d.id] } }
+                    : { soldDishes: { ...st.soldDishes, [d.id]: !st.soldDishes[d.id] } })} />
               </div>
               <div style={{ marginTop: 4 }}>
                 <DescEditor key={d.id} id={d.id} current={d.desc} editing={editing === d.id} onEdit={() => setEditing(d.id)} onClose={() => setEditing(null)} />
@@ -174,6 +139,7 @@ export function MenuTab() {
           ? <NewDishForm onDone={() => setCreating(false)} />
           : <button type="button" className={o.redBtn} style={{ padding: 12 }} onClick={() => setCreating(true)}>+ Crear plato</button>}
       </div>
+      <ExtrasPanel />
     </>
   )
 }

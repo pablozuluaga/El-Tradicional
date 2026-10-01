@@ -13,3 +13,6 @@ registerSW({
     setInterval(check, 60 * 60 * 1000)
   },
 })
+
+// Photos are cached by file name; when they change, vite.config.ts uses a new cache and the old one goes.
+if ('caches' in window) void caches.delete('et-images').catch(() => {})

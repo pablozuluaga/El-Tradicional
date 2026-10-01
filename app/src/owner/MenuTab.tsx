@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { DAILY_MENUS, PROTEINS } from '../domain/catalog.ts'
+import { newId } from '../domain/ids.ts'
 import { fmt } from '../domain/format.ts'
 import { dailyMenuFor, dayOffKey, dayProteinList, descOf, isDayOff, isExtra, specials } from '../domain/menu.ts'
 import type { DayId, Opt, Settings } from '../domain/types.ts'
@@ -44,8 +45,16 @@ export function MenuTab() {
   const s = useSnapshot().settings
   const [editing, setEditing] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [newJuice, setNewJuice] = useState('')
   const upd = (fn: (s: Settings) => Partial<Settings>) => { void store.updateSettings(fn) }
   const m = dailyMenuFor(s.platoDia)
+
+  const addJuice = () => {
+    const v = newJuice.trim()
+    if (!v) return
+    upd(st => ({ juices: [...st.juices, { id: newId('j'), label: v, out: false }] }))
+    setNewJuice('')
+  }
 
   const dayOpts = (day: DayId, kind: 'sopa' | 'prot', list: Opt[]) => (
     <div className={o.chipsWrap}>
@@ -95,6 +104,24 @@ export function MenuTab() {
 
       <DayListPanel kind="sopa" />
       <DayListPanel kind="prot" />
+
+      <div className={o.label}>Bebidas: incluidas con el plato</div>
+      <div className={o.list} style={{ gap: 9, marginBottom: 12 }}>
+        {s.juices.map(j => (
+          <div key={j.id} className={o.row}>
+            <span style={{ fontSize: 14, fontWeight: 500, color: j.out ? '#8b8070' : '#fff' }}>{j.label}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <button type="button" className={o.quitar} onClick={() => upd(st => ({ juices: st.juices.filter(x => x.id !== j.id) }))}>Quitar</button>
+              <Toggle on={!j.out} onBg={GREEN} offBg={RED} label={`${j.label}: ${j.out ? 'agotado' : 'disponible'}`}
+                onClick={() => upd(st => ({ juices: st.juices.map(x => x.id === j.id ? { ...x, out: !x.out } : x) }))} />
+            </div>
+          </div>
+        ))}
+        <form style={{ display: 'flex', gap: 8 }} onSubmit={e => { e.preventDefault(); addJuice() }}>
+          <input className={o.darkInput} style={{ flex: 1, background: '#201C18' }} value={newJuice} onChange={e => setNewJuice(e.target.value)} placeholder="Agregar bebida" aria-label="Nueva bebida" maxLength={40} />
+          <button type="submit" className={o.redBtn} style={{ padding: '0 18px' }}>Añadir</button>
+        </form>
+      </div>
 
       <div className={o.label}>Proteínas: apaga lo que se agotó</div>
       <div className={o.list} style={{ gap: 9, marginBottom: 18 }}>

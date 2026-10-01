@@ -1,6 +1,7 @@
 import { fmt } from '../domain/format.ts'
 import { isDishSoldOut } from '../domain/menu.ts'
 import type { Dish, Settings } from '../domain/types.ts'
+import { DishPhoto } from '../ui/DishPhoto.tsx'
 import c from './c.module.css'
 
 export function DishCard({ d, s, onOpen }: { d: Dish; s: Settings; onOpen: () => void }) {
@@ -9,7 +10,7 @@ export function DishCard({ d, s, onOpen }: { d: Dish; s: Settings; onOpen: () =>
   return (
     <button type="button" className={c.dishCard} aria-disabled={out} onClick={() => { if (!out) onOpen() }}>
       <div className={c.thumb}>
-        {d.img ? <img src={d.img} alt={d.name} loading="lazy" /> : d.icon && <span className={c.thumbIcon} aria-hidden="true">{d.icon}</span>}
+        {d.img ? <DishPhoto src={d.img} alt={d.name} thumb /> : d.icon && <span className={c.thumbIcon} aria-hidden="true">{d.icon}</span>}
         {out && <div className={c.soldOverlay}>{note}</div>}
       </div>
       <div className={c.dishBody}>

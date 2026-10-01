@@ -17,6 +17,9 @@ export interface SettingsRow {
   custom_dishes?: Settings['customDishes'] | null
   day_proteins?: Settings['dayProteins'] | null
   sold_flavors?: Settings['soldFlavors'] | null
+  dessert_flavors?: Settings['dessertFlavors']
+  juice_flavors?: Settings['juiceFlavors'] | null
+  dish_on?: Settings['dishOn'] | null
 }
 
 export interface OrderRow {
@@ -67,6 +70,9 @@ export function rowToSettings(r: SettingsRow): Settings {
     daySoups: r.day_soups ?? {},
     dayProteins: r.day_proteins ?? {},
     soldFlavors: r.sold_flavors ?? {},
+    dessertFlavors: r.dessert_flavors ?? null,
+    juiceFlavors: r.juice_flavors ?? [],
+    dishOn: r.dish_on ?? {},
     customDishes: r.custom_dishes ?? [],
   }
 }
@@ -83,6 +89,9 @@ const SETTINGS_COLUMNS: Record<keyof Settings, keyof SettingsRow> = {
   daySoups: 'day_soups',
   dayProteins: 'day_proteins',
   soldFlavors: 'sold_flavors',
+  dessertFlavors: 'dessert_flavors',
+  juiceFlavors: 'juice_flavors',
+  dishOn: 'dish_on',
   customDishes: 'custom_dishes',
 }
 

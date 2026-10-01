@@ -3,10 +3,11 @@ import { newId } from '../../domain/ids.ts'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { fmt } from '../../domain/format.ts'
 import { DESSERT_ID, EXTRA_JUICE_IDS } from '../../domain/catalog.ts'
-import { dishById, effRem, flavorsFor, initialProtein, isDishSoldOut, isExtra, proteinsOf } from '../../domain/menu.ts'
+import { dishById, effRem, flavorsFor, initialProtein, isDishSoldOut, isExtra, juiceFlavorsFor, proteinsOf } from '../../domain/menu.ts'
 import type { CartLine, Dish as DishT, Settings } from '../../domain/types.ts'
 import { useDevice, useSnapshot } from '../../data/hooks.ts'
 import { BackButton } from '../../ui/ui.tsx'
+import { DishPhoto } from '../../ui/DishPhoto.tsx'
 import { P } from '../paths.ts'
 import c from '../c.module.css'
 import x from './Dish.module.css'
@@ -31,12 +32,19 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
   // juices and desserts bought apart, offered at the end of every main dish
   const [extraQty, setExtraQty] = useState<Record<string, number>>({})
   const [flavors, setFlavors] = useState<Record<string, boolean>>({})
+  // `${juiceId}:${flavorId}` → picked, once the owner has created juice flavors
+  const [juicePicks, setJuicePicks] = useState<Record<string, boolean>>({})
   const offerExtras = !isExtra(d)
   const juices = offerExtras ? EXTRA_JUICE_IDS.map(id => dishById(s, id)).filter((j): j is DishT => !!j && !isDishSoldOut(s, j)) : []
   const dessert = offerExtras ? dishById(s, DESSERT_ID) : null
   const dessertOn = !!dessert && !isDishSoldOut(s, dessert)
   const pickedFlavors = dessertOn ? flavorsFor(s).filter(f => flavors[f.id]) : []
-  const extrasTotal = juices.reduce((t, j) => t + j.price * (extraQty[j.id] ?? 0), 0) + (dessert ? dessert.price * pickedFlavors.length : 0)
+  const juiceFlavors = juiceFlavorsFor(s)
+  const juiceByFlavor = (s.juiceFlavors ?? []).length > 0
+  const juiceLines = juices.flatMap(j => juiceByFlavor
+    ? juiceFlavors.filter(f => juicePicks[j.id + ':' + f.id]).map(f => ({ j, n: 1, opts: [f.label] }))
+    : (extraQty[j.id] ?? 0) > 0 ? [{ j, n: extraQty[j.id], opts: [] as string[] }] : [])
+  const extrasTotal = juiceLines.reduce((t, l) => t + l.j.price * l.n, 0) + (dessert ? dessert.price * pickedFlavors.length : 0)
 
   const groups = d.groups ?? []
   const prots = d.proteins ? proteinsOf(d) : []
@@ -66,7 +74,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
       opts, proteinLabel: null, juiceLabel: null, note: '', removed: [],
     })
     const extras = [
-      ...juices.filter(j => (extraQty[j.id] ?? 0) > 0).map(j => extra(j, extraQty[j.id])),
+      ...juiceLines.map(l => extra(l.j, l.n, l.opts)),
       ...(dessert ? pickedFlavors.map(f => extra(dessert, 1, [f.label])) : []),
     ]
     setDev(st => ({ cart: [...st.cart, line, ...extras] }))
@@ -77,7 +85,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
     <>
       <div className={`${c.scroll} noscroll`}>
         <div className={`${x.hero} ${d.img ? '' : x.heroShort}`}>
-          {d.img ? <img src={d.img} alt={d.name} /> : d.icon && <span className={x.heroIcon} aria-hidden="true">{d.icon}</span>}
+          {d.img ? <DishPhoto src={d.img} alt={d.name} /> : d.icon && <span className={x.heroIcon} aria-hidden="true">{d.icon}</span>}
           <BackButton overPhoto onClick={() => nav(P.menu)} />
         </div>
         <div className={x.head}>
@@ -156,7 +164,19 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
           <div className={x.section}>
             <div className={x.groupTitle}>¿Algo más? <span className={c.optional} style={{ fontSize: 12 }}>(opcional)</span></div>
             <div className={x.groupSub}>Todos los platos incluyen jugo. Si quieres otro, pídelo aparte:</div>
-            {juices.map(j => {
+            {juiceByFlavor && juices.map(j => (
+              <div key={j.id} style={{ marginBottom: 6 }}>
+                <div className={x.extraRow} style={{ paddingBottom: 4 }}><span>{j.name}<span className={x.extraPrice}>{fmt(j.price)} c/u</span></span></div>
+                <div className={x.wrap}>
+                  {juiceFlavors.map(f => {
+                    const k = j.id + ':' + f.id
+                    return <button key={k} type="button" aria-pressed={!!juicePicks[k]} aria-label={`${j.name} de ${f.label}`} className={`${x.pill} ${juicePicks[k] ? x.pillSel : ''}`}
+                      onClick={() => setJuicePicks(v => ({ ...v, [k]: !v[k] }))}>{f.label}{juicePicks[k] ? ' ✓' : ''}</button>
+                  })}
+                </div>
+              </div>
+            ))}
+            {!juiceByFlavor && juices.map(j => {
               const n = extraQty[j.id] ?? 0
               const set = (v: number) => setExtraQty(q => ({ ...q, [j.id]: Math.max(0, Math.min(20, v)) }))
               return (

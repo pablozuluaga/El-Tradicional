@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { allDishes, categories } from '../../domain/menu.ts'
+import { allDishes, categories, isExtra } from '../../domain/menu.ts'
 import { useSnapshot } from '../../data/hooks.ts'
 import { TonoTip } from '../../ui/ui.tsx'
 import ui from '../../ui/ui.module.css'
@@ -16,6 +16,9 @@ export function Menu() {
   const cats = categories(s)
   const active = cats.includes(cat) ? cat : 'Todos'
   const dishes = allDishes(s).filter(d => active === 'Todos' || d.cat === active)
+  // in "Todos", juices and desserts get their own heading after the dishes
+  const mains = active === 'Todos' ? dishes.filter(d => !isExtra(d)) : dishes
+  const extras = active === 'Todos' ? dishes.filter(isExtra) : []
 
   return (
     <div className={`${c.scroll} noscroll`}>
@@ -37,7 +40,9 @@ export function Menu() {
         ))}
       </div>
       <div className={`${c.dishList} ${m.list}`}>
-        {dishes.map(d => <DishCard key={d.id} d={d} s={s} onOpen={() => nav(P.dish(d.id))} />)}
+        {mains.map(d => <DishCard key={d.id} d={d} s={s} onOpen={() => nav(P.dish(d.id))} />)}
+        {extras.length > 0 && <div className={m.groupHead}>Bebidas y postres <span>· todos los platos ya incluyen jugo</span></div>}
+        {extras.map(d => <DishCard key={d.id} d={d} s={s} onOpen={() => nav(P.dish(d.id))} />)}
       </div>
     </div>
   )

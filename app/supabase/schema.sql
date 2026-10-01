@@ -31,6 +31,9 @@ create table if not exists public.settings (
   custom_dishes  jsonb not null default '[]'::jsonb,
   day_proteins   jsonb not null default '{}'::jsonb,
   sold_flavors   jsonb not null default '{}'::jsonb,
+  dessert_flavors jsonb,
+  juice_flavors  jsonb not null default '[]'::jsonb,
+  dish_on        jsonb not null default '{}'::jsonb,
   updated_at     timestamptz not null default now()
 );
 -- Columns added after the first release (re-running this file adds them to an existing project).
@@ -38,6 +41,9 @@ alter table public.settings add column if not exists day_soups     jsonb not nul
 alter table public.settings add column if not exists custom_dishes jsonb not null default '[]'::jsonb;
 alter table public.settings add column if not exists day_proteins  jsonb not null default '{}'::jsonb;
 alter table public.settings add column if not exists sold_flavors  jsonb not null default '{}'::jsonb;
+alter table public.settings add column if not exists dessert_flavors jsonb;
+alter table public.settings add column if not exists juice_flavors jsonb not null default '[]'::jsonb;
+alter table public.settings add column if not exists dish_on       jsonb not null default '{}'::jsonb;
 insert into public.settings (id) values (1) on conflict (id) do nothing;
 
 create or replace function public.touch_updated_at() returns trigger

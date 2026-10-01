@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { ADDRESS, ADDRESS_AREA, FACEBOOK_URL, INSTAGRAM_URL, MAPS_URL, PHONE_DISPLAY, WHATSAPP_URL } from '../../config.ts'
 import { FEATURED_IDS } from '../../domain/catalog.ts'
-import { dishById } from '../../domain/menu.ts'
+import { dishById, isExtra, specials } from '../../domain/menu.ts'
 import type { Origin } from '../../domain/types.ts'
 import { useDevice, useSnapshot } from '../../data/hooks.ts'
 import { InstagramIcon, SectionHeading, Silhouette } from '../../ui/ui.tsx'
@@ -24,6 +24,7 @@ export function Home() {
   const s = snap.settings
   const promos = s.promos.filter(p => p.active && !(p.id === 'primer' && snap.eligibility.kind !== 'primer'))
   const featured = FEATURED_IDS.map(id => dishById(s, id)).filter(d => d !== null)
+  const extras = specials(s).filter(isExtra)
   const order = (mode: Origin) => { setDev({ mode }); nav(P.menu) }
 
   return (
@@ -108,6 +109,11 @@ export function Home() {
       />
       <div className={`${c.dishList} ${h.featured}`}>
         {featured.map(d => <DishCard key={d.id} d={d} s={s} onOpen={() => nav(P.dish(d.id))} />)}
+      </div>
+
+      <SectionHeading eyebrow="Para acompañar" title="Bebidas y postres" sub="Todos los platos incluyen jugo; aquí puedes pedir más" />
+      <div className={`${c.dishList} ${h.featured}`}>
+        {extras.map(d => <DishCard key={d.id} d={d} s={s} onOpen={() => nav(P.dish(d.id))} />)}
       </div>
 
       <footer className={h.footer}>

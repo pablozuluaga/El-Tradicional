@@ -65,14 +65,6 @@ export function ExtrasPanel() {
       <div className={o.panelHead} style={{ marginBottom: 4 }}>Bebidas y postres</div>
       <div style={{ fontSize: 12, color: '#c9bfae', marginBottom: 6, lineHeight: 1.4 }}>Toca cada parte para abrirla.</div>
 
-      <Section title="Bebida incluida con el plato" sub={s.juices.map(j => j.label).join(', ') || 'ninguna'}>
-        <ItemEditor noun="bebida"
-          items={s.juices.map(j => ({ id: j.id, label: j.label, off: j.out }))}
-          onToggle={id => upd(st => ({ juices: st.juices.map(x => x.id === id ? { ...x, out: !x.out } : x) }))}
-          onRemove={id => upd(st => ({ juices: st.juices.filter(x => x.id !== id) }))}
-          onAdd={label => upd(st => ({ juices: [...st.juices, { id: newId('j'), label, out: false }] }))} />
-      </Section>
-
       <Section title="Jugos aparte" sub={juiceDishes.map(d => `${d.name.replace('Jugo ', '')} ${fmt(d.price)}`).join(' · ')}>
         <div className={o.list} style={{ gap: 8, marginBottom: 12 }}>
           {juiceDishes.map(d => (

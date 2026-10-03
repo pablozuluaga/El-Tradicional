@@ -41,3 +41,8 @@
 
 .empty { text-align: center; color: var(--muted); padding: 50px 20px; font-size: 14px; }
 .error { font-size: 12.5px; color: var(--red-dark); background: var(--pink); border-radius: 10px; padding: 9px 12px; margin-bottom: 10px; line-height: 1.4; }
+
+/* eye-catching notice (e.g. delivery price assigned by the restaurant) */
+.notice { display: flex; gap: 10px; align-items: flex-start; background: #FFF1CC; border: 1.5px solid #E2A72E; border-radius: 14px; padding: 12px 14px; color: #5C3D00; font-size: 13px; line-height: 1.4; }
+.notice b { display: block; font-size: 14px; color: #3D2800; margin-bottom: 2px; }
+.noticeIcon { font-size: 22px; line-height: 1; flex: none; }

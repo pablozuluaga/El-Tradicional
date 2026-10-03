@@ -5,6 +5,7 @@ import { orderId } from '../../domain/format.ts'
 import { useDevice, useSnapshot, useStore } from '../../data/hooks.ts'
 import { InstagramIcon, TonoTip } from '../../ui/ui.tsx'
 import { P } from '../paths.ts'
+import c from '../c.module.css'
 import x from './Confirm.module.css'
 
 export function Confirm() {
@@ -27,9 +28,15 @@ export function Confirm() {
         <div className={x.text}>
           {order.origin === 'domicilio'
             ? <>Ya le avisamos a la cocina. Tu pedido {orderId(order.num)} llega en <b>45 min – 1 hora</b> a {order.zoneLabel}.
-                {order.deliveryPending && <> El restaurante asignará el precio del domicilio y te lo confirmará por el chat.</>}</>
+</>
             : <>Ya le avisamos a la cocina. Tu pedido {orderId(order.num)} te espera en el local; te avisamos por el chat cuando esté <b>listo para recoger</b>.</>}
         </div>
+        {order.deliveryPending && (
+          <div className={c.notice} role="note" style={{ marginTop: 16, textAlign: 'left', width: '100%' }}>
+            <span className={c.noticeIcon} aria-hidden="true">🛵</span>
+            <div><b>El restaurante asignará el precio de tu domicilio</b>Te avisaremos el valor por el chat y lo verás en “Pedidos”.</div>
+          </div>
+        )}
         <TonoTip variant="confirm" w={48} h={52} style={{ marginTop: 18, padding: '12px 14px', textAlign: 'left', width: '100%' }} textStyle={{ lineHeight: 1.45 }}>
           Gracias por tu pedido. Guarda tu dirección en el perfil para que la próxima vez el proceso sea aún más rápido. 🛵
         </TonoTip>

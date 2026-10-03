@@ -97,6 +97,10 @@ export interface Settings {
   juiceFlavors: Juice[]
   /** opt-in dishes the owner switched on (see `Dish.optIn`) */
   dishOn: Record<string, boolean>
+  /** delivery price the owner assigned to barrio "Otro" orders, by order number (owner's totals only) */
+  deliveryFees: Record<string, number>
+  /** prices the owner changed, by dish id (daily menus by day id) */
+  priceOverrides: Record<string, number>
   customDishes: CustomDish[]
 }
 

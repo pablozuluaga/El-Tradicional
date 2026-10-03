@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { DAILY_MENUS, PROTEINS } from '../domain/catalog.ts'
 import { newId } from '../domain/ids.ts'
-import { fmt } from '../domain/format.ts'
-import { dailyMenuFor, dayOffKey, dayProteinList, descOf, isDayOff, isExtra, specials } from '../domain/menu.ts'
+import { dailyMenuFor, dayOffKey, dayProteinList, descOf, isDayOff, isExtra, priceOf, specials } from '../domain/menu.ts'
 import type { DayId, Opt, Settings } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { Toggle } from '../ui/ui.tsx'
 import { NewDishForm } from './NewDishForm.tsx'
 import { DayListPanel } from './DayListPanel.tsx'
+import { PriceEditor } from './PriceEditor.tsx'
 import { ExtrasPanel } from './ExtrasPanel.tsx'
 import o from './o.module.css'
 
@@ -89,7 +89,7 @@ export function MenuTab() {
             <div style={{ fontSize: 10.5, letterSpacing: '.1em', textTransform: 'uppercase', color: '#7FC795', fontWeight: 600 }}>{m.label} · visible para el cliente</div>
             <div style={{ fontWeight: 600, fontSize: 15, marginTop: 4 }}>{m.name ?? 'Menú del día'}</div>
             <DescEditor key={m.day} id={m.day} current={descOf(s, m.day, m.desc)} editing={editing === m.day} onEdit={() => setEditing(m.day)} onClose={() => setEditing(null)} />
-            <div style={{ fontSize: 12.5, marginTop: 6 }}>{fmt(m.price)}</div>
+            <div style={{ marginTop: 6 }}><PriceEditor key={m.day} id={m.day} name={m.name ?? 'Menú del día'} price={priceOf(s, m.day, m.price)} /></div>
             {m.proteinChoice && (
               <div style={{ marginTop: 13 }}>
                 <div className={o.optHead}>Proteínas · toca para quitar o poner</div>{dayOpts(m.day, 'prot', [...dayProteinList(s, m.day), ...PROTEINS])}
@@ -146,7 +146,7 @@ export function MenuTab() {
           return (
             <div key={d.id} className={o.row} style={{ display: 'block' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                <div><span style={{ fontSize: 14, fontWeight: 500, color: out ? '#8b8070' : '#fff' }}>{d.name}</span><span style={{ fontSize: 12, color: '#8b8070', marginLeft: 8 }}>{fmt(d.price)}{d.days ? ' · solo ' + d.days.map(x => DAILY_MENUS.find(m => m.day === x)?.label.toLowerCase() + 's').join(', ') : ''}{d.optIn ? ', cuando sobra' : ''}</span></div>
+                <div><span style={{ fontSize: 14, fontWeight: 500, color: out ? '#8b8070' : '#fff' }}>{d.name}</span><span style={{ fontSize: 12, color: '#8b8070', marginLeft: 8 }}>{d.days ? ' · solo ' + d.days.map(x => DAILY_MENUS.find(m => m.day === x)?.label.toLowerCase() + 's').join(', ') : ''}{d.optIn ? ', cuando sobra' : ''}</span></div>
                 <Toggle on={!out} onBg={GREEN} offBg={RED} label={`${d.name}: ${out ? (d.optIn ? 'apagado' : 'agotado') : 'disponible'}`}
                   onClick={() => upd(st => d.optIn
                     ? { dishOn: { ...st.dishOn, [d.id]: !st.dishOn[d.id] } }
@@ -155,6 +155,7 @@ export function MenuTab() {
               <div style={{ marginTop: 4 }}>
                 <DescEditor key={d.id} id={d.id} current={d.desc} editing={editing === d.id} onEdit={() => setEditing(d.id)} onClose={() => setEditing(null)} />
               </div>
+              <div style={{ marginTop: 6 }}><PriceEditor key={d.id} id={d.id} name={d.name} price={d.price} /></div>
               {custom && (
                 <button type="button" className={o.quitar} style={{ marginTop: 8 }}
                   onClick={() => { if (confirm(`¿Eliminar ${d.name} del menú?`)) upd(st => ({ customDishes: st.customDishes.filter(c => c.id !== d.id) })) }}>Eliminar plato</button>

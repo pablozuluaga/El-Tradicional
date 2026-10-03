@@ -1,3 +1,4 @@
+import { ownerAmounts } from './orders.ts'
 import type { Order } from './types.ts'
 
 export interface ReportRow {
@@ -24,7 +25,7 @@ export const inRange = (iso: string, desde: Date | null, hasta: Date | null) => 
 }
 
 /** Billing rows: rejected orders are not sales, so they are left out. */
-export function reportRows(orders: Order[], from: string, to: string): ReportRow[] {
+export function reportRows(orders: Order[], from: string, to: string, fees: Record<string, number> = {}): ReportRow[] {
   const { desde, hasta } = reportRange(from, to)
   return orders
     .filter(o => o.status !== 'rechazado' && inRange(o.createdAt, desde, hasta))
@@ -35,7 +36,7 @@ export function reportRows(orders: Order[], from: string, to: string): ReportRow
       pedido: o.itemsList.length ? o.itemsList.join(' · ') : o.items,
       metodoPago: o.pay,
       valorPlato: Math.max(0, o.subtotal - o.discount),
-      valorDomicilio: o.delivery,
+      valorDomicilio: ownerAmounts(o, fees).delivery ?? 0,
       correo: o.email,
       celular: o.phone && o.phone !== '—' ? o.phone : '',
     }))

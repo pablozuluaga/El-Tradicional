@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { INSTAGRAM_URL, REVIEW_URL } from '../../config.ts'
 import { orderId } from '../../domain/format.ts'
+import { isOtherZoneOrder } from '../../domain/orders.ts'
 import { useDevice, useSnapshot, useStore } from '../../data/hooks.ts'
 import { InstagramIcon, TonoTip } from '../../ui/ui.tsx'
 import { P } from '../paths.ts'
@@ -31,10 +32,10 @@ export function Confirm() {
 </>
             : <>Ya le avisamos a la cocina. Tu pedido {orderId(order.num)} te espera en el local; te avisamos por el chat cuando esté <b>listo para recoger</b>.</>}
         </div>
-        {order.deliveryPending && (
+        {isOtherZoneOrder(order) && (
           <div className={c.notice} role="note" style={{ marginTop: 16, textAlign: 'left', width: '100%' }}>
             <span className={c.noticeIcon} aria-hidden="true">🛵</span>
-            <div><b>El restaurante asignará el precio de tu domicilio</b>Te avisaremos el valor por el chat y lo verás en “Pedidos”.</div>
+            <div><b>El domicilio se paga al recibir el pedido</b>Ten listo el valor del domicilio a {order.zoneLabel} para cuando llegue el domiciliario.</div>
           </div>
         )}
         <TonoTip variant="confirm" w={48} h={52} style={{ marginTop: 18, padding: '12px 14px', textAlign: 'left', width: '100%' }} textStyle={{ lineHeight: 1.45 }}>

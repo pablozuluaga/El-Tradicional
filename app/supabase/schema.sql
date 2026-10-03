@@ -276,27 +276,6 @@ begin
   return o;
 end $$;
 
-create or replace function public._money(p int) returns text
-language sql immutable set search_path = '' as $$ select '$' || replace(to_char(p, 'FM999,999,999'), ',', '.') $$;
-
--- Barrio "Otro": the owner sets the delivery fee; the total is updated and the customer is told by chat.
-create or replace function public.set_delivery_fee(p_num bigint, p_fee int) returns public.orders
-language plpgsql security definer set search_path = '' as $$
-declare o public.orders;
-begin
-  if not public.is_owner() then raise exception 'Solo el dueño puede actualizar pedidos.' using errcode = '42501'; end if;
-  if p_fee is null or p_fee < 0 or p_fee > 100000 then raise exception 'Valor de domicilio inválido.'; end if;
-  select * into o from public.orders where num = p_num for update;
-  if not found then raise exception 'Pedido no encontrado.'; end if;
-  if o.origin <> 'domicilio' or o.status in ('camino', 'listo', 'rechazado') then raise exception 'Este pedido ya no se puede cambiar.'; end if;
-  update public.orders set delivery = p_fee, delivery_pending = false, total = greatest(0, subtotal - discount + p_fee)
-  where num = p_num returning * into o;
-  insert into public.order_messages (order_num, sender, body)
-  values (p_num, 'dueno', 'El domicilio a ' || coalesce(o.zone_label, 'tu barrio') || ' cuesta ' || public._money(p_fee)
-                          || '. El total de tu pedido queda en ' || public._money(o.total) || '.');
-  return o;
-end $$;
-
 create or replace function public.send_message(p_num bigint, p_body text) returns public.order_messages
 language plpgsql security definer set search_path = '' as $$
 declare m public.order_messages; side text; b text := trim(coalesce(p_body, ''));
@@ -344,12 +323,10 @@ end $$;
 -- Functions are executable by PUBLIC by default; only signed-in users may call the API ones.
 revoke execute on function public.is_owner(), public._eligibility(uuid, text), public._next_status(text), public._status_note(text, text),
   public.discount_eligibility(text), public.place_order(jsonb), public.advance_order(bigint), public.reject_order(bigint, text),
-  public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean), public.touch_updated_at(),
-  public._money(int), public.set_delivery_fee(bigint, int)
+  public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean), public.touch_updated_at()
   from public, anon;
 grant execute on function public.is_owner(), public.discount_eligibility(text), public.place_order(jsonb), public.advance_order(bigint),
-  public.reject_order(bigint, text), public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean),
-  public.set_delivery_fee(bigint, int)
+  public.reject_order(bigint, text), public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean)
   to authenticated;
 revoke execute on function public._eligibility(uuid, text) from authenticated;
 

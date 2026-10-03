@@ -5,6 +5,7 @@ import { OTHER_ZONE_ID, PAYS, ZONES } from '../../domain/catalog.ts'
 import { fmt } from '../../domain/format.ts'
 import { discountName } from '../../domain/loyalty.ts'
 import { itemsDetail, itemsSummary, orderLines } from '../../domain/orders.ts'
+import { isPhone } from '../../domain/placement.ts'
 import { deliveryFee, discountFor, isOtherZone, orderTotal, subtotal, zoneById } from '../../domain/pricing.ts'
 import type { OrderDraft } from '../../domain/types.ts'
 import type { Address } from '../../data/device.ts'
@@ -57,13 +58,14 @@ export function Checkout() {
       addr = formOpen ? saveAddr() : saved
       if (!addr) { setError('Escribe la dirección de entrega.'); return }
     }
+    if (!isPhone(dev.phone)) { setError('Escribe tu número de celular.'); return }
     const customerId = store.customerId()
     if (!customerId) { setError('No pudimos conectarnos. Revisa tu conexión e intenta de nuevo.'); return }
     const draft: OrderDraft = {
       customerId,
       name: (dev.firstName.trim() + ' ' + dev.lastName.trim()).trim() || 'Cliente app',
       email: dev.email.trim(),
-      phone: dev.phone.trim() || '—',
+      phone: dev.phone.trim(),
       origin: dev.mode,
       zoneId: dom ? zone!.id : null,
       zoneLabel: dom ? zone!.label : null,
@@ -115,7 +117,7 @@ export function Checkout() {
                   placeholder="¿En qué barrio estás?" aria-label="Tu barrio" maxLength={80} autoFocus />
                 <div className={c.notice} role="note" style={{ marginTop: -6, marginBottom: 18 }}>
                   <span className={c.noticeIcon} aria-hidden="true">🛵</span>
-                  <div><b>El restaurante asignará el precio de tu domicilio</b>Como tu barrio no está en la lista, te avisaremos el valor por el chat y se sumará al total.</div>
+                  <div><b>El domicilio se paga al recibir el pedido</b>Como tu barrio no está en la lista, el valor del domicilio no va en este total: se cobra al momento de la entrega.</div>
                 </div>
               </>
             )}
@@ -143,10 +145,12 @@ export function Checkout() {
               )}
             </div>
 
-            <label className={c.label} htmlFor="tel" style={{ display: 'block' }}>Teléfono de contacto <span className={c.optional}>(opcional)</span></label>
-            <input id="tel" className={k.phone} value={dev.phone} onChange={e => setDev({ phone: e.target.value })} placeholder="Celular para que el domiciliario te ubique" inputMode="tel" autoComplete="tel" />
           </>
         )}
+
+        <label className={c.label} htmlFor="tel" style={{ display: 'block' }}>Celular de contacto <span className={c.req}>*</span></label>
+        <input id="tel" className={k.phone} value={dev.phone} onChange={e => { setDev({ phone: e.target.value }); setError('') }} required
+          placeholder={dom ? 'Para que el domiciliario te ubique' : 'Para avisarte cuando esté listo'} inputMode="tel" autoComplete="tel" maxLength={20} />
 
         <div className={c.label}>Método de pago</div>
         <div className={k.stack} role="radiogroup" aria-label="Método de pago">
@@ -165,9 +169,9 @@ export function Checkout() {
         <div className={k.row}><span>Subtotal</span><span>{fmt(sub)}</span></div>
         {discount > 0 && <div className={k.row} style={{ color: 'var(--red)' }}><span>{discountName(snap.eligibility.kind)}</span><span>−{fmt(discount)}</span></div>}
         <div className={k.row} style={{ marginBottom: 10 }}>
-          <span>Domicilio{dom ? '' : ' (recoge en local)'}</span><span>{!dom ? 'Recoge' : other ? 'Lo asigna el restaurante' : zone ? fmt(fee) : '—'}</span>
+          <span>Domicilio{dom ? '' : ' (recoge en local)'}</span><span>{!dom ? 'Recoge' : other ? 'Se paga al recibir' : zone ? fmt(fee) : '—'}</span>
         </div>
-        <div className={k.total}><span>Total{other ? ' + domicilio' : ''}</span><span>{fmt(total)}</span></div>
+        <div className={k.total}><span>Total{other ? ' (sin domicilio)' : ''}</span><span>{fmt(total)}</span></div>
         {error && <div className={c.error} role="alert">{error}</div>}
         <button type="button" className={c.primary} disabled={busy} onClick={place}>{busy ? 'Enviando…' : 'Hacer pedido'}</button>
       </div>

@@ -12,6 +12,12 @@ export const descOf = (s: Settings, id: string, fallback: string) => {
   return o !== undefined && o !== null && o !== '' ? o : fallback
 }
 
+/** Price the owner set for a dish (or a day's menu), else the catalog price. */
+export const priceOf = (s: Settings, id: string, fallback: number) => {
+  const p = s.priceOverrides?.[id]
+  return typeof p === 'number' && p > 0 ? p : fallback
+}
+
 export const dailyMenuFor = (day: DayId | null): DailyMenu | null => (day ? DAILY_MENUS.find(m => m.day === day) ?? null : null)
 
 /** Weekday in Colombia (UTC-5 all year). */
@@ -55,8 +61,8 @@ export function dailyDish(s: Settings): Dish | null {
     id: DAILY_ID,
     cat: weekend ? 'Especiales' : 'Menú del día',
     name: m.name ?? 'Menú del día',
-    price: m.price,
-    priceDom: m.priceDom,
+    price: priceOf(s, m.day, m.price),
+    priceDom: priceOf(s, m.day, m.priceDom),
     tag: 'Hoy · ' + m.label,
     img: m.img ?? DEFAULT_DAILY_IMG,
     avail: true,
@@ -109,6 +115,8 @@ export function specials(s: Settings, now = new Date(), allDays = false): Dish[]
     .filter(d => allDays || ((!d.days || d.days.includes(day)) && (!d.optIn || !!s.dishOn?.[d.id])))
     .map(d => ({
       ...d,
+      price: priceOf(s, d.id, d.price),
+      priceDom: d.priceDom === undefined ? undefined : priceOf(s, d.id, d.priceDom),
       desc: descOf(s, d.id, d.desc),
       groups: [...(d.soup ? soupGroup(s, day) : []), ...flavorGroups(s, d)],
       ...(d.proteins ? { protList: proteinsForDay(s, day) } : {}),

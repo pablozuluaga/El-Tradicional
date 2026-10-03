@@ -1,7 +1,7 @@
 import { defaultSettings, ORDER_NUM_START } from '../domain/catalog.ts'
 import { countingOrders, eligibility, emailUsedElsewhere } from '../domain/loyalty.ts'
-import { advanceStep, canReject, deliveryFeeNote, isFinished, lastMessageId, MAX_DELIVERY_FEE, normalizeReason, rejectNote, WELCOME_MSG } from '../domain/orders.ts'
-import { isOtherZone, orderTotal } from '../domain/pricing.ts'
+import { advanceStep, canReject, lastMessageId, normalizeReason, rejectNote, WELCOME_MSG } from '../domain/orders.ts'
+import { isOtherZone } from '../domain/pricing.ts'
 import { finalizeTotals, validateDraft } from '../domain/placement.ts'
 import { reportRows } from '../domain/report.ts'
 import type { ChatMessage, Order, OrderDraft, Settings } from '../domain/types.ts'
@@ -164,18 +164,6 @@ export class LocalStore implements RestaurantStore {
     })
   }
 
-  async setDeliveryFee(num: number, fee: number) {
-    const f = Math.round(fee)
-    if (!(f >= 0 && f <= MAX_DELIVERY_FEE)) throw new StoreError('Valor de domicilio inválido.')
-    this.mutOrder(num, (o, d) => {
-      if (o.origin !== 'domicilio' || isFinished(o.status) || o.status === 'rechazado') throw new StoreError('Este pedido ya no se puede cambiar.')
-      o.delivery = f
-      o.total = orderTotal(o.subtotal, o.discount, f)
-      o.deliveryPending = false
-      o.chat.push(this.msg(d, 'dueno', deliveryFeeNote(o.zoneLabel ?? 'tu barrio', f, o.total)))
-    })
-  }
-
   async sendMessage(num: number, text: string) {
     const t = text.trim()
     if (!t) return
@@ -208,7 +196,7 @@ export class LocalStore implements RestaurantStore {
     })
   }
 
-  async reportRows(from: string, to: string) { return reportRows(readDoc().orders, from, to) }
+  async reportRows(from: string, to: string) { const d = readDoc(); return reportRows(d.orders, from, to, d.settings.deliveryFees) }
   async reportCount(from: string, to: string) { return reportRows(readDoc().orders, from, to).length }
 
   async signIn() {}

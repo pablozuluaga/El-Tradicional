@@ -189,6 +189,8 @@ export const defaultSettings = (): Settings => ({
   dessertFlavors: null,
   juiceFlavors: [],
   dishOn: {},
+  deliveryFees: {},
+  priceOverrides: {},
   customDishes: [],
 })
 

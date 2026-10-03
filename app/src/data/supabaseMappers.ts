@@ -56,8 +56,20 @@ export interface OrderRow {
 
 export interface MessageRow { id: number; order_num: number; sender: string; body: string; created_at: string }
 
+/**
+ * Settings added after the first release live in one bag inside `desc_overrides` (key `__app`),
+ * so new options never need a database change: saving them is like saving a juice. Projects that
+ * ran a newer schema.sql may also have them as columns; the bag wins, the column is the fallback.
+ */
+export const BAG_KEY = '__app'
+const BAG_FIELDS = ['daySoups', 'dayProteins', 'soldFlavors', 'dessertFlavors', 'juiceFlavors', 'dishOn', 'customDishes', 'deliveryFees', 'priceOverrides'] as const
+type BagField = typeof BAG_FIELDS[number]
+const isBagField = (k: string): k is BagField => (BAG_FIELDS as readonly string[]).includes(k)
+
 export function rowToSettings(r: SettingsRow): Settings {
   const d = defaultSettings()
+  const { [BAG_KEY]: rawBag, ...desc } = (r.desc_overrides ?? {}) as Record<string, unknown>
+  const bag = (rawBag && typeof rawBag === 'object' ? rawBag : {}) as Partial<Pick<Settings, BagField>>
   return {
     storeOpen: r.store_open,
     platoDia: (r.plato_dia as DayId | null) ?? null,
@@ -66,18 +78,20 @@ export function rowToSettings(r: SettingsRow): Settings {
     soldDishes: r.sold_dishes ?? {},
     juices: r.juices ?? d.juices,
     promos: r.promos ?? d.promos,
-    descOverrides: r.desc_overrides ?? {},
-    daySoups: r.day_soups ?? {},
-    dayProteins: r.day_proteins ?? {},
-    soldFlavors: r.sold_flavors ?? {},
-    dessertFlavors: r.dessert_flavors ?? null,
-    juiceFlavors: r.juice_flavors ?? [],
-    dishOn: r.dish_on ?? {},
-    customDishes: r.custom_dishes ?? [],
+    descOverrides: desc as Record<string, string>,
+    daySoups: bag.daySoups ?? r.day_soups ?? {},
+    dayProteins: bag.dayProteins ?? r.day_proteins ?? {},
+    soldFlavors: bag.soldFlavors ?? r.sold_flavors ?? {},
+    dessertFlavors: bag.dessertFlavors !== undefined ? bag.dessertFlavors : (r.dessert_flavors ?? null),
+    juiceFlavors: bag.juiceFlavors ?? r.juice_flavors ?? [],
+    dishOn: bag.dishOn ?? r.dish_on ?? {},
+    customDishes: bag.customDishes ?? r.custom_dishes ?? [],
+    deliveryFees: bag.deliveryFees ?? {},
+    priceOverrides: bag.priceOverrides ?? {},
   }
 }
 
-const SETTINGS_COLUMNS: Record<keyof Settings, keyof SettingsRow> = {
+const SETTINGS_COLUMNS: Record<Exclude<keyof Settings, BagField>, keyof SettingsRow> = {
   storeOpen: 'store_open',
   platoDia: 'plato_dia',
   dayOff: 'day_off',
@@ -86,19 +100,23 @@ const SETTINGS_COLUMNS: Record<keyof Settings, keyof SettingsRow> = {
   juices: 'juices',
   promos: 'promos',
   descOverrides: 'desc_overrides',
-  daySoups: 'day_soups',
-  dayProteins: 'day_proteins',
-  soldFlavors: 'sold_flavors',
-  dessertFlavors: 'dessert_flavors',
-  juiceFlavors: 'juice_flavors',
-  dishOn: 'dish_on',
-  customDishes: 'custom_dishes',
 }
 
-/** Only the changed columns, for `update settings set …`. */
-export function settingsPatchToRow(p: Partial<Settings>): Partial<SettingsRow> {
+/**
+ * Only the changed columns, for `update settings set …`. `next` is the full settings after the
+ * change: descriptions and the bag share `desc_overrides`, so that column is written whole.
+ */
+export function settingsPatchToRow(p: Partial<Settings>, next: Settings): Partial<SettingsRow> {
   const out: Record<string, unknown> = {}
-  for (const k of Object.keys(p) as (keyof Settings)[]) out[SETTINGS_COLUMNS[k]] = p[k]
+  let descColumn = false
+  for (const k of Object.keys(p) as (keyof Settings)[]) {
+    if (isBagField(k) || k === 'descOverrides') descColumn = true
+    else out[SETTINGS_COLUMNS[k]] = p[k]
+  }
+  if (descColumn) {
+    const bag = Object.fromEntries(BAG_FIELDS.map(f => [f, next[f]]))
+    out.desc_overrides = { ...next.descOverrides, [BAG_KEY]: bag }
+  }
   return out as Partial<SettingsRow>
 }
 

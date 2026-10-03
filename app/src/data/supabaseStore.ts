@@ -294,7 +294,7 @@ export class SupabaseStore implements RestaurantStore {
     const patch = fn(this.snap.settings)
     const before = this.snap.settings
     this.set({ settings: { ...before, ...patch } })
-    const { error } = await this.sb.from('settings').update(settingsPatchToRow(patch)).eq('id', 1)
+    const { error } = await this.sb.from('settings').update(settingsPatchToRow(patch, { ...before, ...patch })).eq('id', 1)
     if (error) {
       this.set({ settings: before })
       fail(error)
@@ -313,12 +313,6 @@ export class SupabaseStore implements RestaurantStore {
     await this.refreshOrder(num)
   }
 
-  async setDeliveryFee(num: number, fee: number) {
-    const { error } = await this.sb.rpc('set_delivery_fee', { p_num: num, p_fee: Math.round(fee) })
-    if (error) fail(error)
-    await this.refreshOrder(num)
-  }
-
   private rangeQuery(from: string, to: string, head: boolean) {
     const { desde, hasta } = reportRange(from, to)
     let q = head
@@ -333,7 +327,7 @@ export class SupabaseStore implements RestaurantStore {
   async reportRows(from: string, to: string) {
     const { data, error } = await this.rangeQuery(from, to, false)
     if (error) fail(error)
-    return reportRows(((data ?? []) as OrderRow[]).map(r => rowToOrder(r, [])), from, to)
+    return reportRows(((data ?? []) as OrderRow[]).map(r => rowToOrder(r, [])), from, to, this.snap.settings.deliveryFees)
   }
 
   async reportCount(from: string, to: string) {

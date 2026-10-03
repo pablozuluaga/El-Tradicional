@@ -143,7 +143,8 @@ revoke update on public.settings from anon;
 -- --------------------------------------------------------------- helpers --
 create or replace function public._next_status(p_status text) returns text
 language sql immutable set search_path = '' as $$
-  select case p_status when 'nuevo' then 'aceptado' when 'aceptado' then 'camino' when 'camino' then 'listo' end;
+  -- 'camino' (en camino / listo para recoger) is the last step the owner marks; 'listo' remains for older orders
+  select case p_status when 'nuevo' then 'aceptado' when 'aceptado' then 'camino' end;
 $$;
 
 create or replace function public._status_note(p_status text, p_origin text) returns text
@@ -287,7 +288,7 @@ begin
   if p_fee is null or p_fee < 0 or p_fee > 100000 then raise exception 'Valor de domicilio inválido.'; end if;
   select * into o from public.orders where num = p_num for update;
   if not found then raise exception 'Pedido no encontrado.'; end if;
-  if o.origin <> 'domicilio' or o.status in ('listo', 'rechazado') then raise exception 'Este pedido ya no se puede cambiar.'; end if;
+  if o.origin <> 'domicilio' or o.status in ('camino', 'listo', 'rechazado') then raise exception 'Este pedido ya no se puede cambiar.'; end if;
   update public.orders set delivery = p_fee, delivery_pending = false, total = greatest(0, subtotal - discount + p_fee)
   where num = p_num returning * into o;
   insert into public.order_messages (order_num, sender, body)

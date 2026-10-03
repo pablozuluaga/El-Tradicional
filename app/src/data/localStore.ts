@@ -1,6 +1,6 @@
 import { defaultSettings, ORDER_NUM_START } from '../domain/catalog.ts'
 import { countingOrders, eligibility, emailUsedElsewhere } from '../domain/loyalty.ts'
-import { advanceStep, canReject, deliveryFeeNote, lastMessageId, MAX_DELIVERY_FEE, normalizeReason, rejectNote, WELCOME_MSG } from '../domain/orders.ts'
+import { advanceStep, canReject, deliveryFeeNote, isFinished, lastMessageId, MAX_DELIVERY_FEE, normalizeReason, rejectNote, WELCOME_MSG } from '../domain/orders.ts'
 import { isOtherZone, orderTotal } from '../domain/pricing.ts'
 import { finalizeTotals, validateDraft } from '../domain/placement.ts'
 import { reportRows } from '../domain/report.ts'
@@ -168,7 +168,7 @@ export class LocalStore implements RestaurantStore {
     const f = Math.round(fee)
     if (!(f >= 0 && f <= MAX_DELIVERY_FEE)) throw new StoreError('Valor de domicilio inválido.')
     this.mutOrder(num, (o, d) => {
-      if (o.origin !== 'domicilio' || o.status === 'listo' || o.status === 'rechazado') throw new StoreError('Este pedido ya no se puede cambiar.')
+      if (o.origin !== 'domicilio' || isFinished(o.status) || o.status === 'rechazado') throw new StoreError('Este pedido ya no se puede cambiar.')
       o.delivery = f
       o.total = orderTotal(o.subtotal, o.discount, f)
       o.deliveryPending = false

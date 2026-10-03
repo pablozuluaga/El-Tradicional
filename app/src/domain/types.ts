@@ -113,6 +113,8 @@ export interface CartLine {
   juiceLabel: string | null
   note: string
   removed: string[]
+  /** paid additions on the plate (already included in basePrice/domPrice) */
+  addons?: string[]
 }
 
 export interface OrderLine { dishId: string; name: string; qty: number; unit: number }

@@ -4,7 +4,7 @@ import { defaultSettings } from '../src/domain/catalog.ts'
 import { allDishes, bogotaDay, categories, dailyDish, dayOffKey, dishById, effRem, initialProtein, isDishSoldOut, serviceDay } from '../src/domain/menu.ts'
 import { deliveryFee, discountFor, orderTotal, subtotal } from '../src/domain/pricing.ts'
 import { eligibility, eligibilityFromCount, loyaltyCard, profileStats } from '../src/domain/loyalty.ts'
-import { advanceLabel, advanceStep, canReject, clientSteps, hasUnread, itemsDetail, itemsSummary } from '../src/domain/orders.ts'
+import { advanceLabel, advanceStep, canReject, clientSteps, hasUnread, isFinished, itemsDetail, itemsSummary, OWNER_BADGE } from '../src/domain/orders.ts'
 import { reportRows } from '../src/domain/report.ts'
 import { fmt } from '../src/domain/format.ts'
 import type { CartLine } from '../src/domain/types.ts'
@@ -89,7 +89,8 @@ test('only the fish, Bandeja Paisa and Cazuela come without soup; nothing asks e
   assert.ok(allDishes(s).filter(d => d.cat !== 'Bebidas y postres').every(d => d.drink), 'every dish includes the juice')
   const caz = dishById(s, 'cazuela')!
   assert.equal(caz.price, 35000)
-  assert.equal(caz.proteins, true)
+  assert.equal(caz.proteins, undefined, 'Cazuela comes with its meats')
+  assert.equal(dishById(s, 'paisa')!.proteins, undefined, 'Bandeja Paisa comes with its meats')
 })
 
 test('owner soups: a day uses its own list, new soups and switched-off ones apply to every soup dish', () => {
@@ -188,8 +189,12 @@ test('order flow for delivery and pickup', () => {
   assert.deepEqual(advanceStep({ status: 'nuevo', origin: 'domicilio' })!.status, 'aceptado')
   assert.equal(advanceStep({ status: 'aceptado', origin: 'domicilio' })!.note, 'Tu pedido está en camino. 🛵')
   assert.equal(advanceStep({ status: 'aceptado', origin: 'recoger' })!.note, 'Tu pedido está listo para recoger en el local. 🥡')
-  assert.equal(advanceStep({ status: 'camino', origin: 'recoger' })!.status, 'listo')
+  assert.equal(advanceStep({ status: 'camino', origin: 'recoger' }), null, 'en camino / listo para recoger is the last step')
   assert.equal(advanceStep({ status: 'listo', origin: 'recoger' }), null)
+  assert.equal(advanceLabel({ status: 'camino', origin: 'domicilio' }), null)
+  assert.equal(isFinished('camino'), true)
+  assert.equal(OWNER_BADGE.camino.label, 'Entregado')
+  assert.deepEqual(clientSteps('domicilio'), ['Recibido', 'Aceptado', 'En camino'])
   assert.equal(advanceStep({ status: 'rechazado', origin: 'recoger' }), null)
   assert.equal(advanceLabel({ status: 'aceptado', origin: 'recoger' }), 'Marcar listo para recoger')
   assert.equal(advanceLabel({ status: 'listo', origin: 'recoger' }), null)
@@ -233,7 +238,7 @@ test('an order with a dish the owner deleted is refused', async () => {
 test('Sunday offers sudado de posta in the protein dishes; owner-added special proteins apply to their day', () => {
   const dom = { ...defaultSettings(), platoDia: 'domingo' as const }
   assert.ok(dishById(dom, 'especial')!.protList!.some(p => p.label === 'Sudado de posta'))
-  assert.ok(dishById(dom, 'cazuela')!.protList!.some(p => p.label === 'Sudado de posta'))
+  assert.equal(dishById(dom, 'cazuela')!.protList, undefined)
   // weekday specials stay in the menu del día only
   const mie = { ...defaultSettings(), platoDia: 'miercoles' as const, dayProteins: { miercoles: [{ id: 'albondigas', label: 'Albóndigas' }, { id: 'prot1', label: 'Lomo' }] } }
   assert.deepEqual(dailyDish(mie)!.protList!.slice(0, 2).map(p => p.label), ['Albóndigas', 'Lomo'])
@@ -293,4 +298,13 @@ test('juice flavors: none until the owner creates them; dessert flavors can be e
   const custom = { ...s, dessertFlavors: [{ id: 'pf1', label: 'Brownie' }] }
   assert.deepEqual(dishById(custom, 'postre')!.groups![0].options.map(o => o.label), ['Brownie'])
   assert.equal(dailyDish({ ...s, platoDia: 'viernes' })!.img, '/assets/menu-viernes.webp')
+})
+
+test('optional additions: each protein $10.000 except molida $5.000, arroz $6.000, papas $5.000', async () => {
+  const { addonsFor } = await import('../src/domain/menu.ts')
+  const s = defaultSettings()
+  const byLabel = Object.fromEntries(addonsFor(s).map(a => [a.label, a.price]))
+  assert.deepEqual(byLabel, { Res: 10000, Cerdo: 10000, Pollo: 10000, 'Chicharrón': 10000, 'Carne molida': 5000, Arroz: 6000, 'Papas a la francesa': 5000 })
+  assert.ok(!addonsFor({ ...s, soldProteins: { pollo: true } }).some(a => a.label === 'Pollo'), 'sold-out protein not offered')
+  assert.match(itemsDetail([line({ addons: ['Pollo', 'Arroz'] })])[0], /adición: pollo, arroz/)
 })

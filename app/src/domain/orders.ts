@@ -14,6 +14,7 @@ export function itemsSummary(cart: CartLine[]): string {
     if (c.juiceLabel) extras.push(c.juiceLabel.toLowerCase())
     extras.push(...lower(c.opts))
     if (c.removed.length) extras.push('sin ' + c.removed.join(', ').toLowerCase())
+    if (c.addons?.length) extras.push('adición: ' + c.addons.join(', ').toLowerCase())
     return c.qty + ' ' + c.name + (extras.length ? ' (' + extras.join(', ') + ')' : '')
   }).join(' · ')
 }
@@ -26,6 +27,7 @@ export function itemsDetail(cart: CartLine[]): string[] {
     if (c.juiceLabel) extras.push(c.juiceLabel.toLowerCase())
     extras.push(...lower(c.opts))
     if (c.removed.length) extras.push('sin ' + c.removed.join(', ').toLowerCase())
+    if (c.addons?.length) extras.push('adición: ' + c.addons.join(', ').toLowerCase())
     if (c.note) extras.push('nota: ' + c.note)
     return c.qty + '× ' + c.name + (extras.length ? ' — ' + extras.join(', ') : '')
   })
@@ -44,7 +46,12 @@ export const originLabel = (o: Origin) => (o === 'domicilio' ? 'Domicilio' : 'Re
 
 // ---- status flow -------------------------------------------------------
 
-const NEXT: Partial<Record<OrderStatus, OrderStatus>> = { nuevo: 'aceptado', aceptado: 'camino', camino: 'listo' }
+// The owner's last step is "en camino" (or "listo para recoger"); from then on the order counts as delivered.
+// 'listo' only remains on older orders.
+const NEXT: Partial<Record<OrderStatus, OrderStatus>> = { nuevo: 'aceptado', aceptado: 'camino' }
+
+/** Delivered from the owner's point of view: no more steps, the card fades. */
+export const isFinished = (s: OrderStatus) => s === 'camino' || s === 'listo'
 
 const NOTE_DOM: Partial<Record<OrderStatus, string>> = {
   aceptado: 'Pedido confirmado. Comenzamos con la preparación. 👨‍🍳',
@@ -71,28 +78,27 @@ export const normalizeReason = (r: string) => r.trim() || 'Sin especificar'
 
 // ---- presentation helpers (owner + customer) ------------------------------
 
-export const STAGE: Record<OrderStatus, number> = { nuevo: 0, aceptado: 1, camino: 2, listo: 3, rechazado: 0 }
-export const STAGE_MAX = 3
+export const STAGE: Record<OrderStatus, number> = { nuevo: 0, aceptado: 1, camino: 2, listo: 2, rechazado: 0 }
+export const STAGE_MAX = 2
 
 export const OWNER_BADGE: Record<OrderStatus, { label: string; bg: string; fg: string }> = {
   nuevo: { label: 'Nuevo', bg: '#7a3410', fg: '#F6C88B' },
   aceptado: { label: 'Aceptado', bg: '#3a3a14', fg: '#E7DE8B' },
-  camino: { label: 'En camino', bg: '#183a20', fg: '#8FD09E' },
+  camino: { label: 'Entregado', bg: '#183a20', fg: '#8FD09E' },
   listo: { label: 'Entregado', bg: '#183a20', fg: '#8FD09E' },
   rechazado: { label: 'Rechazado', bg: '#4a1414', fg: '#F0A0A0' },
 }
 
-export const BAR_COLORS = ['#5a5348', '#9a8f3a', '#4FC85E', '#3DFF7E']
+export const BAR_COLORS = ['#5a5348', '#9a8f3a', '#4FC85E']
 
 export function advanceLabel(o: Pick<Order, 'status' | 'origin'>): string | null {
   if (o.status === 'nuevo') return 'Aceptar pedido'
   if (o.status === 'aceptado') return o.origin === 'recoger' ? 'Marcar listo para recoger' : 'Marcar en camino'
-  if (o.status === 'camino') return 'Marcar entregado'
   return null
 }
 
 export const clientSteps = (origin: Origin) =>
-  origin === 'recoger' ? ['Recibido', 'Aceptado', 'Listo para recoger', 'Entregado'] : ['Recibido', 'Aceptado', 'En camino', 'Entregado']
+  origin === 'recoger' ? ['Recibido', 'Aceptado', 'Listo para recoger'] : ['Recibido', 'Aceptado', 'En camino']
 
 export type TonoPose = 'smile' | 'wave' | 'celebrate' | 'sad' | 'eat'
 
@@ -109,7 +115,7 @@ export function clientState(o: Pick<Order, 'status' | 'origin'>): { pose: TonoPo
 }
 
 export const statusName = (o: Pick<Order, 'status' | 'origin'>) =>
-  o.origin === 'recoger' && o.status === 'camino' ? 'Listo para recoger' : OWNER_BADGE[o.status].label
+  o.status === 'camino' ? (o.origin === 'recoger' ? 'Listo para recoger' : 'En camino') : OWNER_BADGE[o.status].label
 
 // ---- unread ---------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-import { DAILY_MENUS, DAY_ORDER, DESSERT_FLAVORS, DESSERT_ID, EXTRA_JUICE_IDS, EXTRAS_CAT, MENU, PROTEINS, R, WEEKEND } from './catalog.ts'
+import { DAILY_MENUS, DAY_ORDER, DESSERT_FLAVORS, DESSERT_ID, EXTRA_JUICE_IDS, EXTRAS_CAT, MENU, PROTEINS, proteinAddonPrice, R, SIDE_ADDONS, WEEKEND, type Addon } from './catalog.ts'
 import type { CustomDish, DailyMenu, DayId, Dish, Opt, OptionGroup, Settings } from './types.ts'
 
 export const DAILY_ID = 'dia'
@@ -135,6 +135,12 @@ export function categories(s: Settings): string[] {
     ? ['Todos', 'Menú del día', 'Especiales', 'Pescados', EXTRAS_CAT]
     : ['Todos', 'Especiales', 'Pescados', EXTRAS_CAT]
 }
+
+/** Additions the customer can add to a plate now (sold-out proteins left out). */
+export const addonsFor = (s: Settings): Addon[] => [
+  ...PROTEINS.filter(p => !s.soldProteins[p.id]).map(p => ({ id: 'prot-' + p.id, label: p.label, price: proteinAddonPrice(p.id) })),
+  ...SIDE_ADDONS,
+]
 
 /** Juices and desserts sold apart (not a main dish). */
 export const isExtra = (d: Pick<Dish, 'cat'>) => d.cat === EXTRAS_CAT

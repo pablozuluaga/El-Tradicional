@@ -366,3 +366,6 @@ begin
     end if;
   end loop;
 end $$;
+
+-- Make the API see new functions/columns right away (otherwise: "Could not find the function …").
+notify pgrst, 'reload schema';

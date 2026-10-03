@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { dateTime, orderId } from '../../domain/format.ts'
+import { dateTime, fmt, orderId } from '../../domain/format.ts'
 import { clientState, clientSteps, hasUnread, STAGE } from '../../domain/orders.ts'
 import { useSnapshot } from '../../data/hooks.ts'
 import { Tono, TonoPoseSvg } from '../../ui/Tono.tsx'
@@ -37,6 +37,18 @@ export function Orders() {
                   <div className={ui.tipText} style={{ lineHeight: 1.45 }} aria-live="polite"><b>Toño:</b> {st.msg}</div>
                 </div>
                 {rej && <div className={x.rejected}>Pedido rechazado · {o.rejectReason}</div>}
+                {!rej && o.deliveryPending && (
+                  <div className={c.notice} role="note" style={{ marginTop: 12 }}>
+                    <span className={c.noticeIcon} aria-hidden="true">🛵</span>
+                    <div><b>Domicilio por asignar</b>El restaurante te avisará el precio del domicilio a {o.zoneLabel}. Total sin domicilio: {fmt(o.total)}</div>
+                  </div>
+                )}
+                {!rej && !o.deliveryPending && (
+                  <div className={x.totals}>
+                    {o.origin === 'domicilio' && <span>Domicilio {o.delivery ? fmt(o.delivery) : 'gratis'}</span>}
+                    <span className={x.total}>Total {fmt(o.total)}</span>
+                  </div>
+                )}
                 <div className={x.steps}>
                   {clientSteps(o.origin).map((lbl, i) => {
                     const done = !rej && i <= n

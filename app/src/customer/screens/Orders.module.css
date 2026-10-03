@@ -14,3 +14,5 @@
 .stepTodo { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #d8d0c2; display: block; }
 .stepLabel { font-size: 8.5px; color: var(--muted); text-align: center; line-height: 1.1; }
 .chatBtn { position: relative; margin-top: 14px; width: 100%; border: 1.5px solid var(--line-3); background: #fff; color: var(--ink); cursor: pointer; padding: 12px; border-radius: 12px; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.totals { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+.total { margin-left: auto; font-size: 14.5px; font-weight: 700; color: var(--ink); }

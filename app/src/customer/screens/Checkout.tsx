@@ -113,7 +113,10 @@ export function Checkout() {
               <>
                 <input className={k.phone} style={{ marginTop: -8 }} value={dev.zoneOther} onChange={e => { setDev({ zoneOther: e.target.value }); setError('') }}
                   placeholder="¿En qué barrio estás?" aria-label="Tu barrio" maxLength={80} autoFocus />
-                <div className={k.hours} style={{ marginTop: -10, marginBottom: 18 }}>El restaurante asignará el precio del domicilio a tu barrio y te lo confirmará por el chat.</div>
+                <div className={c.notice} role="note" style={{ marginTop: -6, marginBottom: 18 }}>
+                  <span className={c.noticeIcon} aria-hidden="true">🛵</span>
+                  <div><b>El restaurante asignará el precio de tu domicilio</b>Como tu barrio no está en la lista, te avisaremos el valor por el chat y se sumará al total.</div>
+                </div>
               </>
             )}
 

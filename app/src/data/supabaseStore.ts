@@ -21,7 +21,14 @@ function signInMessage(e: { code?: string; status?: number; message?: string }):
   return 'No pudimos iniciar sesión. Revisa tu conexión e intenta de nuevo.'
 }
 
-const fail = (e: { message?: string } | null, fallback = 'No se pudo completar la acción. Revisa tu conexión.'): never => {
+/** The project's database is older than the app (schema.sql not re-run after an update). */
+export const OUTDATED_DB_MSG = 'Falta actualizar la base de datos: en Supabase → SQL Editor, ejecuta completo el archivo app/supabase/schema.sql.'
+const isOutdatedDb = (e: { message?: string; code?: string }) =>
+  e.code === 'PGRST202' || e.code === 'PGRST204' || e.code === '42703' || e.code === '42883' ||
+  /could not find the (function|.*column)|does not exist/i.test(e.message ?? '')
+
+const fail = (e: { message?: string; code?: string } | null, fallback = 'No se pudo completar la acción. Revisa tu conexión.'): never => {
+  if (e && isOutdatedDb(e)) throw new StoreError(OUTDATED_DB_MSG)
   throw new StoreError(e?.message && !/fetch|network/i.test(e.message) ? e.message : fallback)
 }
 

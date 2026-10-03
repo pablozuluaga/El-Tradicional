@@ -202,7 +202,7 @@ do $$ begin
 end $$;
 commit;
 
--- 8. barrio "Otro": delivery waits for the owner, who sets it; the customer can't
+-- 8. barrio "Otro": no delivery in the total (paid on arrival); typed barrio required
 begin;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :'cust_b')::text, true);
@@ -212,23 +212,6 @@ do $$ declare o public.orders; begin
   o := public.place_order(public.t_payload('b@example.com') || '{"zone_id":"otro","zone_label":"La Paz"}');
   assert o.delivery = 0 and o.delivery_pending and o.zone_label = 'La Paz', 'fee pending, client value ignored';
   assert o.total = o.subtotal - o.discount, 'total without delivery yet';
-  begin perform public.set_delivery_fee(o.num, 1); assert false, 'customer cannot set the fee';
-  exception when insufficient_privilege then null; end;
-end $$;
-commit;
-
-begin;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
-do $$ declare o public.orders; n bigint; begin
-  select max(num) into n from public.orders where zone_id = 'otro';
-  o := public.set_delivery_fee(n, 9000);
-  assert o.delivery = 9000 and not o.delivery_pending and o.total = o.subtotal - o.discount + 9000, 'fee applied';
-  assert (select body from public.order_messages where order_num = n order by id desc limit 1)
-    = 'El domicilio a La Paz cuesta $9.000. El total de tu pedido queda en ' || public._money(o.total) || '.', 'customer told';
-  assert public._money(1234567) = '$1.234.567', 'money format';
-  begin perform public.set_delivery_fee(n, -5); assert false, 'negative fee';
-  exception when raise_exception then null; end;
 end $$;
 commit;
 

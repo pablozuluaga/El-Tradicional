@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { DESSERT_ID, EXTRA_JUICE_IDS, MENU } from '../domain/catalog.ts'
 import { fmt } from '../domain/format.ts'
 import { newId } from '../domain/ids.ts'
-import { dessertFlavorList } from '../domain/menu.ts'
+import { dessertFlavorList, priceOf } from '../domain/menu.ts'
+import { PriceEditor } from './PriceEditor.tsx'
 import type { Settings } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { Toggle } from '../ui/ui.tsx'
@@ -52,8 +53,9 @@ export function ExtrasPanel() {
   const store = useStore()
   const s = useSnapshot().settings
   const upd = (fn: (s: Settings) => Partial<Settings>) => { void store.updateSettings(fn) }
-  const juiceDishes = MENU.filter(d => EXTRA_JUICE_IDS.includes(d.id))
-  const dessert = MENU.find(d => d.id === DESSERT_ID)!
+  const withPrice = (d: typeof MENU[number]) => ({ ...d, price: priceOf(s, d.id, d.price) })
+  const juiceDishes = MENU.filter(d => EXTRA_JUICE_IDS.includes(d.id)).map(withPrice)
+  const dessert = withPrice(MENU.find(d => d.id === DESSERT_ID)!)
   const soldToggle = (id: string, name: string) => {
     const out = !!s.soldDishes[id]
     return <Toggle on={!out} onBg={GREEN} offBg={RED} label={`${name}: ${out ? 'agotado' : 'disponible'}`}
@@ -69,7 +71,7 @@ export function ExtrasPanel() {
         <div className={o.list} style={{ gap: 8, marginBottom: 12 }}>
           {juiceDishes.map(d => (
             <div key={d.id} className={o.row} style={{ background: 'var(--ink)' }}>
-              <span style={{ fontSize: 14, fontWeight: 500 }}>{d.name} <span style={{ fontSize: 12, color: '#8b8070' }}>{fmt(d.price)}</span></span>
+              <div><div style={{ fontSize: 14, fontWeight: 500 }}>{d.name}</div><PriceEditor id={d.id} name={d.name} price={d.price} /></div>
               {soldToggle(d.id, d.name)}
             </div>
           ))}
@@ -84,7 +86,7 @@ export function ExtrasPanel() {
 
       <Section title="Postres" sub={`${fmt(dessert.price)} · ${dessertFlavorList(s).length} sabores`}>
         <div className={o.row} style={{ background: 'var(--ink)', marginBottom: 12 }}>
-          <span style={{ fontSize: 14, fontWeight: 500 }}>Vender postres hoy</span>
+          <div><div style={{ fontSize: 14, fontWeight: 500 }}>Vender postres hoy</div><PriceEditor id={dessert.id} name="Postre" price={dessert.price} /></div>
           {soldToggle(dessert.id, 'Postres')}
         </div>
         <div className={o.optHead}>Sabores</div>

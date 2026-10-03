@@ -1,5 +1,8 @@
 import { OTHER_ZONE_ID } from './catalog.ts'
 import { EMAIL_RE } from './format.ts'
+
+/** At least 7 digits (spaces, dashes and +57 allowed). */
+export const isPhone = (p: string) => (p.match(/\d/g) ?? []).length >= 7
 import { eligibilityFromCount } from './loyalty.ts'
 import { dishById } from './menu.ts'
 import { discountFor, orderTotal } from './pricing.ts'
@@ -11,6 +14,7 @@ export function validateDraft(d: OrderDraft, s: Settings): string | null {
   if (!d.name.trim()) return 'Falta tu nombre.'
   if (!EMAIL_RE.test(d.email.trim())) return 'Falta un correo válido.'
   if (!d.itemsList.length) return 'Tu carrito está vacío.'
+  if (!isPhone(d.phone)) return 'Escribe tu número de celular.'
   if (d.origin === 'domicilio') {
     if (!d.zoneId) return 'Selecciona tu barrio.'
     if (d.zoneId === OTHER_ZONE_ID && !d.zoneLabel?.trim()) return 'Escribe el nombre de tu barrio.'

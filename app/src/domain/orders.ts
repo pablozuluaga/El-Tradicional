@@ -1,5 +1,5 @@
 import type { CartLine, Order, OrderLine, OrderStatus, Origin, Sender } from './types.ts'
-import { fmt } from './format.ts'
+import { OTHER_ZONE_ID } from './catalog.ts'
 import { unitPrice } from './pricing.ts'
 
 export const WELCOME_MSG = 'Hemos recibido tu pedido. Si necesitas algo, puedes escribirnos por este chat. 🙌'
@@ -36,9 +36,18 @@ export function itemsDetail(cart: CartLine[]): string[] {
 export const orderLines = (cart: CartLine[], mode: Origin): OrderLine[] =>
   cart.map(c => ({ dishId: c.dishId, name: c.name, qty: c.qty, unit: unitPrice(c, mode) }))
 
-/** Chat note when the owner sets the fee for a barrio outside the list (same text as `set_delivery_fee`). */
-export const deliveryFeeNote = (barrio: string, fee: number, total: number) =>
-  `El domicilio a ${barrio} cuesta ${fmt(fee)}. El total de tu pedido queda en ${fmt(total)}.`
+/** Barrio "Otro": the customer pays the delivery on arrival; the owner notes its price for their own totals. */
+export const isOtherZoneOrder = (o: Pick<Order, 'origin' | 'zoneId'>) => o.origin === 'domicilio' && o.zoneId === OTHER_ZONE_ID
+
+/**
+ * Delivery and total as the owner sees them: for a barrio "Otro" order the delivery is the price
+ * the owner assigned (`Settings.deliveryFees`), or null while not assigned yet.
+ */
+export function ownerAmounts(o: Order, fees: Record<string, number>): { delivery: number | null; total: number } {
+  if (!isOtherZoneOrder(o)) return { delivery: o.delivery, total: o.total }
+  const assigned = fees[String(o.num)] ?? (o.delivery || null)
+  return { delivery: assigned, total: o.total - o.delivery + (assigned ?? 0) }
+}
 
 export const MAX_DELIVERY_FEE = 100000
 

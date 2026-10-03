@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { dateTime, fmt, orderId } from '../../domain/format.ts'
-import { clientState, clientSteps, hasUnread, STAGE } from '../../domain/orders.ts'
+import { clientState, clientSteps, hasUnread, isOtherZoneOrder, STAGE } from '../../domain/orders.ts'
 import { useSnapshot } from '../../data/hooks.ts'
 import { Tono, TonoPoseSvg } from '../../ui/Tono.tsx'
 import { UnreadDot } from '../../ui/ui.tsx'
@@ -37,13 +37,13 @@ export function Orders() {
                   <div className={ui.tipText} style={{ lineHeight: 1.45 }} aria-live="polite"><b>Toño:</b> {st.msg}</div>
                 </div>
                 {rej && <div className={x.rejected}>Pedido rechazado · {o.rejectReason}</div>}
-                {!rej && o.deliveryPending && (
-                  <div className={c.notice} role="note" style={{ marginTop: 12 }}>
-                    <span className={c.noticeIcon} aria-hidden="true">🛵</span>
-                    <div><b>Domicilio por asignar</b>El restaurante te avisará el precio del domicilio a {o.zoneLabel}. Total sin domicilio: {fmt(o.total)}</div>
+                {!rej && isOtherZoneOrder(o) && (
+                  <div className={x.totals}>
+                    <span>Domicilio: se paga al recibir</span>
+                    <span className={x.total}>Total {fmt(o.total - o.delivery)}</span>
                   </div>
                 )}
-                {!rej && !o.deliveryPending && (
+                {!rej && !isOtherZoneOrder(o) && (
                   <div className={x.totals}>
                     {o.origin === 'domicilio' && <span>Domicilio {o.delivery ? fmt(o.delivery) : 'gratis'}</span>}
                     <span className={x.total}>Total {fmt(o.total)}</span>

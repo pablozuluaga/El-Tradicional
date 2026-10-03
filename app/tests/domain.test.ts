@@ -229,7 +229,7 @@ test('report rows: date range, rejected excluded, value = subtotal - discount', 
 
 test('an order with a dish the owner deleted is refused', async () => {
   const { validateDraft } = await import('../src/domain/placement.ts')
-  const draft = { customerId: 'c', name: 'Ana', email: 'a@b.co', phone: '', origin: 'recoger' as const, zoneId: null, zoneLabel: null,
+  const draft = { customerId: 'c', name: 'Ana', email: 'a@b.co', phone: '3001234567', origin: 'recoger' as const, zoneId: null, zoneLabel: null,
     address: '', addressNotes: '', items: '1x Lomo', itemsList: ['1x Lomo'], lines: [{ dishId: 'plato1', name: 'Lomo', qty: 1, unit: 30000 }], subtotal: 30000, delivery: 0, pay: 'efectivo' }
   assert.match(validateDraft(draft, defaultSettings())!, /Lomo ya no está en el menú/)
   assert.equal(validateDraft({ ...draft, lines: [{ dishId: 'paisa', name: 'Bandeja Paisa', qty: 1, unit: 35000 }] }, defaultSettings()), null)
@@ -265,19 +265,34 @@ test('Lengua is a Saturday-only dish with the day soup; desserts follow the owne
   assert.equal(dishById(sab, 'jugoleche')!.price, 12000)
 })
 
-test('barrio Otro: fee waits for the owner; Viviendas del Sur costs 10.000', async () => {
+test('barrio Otro: the customer pays delivery on arrival; the owner notes its price for their totals', async () => {
   const { deliveryFee, isOtherZone } = await import('../src/domain/pricing.ts')
-  const { deliveryFeeNote } = await import('../src/domain/orders.ts')
+  const { ownerAmounts } = await import('../src/domain/orders.ts')
   assert.equal(deliveryFee('domicilio', 'viviendas_sur'), 10000)
   assert.equal(deliveryFee('domicilio', 'otro'), 0)
   assert.equal(isOtherZone('domicilio', 'otro'), true)
   assert.equal(isOtherZone('recoger', 'otro'), false)
-  assert.equal(deliveryFeeNote('La Paz', 9000, 44000), 'El domicilio a La Paz cuesta $9.000. El total de tu pedido queda en $44.000.')
+  const o = mkOrder({ num: 2001, zoneId: 'otro', zoneLabel: 'La Paz', delivery: 0, total: 35000 })
+  assert.deepEqual(ownerAmounts(o, {}), { delivery: null, total: 35000 })
+  assert.deepEqual(ownerAmounts(o, { '2001': 8000 }), { delivery: 8000, total: 43000 })
+  assert.deepEqual(ownerAmounts(mkOrder({ delivery: 3000, total: 38000 }), { '2001': 8000 }), { delivery: 3000, total: 38000 }, 'listed barrios unchanged')
+  assert.equal(reportRows([o], '', '', { '2001': 8000 })[0].valorDomicilio, 8000)
   const { validateDraft } = await import('../src/domain/placement.ts')
-  const draft = { customerId: 'c', name: 'Ana', email: 'a@b.co', phone: '', origin: 'domicilio' as const, zoneId: 'otro', zoneLabel: ' ',
+  const draft = { customerId: 'c', name: 'Ana', email: 'a@b.co', phone: '300 123 4567', origin: 'domicilio' as const, zoneId: 'otro', zoneLabel: ' ',
     address: 'Calle 1', addressNotes: '', items: '1 Paisa', itemsList: ['1× Paisa'], lines: [{ dishId: 'paisa', name: 'Bandeja Paisa', qty: 1, unit: 35000 }], subtotal: 35000, delivery: 0, pay: 'efectivo' }
   assert.equal(validateDraft(draft, defaultSettings()), 'Escribe el nombre de tu barrio.')
   assert.equal(validateDraft({ ...draft, zoneLabel: 'La Paz' }, defaultSettings()), null)
+  assert.equal(validateDraft({ ...draft, zoneLabel: 'La Paz', phone: '—' }, defaultSettings()), 'Escribe tu número de celular.', 'phone required')
+  assert.equal(validateDraft({ ...draft, zoneLabel: 'La Paz', origin: 'recoger', phone: '' }, defaultSettings()), 'Escribe tu número de celular.', 'also for pickup')
+})
+
+test('owner prices replace the catalog price (dishes, extras and the day menu)', () => {
+  const s = { ...defaultSettings(), platoDia: 'lunes' as const, priceOverrides: { paisa: 38000, postre: 14000, lunes: 21000 } }
+  assert.equal(dishById(s, 'paisa')!.price, 38000)
+  assert.equal(dishById(s, 'postre')!.price, 14000)
+  assert.equal(dishById(s, 'dia')!.price, 21000)
+  assert.equal(dishById(s, 'dia')!.priceDom, 21000)
+  assert.equal(dishById(s, 'especial')!.price, 25000)
 })
 
 test('Mondongo on Sundays only when the owner switches it on', () => {

@@ -61,6 +61,8 @@ export const DAILY_MENUS: DailyMenu[] = [
 
 export const EXTRAS_CAT = 'Bebidas y postres'
 export const EXTRA_JUICE_IDS = ['jugoagua', 'jugoleche']
+/** Drinks apart without flavors (bought by quantity). */
+export const EXTRA_DRINK_IDS = ['mazamorra']
 export const DESSERT_ID = 'postre'
 
 export const MENU: Dish[] = [
@@ -88,6 +90,7 @@ export const MENU: Dish[] = [
   // Bought apart (every dish already includes a juice).
   { id: 'jugoagua', cat: EXTRAS_CAT, name: 'Jugo en agua', price: 10000, icon: '🥤', avail: true, desc: 'Jugo natural en agua, aparte del que incluye tu plato.', rem: [] },
   { id: 'jugoleche', cat: EXTRAS_CAT, name: 'Jugo en leche', price: 12000, icon: '🥛', avail: true, desc: 'Jugo natural en leche, aparte del que incluye tu plato.', rem: [] },
+  { id: 'mazamorra', cat: EXTRAS_CAT, name: 'Mazamorra', price: 3000, icon: '🥣', avail: true, desc: 'Mazamorra, aparte de la bebida que incluye tu plato.', rem: [] },
   { id: 'postre', cat: EXTRAS_CAT, name: 'Postre', price: 13000, icon: '🍰', avail: true, desc: 'Postre de la casa. Escoge el sabor.', rem: [],
     groups: [{ id: 'sabor', short: 'sabor', title: 'Elige el sabor', sub: 'Escoge uno', options: [] }] },
 ]
@@ -191,6 +194,8 @@ export const defaultSettings = (): Settings => ({
   dishOn: {},
   deliveryFees: {},
   priceOverrides: {},
+  customExtras: [],
+  customAddons: [],
   customDishes: [],
 })
 

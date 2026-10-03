@@ -19,7 +19,7 @@ test('no dish of the day until the owner picks one', () => {
   const s = defaultSettings()
   assert.equal(dailyDish(s), null)
   const lunes = new Date('2026-09-28T17:00:00Z')
-  assert.deepEqual(allDishes(s, lunes).map(d => d.id), ['paisa', 'especial', 'cazuela', 'trucha', 'tilapia', 'jugoagua', 'jugoleche', 'postre'])
+  assert.deepEqual(allDishes(s, lunes).map(d => d.id), ['paisa', 'especial', 'cazuela', 'trucha', 'tilapia', 'jugoagua', 'jugoleche', 'mazamorra', 'postre'])
   assert.deepEqual(categories(s), ['Todos', 'Especiales', 'Pescados', 'Bebidas y postres'])
 })
 
@@ -322,4 +322,20 @@ test('optional additions: each protein $10.000 except molida $5.000, arroz $6.00
   assert.deepEqual(byLabel, { Res: 10000, Cerdo: 10000, Pollo: 10000, 'Chicharrón': 10000, 'Carne molida': 5000, Arroz: 6000, 'Papas a la francesa': 5000 })
   assert.ok(!addonsFor({ ...s, soldProteins: { pollo: true } }).some(a => a.label === 'Pollo'), 'sold-out protein not offered')
   assert.match(itemsDetail([line({ addons: ['Pollo', 'Arroz'] })])[0], /adición: pollo, arroz/)
+})
+
+test('mazamorra and owner-created items apart; owner plate add-ons with prices and switches', async () => {
+  const { addonsFor, addonKey, simpleExtrasFor } = await import('../src/domain/menu.ts')
+  const s = { ...defaultSettings(), platoDia: 'lunes' as const }
+  assert.equal(dishById(s, 'mazamorra')!.price, 3000)
+  assert.deepEqual(simpleExtrasFor(s).map(d => d.id), ['mazamorra'])
+  const own = { ...s, customExtras: [{ id: 'extra1', name: 'Arepa con queso', price: 4000 }], priceOverrides: { mazamorra: 3500 } }
+  assert.deepEqual(simpleExtrasFor(own).map(d => `${d.name} ${d.price}`), ['Mazamorra 3500', 'Arepa con queso 4000'])
+  assert.equal(dishById(own, 'extra1')!.cat, 'Bebidas y postres')
+  assert.deepEqual(simpleExtrasFor({ ...own, soldDishes: { mazamorra: true } }).map(d => d.id), ['extra1'])
+  const ad = { ...s, customAddons: [{ id: 'ad1', label: 'Huevo', price: 2000 }], priceOverrides: { [addonKey('arroz')]: 7000 }, soldDishes: { [addonKey('papas')]: true } }
+  const byLabel = Object.fromEntries(addonsFor(ad).map(a => [a.label, a.price]))
+  assert.equal(byLabel.Arroz, 7000)
+  assert.equal(byLabel.Huevo, 2000)
+  assert.equal(byLabel['Papas a la francesa'], undefined, 'switched off')
 })

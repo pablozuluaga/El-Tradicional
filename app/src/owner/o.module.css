@@ -36,7 +36,21 @@
 .badge { font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; flex: none; }
 .bar { height: 6px; border-radius: 4px; background: rgba(255,255,255,.09); margin-top: 12px; overflow: hidden; }
 .barFill { height: 100%; border-radius: 4px; transition: width .35s ease, background .35s ease; }
-.detail { margin-top: 12px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+.detail { margin-top: 12px; border-top: 1px solid rgba(255,255,255,.08); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+/* order detail sections */
+.sec { background: #2A251F; border: 1px solid rgba(255,255,255,.07); border-radius: 13px; padding: 11px 13px; display: flex; flex-direction: column; gap: 6px; }
+.secHead { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #F0B7A0; font-weight: 700; margin-bottom: 2px; }
+.addr { font-size: 15.5px; font-weight: 600; color: #fff; line-height: 1.35; overflow-wrap: anywhere; }
+.chip { align-self: flex-start; background: rgba(240,183,160,.14); color: #F6D2C2; border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-weight: 600; }
+.note { background: rgba(246,200,139,.12); border-left: 3px solid #F6C88B; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; color: #F3E3C7; line-height: 1.4; }
+.note b { color: #F6C88B; }
+.linkRow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.pill { border: 1px solid rgba(255,255,255,.16); border-radius: 999px; padding: 7px 12px; font-size: 12.5px; font-weight: 600; color: #fff; text-decoration: none; background: rgba(255,255,255,.04); }
+.kv { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; }
+.kv span { color: #a89d8c; flex: none; }
+.kv b { color: #fff; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.item { font-size: 13.5px; color: #F2EADD; line-height: 1.45; padding-left: 12px; position: relative; }
+.item::before { content: '•'; position: absolute; left: 0; color: #F0B7A0; }
 .dLabel { font-size: 11px; color: #8b8070; }
 .dText { font-size: 13px; overflow-wrap: anywhere; }
 .dRow { display: flex; justify-content: space-between; font-size: 13px; gap: 10px; }

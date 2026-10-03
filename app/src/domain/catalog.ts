@@ -55,7 +55,7 @@ export const DAILY_MENUS: DailyMenu[] = [
     specialProts: [{ id: 'lengua', label: 'Lengua' }], price: 35000, priceDom: 35000, drink: true, img: '/assets/mondongo.webp',
     desc: 'Sopa de mondongo acompañada con aguacate, arroz, ensalada y arepa.', rem: R('Aguacate', 'Arroz', 'Ensalada', 'Arepa') },
   { day: 'domingo', label: 'Domingo', name: 'Sancocho trifásico', soupDish: true, sopas: WEEKEND_SOPAS, proteinChoice: false,
-    specialProts: [{ id: 'sudadoposta', label: 'Sudado de posta' }], price: 35000, priceDom: 35000, drink: true, img: '/assets/sancocho.webp',
+    specialProts: [{ id: 'sudadoposta', label: 'Sudado de posta' }], price: 35000, priceDom: 35000, drink: true, img: '/assets/sancocho-2.webp',
     desc: 'Arroz, aguacate, arepa y ensalada. Guandolo o jugo.', rem: R('Arroz', 'Aguacate', 'Arepa', 'Ensalada') },
 ]
 

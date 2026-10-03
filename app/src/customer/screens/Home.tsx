@@ -13,7 +13,7 @@ import h from './Home.module.css'
 const GALLERY = [
   ['/assets/afuera.jpeg', 'Fachada'],
   ['/assets/bandeja-paisa.webp', 'Bandeja Paisa'],
-  ['/assets/sancocho.webp', 'Sancocho Trifásico'],
+  ['/assets/sancocho-2.webp', 'Sancocho Trifásico'],
   ['/assets/trucha.webp', 'Trucha'],
 ]
 

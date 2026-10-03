@@ -99,8 +99,12 @@ export interface Settings {
   dishOn: Record<string, boolean>
   /** delivery price the owner assigned to barrio "Otro" orders, by order number (owner's totals only) */
   deliveryFees: Record<string, number>
-  /** prices the owner changed, by dish id (daily menus by day id) */
+  /** prices the owner changed, by dish id (daily menus by day id, plate add-ons by `addon:<id>`) */
   priceOverrides: Record<string, number>
+  /** items the owner created to sell apart (shown with juices and desserts) */
+  customExtras: { id: string; name: string; price: number }[]
+  /** plate add-ons the owner created (next to the proteins, rice and fries) */
+  customAddons: { id: string; label: string; price: number }[]
   customDishes: CustomDish[]
 }
 

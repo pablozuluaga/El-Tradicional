@@ -52,6 +52,11 @@ function ReportCard() {
   )
 }
 
+/** WhatsApp wants the country code: Colombian mobiles are 10 digits starting with 3. */
+const waNumber = (digits: string) => (digits.length === 10 && digits.startsWith('3') ? '57' + digits : digits)
+const mapsUrl = (address: string, barrio: string | null) =>
+  'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([address, barrio, 'Envigado, Antioquia'].filter(Boolean).join(', '))
+
 function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean; onToggle: () => void; onChat: () => void }) {
   const store = useStore()
   const [rejecting, setRejecting] = useState(false)
@@ -69,6 +74,7 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
   const otherZone = isOtherZoneOrder(ord)
   const fees = useSnapshot().settings.deliveryFees
   const amounts = ownerAmounts(ord, fees)
+  const phoneDigits = (ord.phone ?? '').replace(/\D/g, '')
   const saveFee = (v: number) => run(store.updateSettings(st => ({ deliveryFees: { ...st.deliveryFees, [String(ord.num)]: v } })).then(() => setFee('')))
 
   return (
@@ -88,20 +94,50 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
 
       {open && (
         <div className={o.detail}>
-          <div className={o.dLabel}>Cliente</div>
-          <div className={o.dText}>{ord.name} · {ord.phone || '—'}</div>
-          {ord.email && <div style={{ fontSize: 12, color: '#a89d8c' }}>{ord.email}</div>}
-          <div className={o.dLabel} style={{ marginTop: 4 }}>{originLabel(ord.origin)}</div>
-          <div className={o.dText}>{dom ? [ord.address, ord.zoneLabel].filter(Boolean).join(' · ') : ord.address}</div>
-          {ord.addressNotes && <div style={{ fontSize: 12, color: '#c9bfae' }}>Indicaciones: {ord.addressNotes}</div>}
-          <div className={o.dLabel} style={{ marginTop: 4 }}>Detalle</div>
-          {(ord.itemsList.length ? ord.itemsList : [ord.items]).map((l, i) => <div key={i} className={o.dText} style={{ color: '#e7ddce' }}>• {l}</div>)}
-          <div className={o.dRow} style={{ marginTop: 6 }}><span style={{ color: '#8b8070' }}>Pago</span><span style={{ textAlign: 'right' }}>{ord.pay}</span></div>
-          {ord.discount > 0 && <div className={o.dRow}><span style={{ color: '#8b8070' }}>{discountName(ord.discountKind)}</span><span>−{fmt(ord.discount)}</span></div>}
-          {dom && <div className={o.dRow}><span style={{ color: '#8b8070' }}>Domicilio</span><span>{amounts.delivery === null ? 'Por definir' : fmt(amounts.delivery)}{otherZone ? ' · lo paga al recibir' : ''}</span></div>}
+          <div className={o.sec}>
+            <div className={o.secHead}>{dom ? '🛵 Entrega a domicilio' : '🏠 Recoge en el local'}</div>
+            {dom ? (
+              <>
+                <div className={o.addr}>{ord.address}</div>
+                {ord.zoneLabel && <span className={o.chip}>Barrio: {ord.zoneLabel}{otherZone ? ' (otro)' : ''}</span>}
+                {ord.addressNotes && <div className={o.note}><b>Indicaciones:</b> {ord.addressNotes}</div>}
+              </>
+            ) : <div className={o.addr}>El cliente pasa a recogerlo</div>}
+            {(phoneDigits || dom) && (
+              <div className={o.linkRow}>
+                {phoneDigits && <a className={o.pill} href={`tel:${phoneDigits}`}>📞 Llamar</a>}
+                {phoneDigits && <a className={o.pill} href={`https://wa.me/${waNumber(phoneDigits)}`} target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>}
+                {dom && <a className={o.pill} href={mapsUrl(ord.address, ord.zoneLabel)} target="_blank" rel="noopener noreferrer">🗺️ Mapa</a>}
+              </div>
+            )}
+          </div>
+
+          <div className={o.sec}>
+            <div className={o.secHead}>👤 Cliente</div>
+            <div className={o.kv}><span>Nombre</span><b>{ord.name}</b></div>
+            <div className={o.kv}><span>Celular</span><b>{ord.phone && ord.phone !== '—' ? ord.phone : 'No dejó'}</b></div>
+            {ord.email && <div className={o.kv}><span>Correo</span><b style={{ fontWeight: 500 }}>{ord.email}</b></div>}
+          </div>
+
+          <div className={o.sec}>
+            <div className={o.secHead}>🍽️ Pedido</div>
+            {(ord.itemsList.length ? ord.itemsList : [ord.items]).map((l, i) => <div key={i} className={o.item}>{l}</div>)}
+          </div>
+
+          <div className={o.sec}>
+            <div className={o.secHead}>💵 Pago</div>
+            <div className={o.kv}><span>Forma de pago</span><b>{ord.pay}</b></div>
+            <div className={o.kv}><span>Platos</span><b>{fmt(ord.subtotal)}</b></div>
+            {ord.discount > 0 && <div className={o.kv}><span>{discountName(ord.discountKind)}</span><b style={{ color: '#8FD09E' }}>−{fmt(ord.discount)}</b></div>}
+            {dom && <div className={o.kv}><span>Domicilio{otherZone ? ' (lo paga al recibir)' : ''}</span><b>{amounts.delivery === null ? 'Por definir' : fmt(amounts.delivery)}</b></div>}
+            <div className={o.kv} style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 7, marginTop: 2 }}><span style={{ color: '#fff', fontWeight: 600 }}>Total</span><b style={{ fontSize: 15 }}>{fmt(amounts.total)}</b></div>
+          </div>
+
           {(ord.reviewStars || ord.reviewComment) && (
-            <div className={o.dRow}><span style={{ color: '#8b8070' }}>Calificación</span>
-              <span style={{ textAlign: 'right' }}>{ord.reviewStars ? <span style={{ color: '#E0A83B' }}>{'★'.repeat(ord.reviewStars)}<span style={{ color: '#4a453c' }}>{'★'.repeat(5 - ord.reviewStars)}</span></span> : null}{ord.reviewComment ? <div style={{ fontSize: 12, color: '#c9bfae' }}>“{ord.reviewComment}”</div> : null}</span>
+            <div className={o.sec}>
+              <div className={o.secHead}>⭐ Calificación</div>
+              {ord.reviewStars ? <div style={{ color: '#E0A83B', fontSize: 16 }}>{'★'.repeat(ord.reviewStars)}<span style={{ color: '#4a453c' }}>{'★'.repeat(5 - ord.reviewStars)}</span></div> : null}
+              {ord.reviewComment ? <div style={{ fontSize: 13, color: '#e7ddce' }}>“{ord.reviewComment}”</div> : null}
             </div>
           )}
         </div>

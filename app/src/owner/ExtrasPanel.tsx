@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { DESSERT_ID, EXTRA_JUICE_IDS, MENU } from '../domain/catalog.ts'
+import { DESSERT_ID, EXTRA_DRINK_IDS, EXTRA_JUICE_IDS, MENU } from '../domain/catalog.ts'
 import { fmt } from '../domain/format.ts'
 import { newId } from '../domain/ids.ts'
-import { dessertFlavorList, priceOf } from '../domain/menu.ts'
+import { addonKey, allAddons, dessertFlavorList, priceOf } from '../domain/menu.ts'
 import { PriceEditor } from './PriceEditor.tsx'
 import type { Settings } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
@@ -39,6 +39,27 @@ function ItemEditor({ items, noun, onToggle, onRemove, onAdd }: {
   )
 }
 
+/** Name + price + "Añadir", for items the owner creates. */
+function NewPricedItem({ noun, onAdd }: { noun: string; onAdd: (name: string, price: number) => void }) {
+  const [name, setName] = useState('')
+  const [price, setPrice] = useState('')
+  const [err, setErr] = useState('')
+  const add = () => {
+    const n = name.trim(), p = Number(price.replace(/\D/g, ''))
+    if (!n) return setErr('Escribe el nombre.')
+    if (!p) return setErr('Escribe el precio.')
+    onAdd(n, p); setName(''); setPrice(''); setErr('')
+  }
+  return (
+    <form style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }} onSubmit={e => { e.preventDefault(); add() }}>
+      <input className={o.darkInput} style={{ flex: '2 1 140px' }} value={name} onChange={e => setName(e.target.value)} placeholder={`Nuevo ${noun}`} aria-label={`Nombre del nuevo ${noun}`} maxLength={40} />
+      <input className={o.darkInput} style={{ flex: '1 1 90px' }} value={price} onChange={e => setPrice(e.target.value)} placeholder="Precio" aria-label={`Precio del nuevo ${noun}`} inputMode="numeric" maxLength={9} />
+      <button type="submit" className={o.redBtn} style={{ padding: '0 18px' }}>Añadir</button>
+      {err && <div role="alert" style={{ width: '100%', fontSize: 12, color: '#F0B7A0' }}>{err}</div>}
+    </form>
+  )
+}
+
 function Section({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
     <details className={o.details}>
@@ -54,8 +75,19 @@ export function ExtrasPanel() {
   const s = useSnapshot().settings
   const upd = (fn: (s: Settings) => Partial<Settings>) => { void store.updateSettings(fn) }
   const withPrice = (d: typeof MENU[number]) => ({ ...d, price: priceOf(s, d.id, d.price) })
-  const juiceDishes = MENU.filter(d => EXTRA_JUICE_IDS.includes(d.id)).map(withPrice)
+  const drinks = MENU.filter(d => EXTRA_JUICE_IDS.includes(d.id) || EXTRA_DRINK_IDS.includes(d.id)).map(withPrice)
+  const addons = allAddons(s)
+  const customAddonIds = new Set((s.customAddons ?? []).map(a => a.id))
   const dessert = withPrice(MENU.find(d => d.id === DESSERT_ID)!)
+  const row = (key: string, name: string, priceId: string, price: number, soldKey: string, onRemove?: () => void) => (
+    <div key={key} className={o.row} style={{ background: 'var(--ink)' }}>
+      <div style={{ minWidth: 0 }}><div style={{ fontSize: 14, fontWeight: 500 }}>{name}</div><PriceEditor id={priceId} name={name} price={price} /></div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 'none' }}>
+        {onRemove && <button type="button" className={o.quitar} aria-label={`Quitar ${name}`} onClick={() => { if (confirm(`¿Quitar ${name}?`)) onRemove() }}>Quitar</button>}
+        {soldToggle(soldKey, name)}
+      </div>
+    </div>
+  )
   const soldToggle = (id: string, name: string) => {
     const out = !!s.soldDishes[id]
     return <Toggle on={!out} onBg={GREEN} offBg={RED} label={`${name}: ${out ? 'agotado' : 'disponible'}`}
@@ -64,17 +96,12 @@ export function ExtrasPanel() {
 
   return (
     <div className={o.panel} style={{ marginTop: 18 }}>
-      <div className={o.panelHead} style={{ marginBottom: 4 }}>Bebidas y postres</div>
+      <div className={o.panelHead} style={{ marginBottom: 4 }}>Bebidas, postres y adicionales</div>
       <div style={{ fontSize: 12, color: '#c9bfae', marginBottom: 6, lineHeight: 1.4 }}>Toca cada parte para abrirla.</div>
 
-      <Section title="Jugos aparte" sub={juiceDishes.map(d => `${d.name.replace('Jugo ', '')} ${fmt(d.price)}`).join(' · ')}>
+      <Section title="Bebidas aparte" sub={drinks.map(d => `${d.name} ${fmt(d.price)}`).join(' · ')}>
         <div className={o.list} style={{ gap: 8, marginBottom: 12 }}>
-          {juiceDishes.map(d => (
-            <div key={d.id} className={o.row} style={{ background: 'var(--ink)' }}>
-              <div><div style={{ fontSize: 14, fontWeight: 500 }}>{d.name}</div><PriceEditor id={d.id} name={d.name} price={d.price} /></div>
-              {soldToggle(d.id, d.name)}
-            </div>
-          ))}
+          {drinks.map(d => row(d.id, d.name, d.id, d.price, d.id))}
         </div>
         <div className={o.optHead}>Sabores de los jugos</div>
         <ItemEditor noun="sabor de jugo"
@@ -95,6 +122,23 @@ export function ExtrasPanel() {
           onToggle={id => upd(st => ({ soldFlavors: { ...st.soldFlavors, [id]: !st.soldFlavors[id] } }))}
           onRemove={id => upd(st => ({ dessertFlavors: dessertFlavorList(st).filter(x => x.id !== id) }))}
           onAdd={label => upd(st => ({ dessertFlavors: [...dessertFlavorList(st), { id: newId('pf'), label }] }))} />
+      </Section>
+
+      <Section title="Otros adicionales aparte" sub={(s.customExtras ?? []).length ? (s.customExtras ?? []).map(x => x.name).join(', ') : 'Crea lo que quieras vender aparte'}>
+        <div className={o.list} style={{ gap: 8 }}>
+          {(s.customExtras ?? []).length === 0 && <div style={{ fontSize: 12.5, color: '#a08a7a' }}>Salen en “Bebidas y postres” y al final de cada plato.</div>}
+          {(s.customExtras ?? []).map(x => row(x.id, x.name, x.id, priceOf(s, x.id, x.price), x.id,
+            () => upd(st => ({ customExtras: st.customExtras.filter(y => y.id !== x.id) }))))}
+        </div>
+        <NewPricedItem noun="adicional" onAdd={(name, price) => upd(st => ({ customExtras: [...(st.customExtras ?? []), { id: newId('extra'), name, price }] }))} />
+      </Section>
+
+      <Section title="Adiciones al plato" sub={addons.map(a => a.label).join(', ')}>
+        <div className={o.list} style={{ gap: 8 }}>
+          {addons.map(a => row(a.id, a.label, addonKey(a.id), a.price, addonKey(a.id),
+            customAddonIds.has(a.id) ? () => upd(st => ({ customAddons: st.customAddons.filter(y => y.id !== a.id) })) : undefined))}
+        </div>
+        <NewPricedItem noun="adición" onAdd={(label, price) => upd(st => ({ customAddons: [...(st.customAddons ?? []), { id: newId('ad'), label, price }] }))} />
       </Section>
     </div>
   )

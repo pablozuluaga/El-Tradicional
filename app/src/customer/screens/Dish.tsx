@@ -3,7 +3,7 @@ import { newId } from '../../domain/ids.ts'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { fmt } from '../../domain/format.ts'
 import { DESSERT_ID, EXTRA_JUICE_IDS } from '../../domain/catalog.ts'
-import { addonsFor, dishById, effRem, flavorsFor, initialProtein, isDishSoldOut, isExtra, juiceFlavorsFor, proteinsOf } from '../../domain/menu.ts'
+import { addonsFor, dishById, effRem, flavorsFor, simpleExtrasFor, initialProtein, isDishSoldOut, isExtra, juiceFlavorsFor, proteinsOf } from '../../domain/menu.ts'
 import type { CartLine, Dish as DishT, Settings } from '../../domain/types.ts'
 import { useDevice, useSnapshot } from '../../data/hooks.ts'
 import { BackButton } from '../../ui/ui.tsx'
@@ -41,6 +41,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
   const pickedAddons = addons.filter(a => addonPicks[a.id])
   const addonsUnit = pickedAddons.reduce((t, a) => t + a.price, 0)
   const juices = offerExtras ? EXTRA_JUICE_IDS.map(id => dishById(s, id)).filter((j): j is DishT => !!j && !isDishSoldOut(s, j)) : []
+  const others = offerExtras ? simpleExtrasFor(s) : []
   const dessert = offerExtras ? dishById(s, DESSERT_ID) : null
   const dessertOn = !!dessert && !isDishSoldOut(s, dessert)
   const pickedFlavors = dessertOn ? flavorsFor(s).filter(f => flavors[f.id]) : []
@@ -49,7 +50,8 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
   const juiceLines = juices.flatMap(j => juiceByFlavor
     ? juiceFlavors.filter(f => juicePicks[j.id + ':' + f.id]).map(f => ({ j, n: 1, opts: [f.label] }))
     : (extraQty[j.id] ?? 0) > 0 ? [{ j, n: extraQty[j.id], opts: [] as string[] }] : [])
-  const extrasTotal = juiceLines.reduce((t, l) => t + l.j.price * l.n, 0) + (dessert ? dessert.price * pickedFlavors.length : 0)
+  const otherLines = others.filter(x2 => (extraQty[x2.id] ?? 0) > 0).map(x2 => ({ j: x2, n: extraQty[x2.id], opts: [] as string[] }))
+  const extrasTotal = [...juiceLines, ...otherLines].reduce((t, l) => t + l.j.price * l.n, 0) + (dessert ? dessert.price * pickedFlavors.length : 0)
 
   const groups = d.groups ?? []
   const prots = d.proteins ? proteinsOf(d) : []
@@ -80,7 +82,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
       opts, proteinLabel: null, juiceLabel: null, note: '', removed: [],
     })
     const extras = [
-      ...juiceLines.map(l => extra(l.j, l.n, l.opts)),
+      ...[...juiceLines, ...otherLines].map(l => extra(l.j, l.n, l.opts)),
       ...(dessert ? pickedFlavors.map(f => extra(dessert, 1, [f.label])) : []),
     ]
     setDev(st => ({ cart: [...st.cart, line, ...extras] }))
@@ -183,7 +185,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
         {offerExtras && (
           <div className={x.section}>
             <div className={x.groupTitle}>¿Algo más? <span className={c.optional} style={{ fontSize: 12 }}>(opcional)</span></div>
-            <div className={x.groupSub}>Todos los platos incluyen jugo. Si quieres otro, pídelo aparte:</div>
+            <div className={x.groupSub}>Todos los platos incluyen jugo. Si quieres algo más, pídelo aparte:</div>
             {juiceByFlavor && juices.map(j => (
               <div key={j.id} style={{ marginBottom: 6 }}>
                 <div className={x.extraRow} style={{ paddingBottom: 4 }}><span>{j.name}<span className={x.extraPrice}>{fmt(j.price)} c/u</span></span></div>
@@ -196,7 +198,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
                 </div>
               </div>
             ))}
-            {!juiceByFlavor && juices.map(j => {
+            {[...(juiceByFlavor ? [] : juices), ...others].map(j => {
               const n = extraQty[j.id] ?? 0
               const set = (v: number) => setExtraQty(q => ({ ...q, [j.id]: Math.max(0, Math.min(20, v)) }))
               return (

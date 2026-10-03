@@ -83,6 +83,14 @@ const customToDish = (c: CustomDish): Dish => ({
   soup: c.soup, proteins: c.proteins, drink: c.drink, desc: c.desc, rem: R(...c.rem),
 })
 
+const customExtraToDish = (x: Settings['customExtras'][number]): Dish => ({
+  id: x.id, cat: EXTRAS_CAT, name: x.name, price: x.price, icon: '➕', avail: true, desc: 'Adicional, aparte de tu plato.', rem: [],
+})
+
+/** Items apart sold by quantity (mazamorra and the owner's own), as the customer can buy them now. */
+export const simpleExtrasFor = (s: Settings): Dish[] =>
+  specials(s).filter(d => isExtra(d) && !EXTRA_JUICE_IDS.includes(d.id) && d.id !== DESSERT_ID && !isDishSoldOut(s, d))
+
 /** Proteins offered by the fixed and owner-created dishes on a given day. */
 export const proteinsForDay = (s: Settings, day: DayId): Opt[] =>
   menuHasProteins(day) ? PROTEINS : [...PROTEINS, ...specialProteinsFor(s, day)]
@@ -111,7 +119,7 @@ function flavorGroups(s: Settings, d: Dish): OptionGroup[] {
  */
 export function specials(s: Settings, now = new Date(), allDays = false): Dish[] {
   const day = serviceDay(s, now)
-  return [...MENU, ...(s.customDishes ?? []).map(customToDish)]
+  return [...MENU, ...(s.customDishes ?? []).map(customToDish), ...(s.customExtras ?? []).map(customExtraToDish)]
     .filter(d => allDays || ((!d.days || d.days.includes(day)) && (!d.optIn || !!s.dishOn?.[d.id])))
     .map(d => ({
       ...d,
@@ -144,11 +152,19 @@ export function categories(s: Settings): string[] {
     : ['Todos', 'Especiales', 'Pescados', EXTRAS_CAT]
 }
 
-/** Additions the customer can add to a plate now (sold-out proteins left out). */
-export const addonsFor = (s: Settings): Addon[] => [
-  ...PROTEINS.filter(p => !s.soldProteins[p.id]).map(p => ({ id: 'prot-' + p.id, label: p.label, price: proteinAddonPrice(p.id) })),
+/** Every plate add-on with the owner's price (built-in and owner-created), including switched-off ones. */
+export const allAddons = (s: Settings): Addon[] => [
+  ...PROTEINS.map(p => ({ id: 'prot-' + p.id, label: p.label, price: proteinAddonPrice(p.id) })),
   ...SIDE_ADDONS,
-]
+  ...(s.customAddons ?? []),
+].map(a => ({ ...a, price: priceOf(s, addonKey(a.id), a.price) }))
+
+/** Key of a plate add-on in `priceOverrides` and `soldDishes`. */
+export const addonKey = (id: string) => 'addon:' + id
+
+/** Additions the customer can add to a plate now (switched-off and sold-out proteins left out). */
+export const addonsFor = (s: Settings): Addon[] =>
+  allAddons(s).filter(a => !s.soldDishes[addonKey(a.id)] && !(a.id.startsWith('prot-') && s.soldProteins[a.id.slice(5)]))
 
 /** Juices and desserts sold apart (not a main dish). */
 export const isExtra = (d: Pick<Dish, 'cat'>) => d.cat === EXTRAS_CAT

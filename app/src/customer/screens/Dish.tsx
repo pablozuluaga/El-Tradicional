@@ -3,7 +3,7 @@ import { newId } from '../../domain/ids.ts'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { fmt } from '../../domain/format.ts'
 import { DESSERT_ID, EXTRA_JUICE_IDS } from '../../domain/catalog.ts'
-import { dishById, effRem, flavorsFor, initialProtein, isDishSoldOut, isExtra, juiceFlavorsFor, proteinsOf } from '../../domain/menu.ts'
+import { addonsFor, dishById, effRem, flavorsFor, initialProtein, isDishSoldOut, isExtra, juiceFlavorsFor, proteinsOf } from '../../domain/menu.ts'
 import type { CartLine, Dish as DishT, Settings } from '../../domain/types.ts'
 import { useDevice, useSnapshot } from '../../data/hooks.ts'
 import { BackButton } from '../../ui/ui.tsx'
@@ -35,6 +35,11 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
   // `${juiceId}:${flavorId}` → picked, once the owner has created juice flavors
   const [juicePicks, setJuicePicks] = useState<Record<string, boolean>>({})
   const offerExtras = !isExtra(d)
+  // paid additions on the plate (each protein apart, rice, fries)
+  const [addonPicks, setAddonPicks] = useState<Record<string, boolean>>({})
+  const addons = offerExtras ? addonsFor(s) : []
+  const pickedAddons = addons.filter(a => addonPicks[a.id])
+  const addonsUnit = pickedAddons.reduce((t, a) => t + a.price, 0)
   const juices = offerExtras ? EXTRA_JUICE_IDS.map(id => dishById(s, id)).filter((j): j is DishT => !!j && !isDishSoldOut(s, j)) : []
   const dessert = offerExtras ? dishById(s, DESSERT_ID) : null
   const dessertOn = !!dessert && !isDishSoldOut(s, dessert)
@@ -62,12 +67,13 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
     if (!canAdd) return
     const line: CartLine = {
       key: newId(),
-      dishId: d.id, name: d.name, cat: d.cat, basePrice: d.price, domPrice: d.priceDom || d.price, qty,
+      dishId: d.id, name: d.name, cat: d.cat, basePrice: d.price + addonsUnit, domPrice: (d.priceDom || d.price) + addonsUnit, qty,
       opts: groups.map(g => g.options.find(o => o.id === choices[g.id])?.label).filter((v): v is string => !!v),
       proteinLabel: d.proteins && protein ? prots.find(p => p.id === protein)?.label ?? null : null,
       juiceLabel: d.drink && juiceObj ? juiceObj.label : null,
       note: note.trim(),
       removed: rem.filter(r => removed[r.id]).map(r => r.label),
+      ...(pickedAddons.length ? { addons: pickedAddons.map(a => a.label) } : {}),
     }
     const extra = (x: DishT, n: number, opts: string[] = []): CartLine => ({
       key: newId(), dishId: x.id, name: x.name, cat: x.cat, basePrice: x.price, domPrice: x.priceDom || x.price, qty: n,
@@ -160,6 +166,20 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
           <div className={x.groupSub}>Ej: bien caliente · sin sal · empacar aparte…</div>
           <textarea className={c.textarea} value={note} onChange={e => setNote(e.target.value)} placeholder="Escribe aquí si necesitas algo especial" rows={3} maxLength={300} />
         </div>
+        {addons.length > 0 && (
+          <div className={x.section}>
+            <div className={x.groupTitle}>Adiciones <span className={c.optional} style={{ fontSize: 12 }}>(opcional)</span></div>
+            <div className={x.groupSub}>Agrégale más a tu plato · se suma al precio</div>
+            <div className={x.wrap}>
+              {addons.map(a => (
+                <button key={a.id} type="button" aria-pressed={!!addonPicks[a.id]} aria-label={`Adición ${a.label}`} className={`${x.pill} ${addonPicks[a.id] ? x.pillSel : ''}`}
+                  onClick={() => setAddonPicks(v => ({ ...v, [a.id]: !v[a.id] }))}>
+                  {a.label} <span className={x.extraPrice} style={{ marginLeft: 2 }}>+{fmt(a.price)}</span>{addonPicks[a.id] ? ' ✓' : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {offerExtras && (
           <div className={x.section}>
             <div className={x.groupTitle}>¿Algo más? <span className={c.optional} style={{ fontSize: 12 }}>(opcional)</span></div>
@@ -213,7 +233,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
           <button type="button" className={x.stepBtn} aria-label="Más" onClick={() => setQty(q => Math.min(20, q + 1))}>+</button>
         </div>
         {canAdd
-          ? <button type="button" className={x.add} onClick={add}>Agregar · {fmt(d.price * qty + extrasTotal)}</button>
+          ? <button type="button" className={x.add} onClick={add}>Agregar · {fmt((d.price + addonsUnit) * qty + extrasTotal)}</button>
           : <div className={x.blocked}>{hint}</div>}
       </div>
     </>

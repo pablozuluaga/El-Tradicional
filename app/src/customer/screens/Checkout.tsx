@@ -113,7 +113,7 @@ export function Checkout() {
               <>
                 <input className={k.phone} style={{ marginTop: -8 }} value={dev.zoneOther} onChange={e => { setDev({ zoneOther: e.target.value }); setError('') }}
                   placeholder="¿En qué barrio estás?" aria-label="Tu barrio" maxLength={80} autoFocus />
-                <div className={k.hours} style={{ marginTop: -10, marginBottom: 18 }}>Te confirmamos por el chat el valor del domicilio a tu barrio.</div>
+                <div className={k.hours} style={{ marginTop: -10, marginBottom: 18 }}>El restaurante asignará el precio del domicilio a tu barrio y te lo confirmará por el chat.</div>
               </>
             )}
 
@@ -162,7 +162,7 @@ export function Checkout() {
         <div className={k.row}><span>Subtotal</span><span>{fmt(sub)}</span></div>
         {discount > 0 && <div className={k.row} style={{ color: 'var(--red)' }}><span>{discountName(snap.eligibility.kind)}</span><span>−{fmt(discount)}</span></div>}
         <div className={k.row} style={{ marginBottom: 10 }}>
-          <span>Domicilio{dom ? '' : ' (recoge en local)'}</span><span>{!dom ? 'Recoge' : other ? 'Por confirmar' : zone ? fmt(fee) : '—'}</span>
+          <span>Domicilio{dom ? '' : ' (recoge en local)'}</span><span>{!dom ? 'Recoge' : other ? 'Lo asigna el restaurante' : zone ? fmt(fee) : '—'}</span>
         </div>
         <div className={k.total}><span>Total{other ? ' + domicilio' : ''}</span><span>{fmt(total)}</span></div>
         {error && <div className={c.error} role="alert">{error}</div>}

@@ -64,13 +64,13 @@ export const EXTRA_JUICE_IDS = ['jugoagua', 'jugoleche']
 export const DESSERT_ID = 'postre'
 
 export const MENU: Dish[] = [
-  { id: 'paisa', cat: 'Especiales', name: 'Bandeja Paisa', price: 35000, tag: 'La favorita', img: '/assets/bandeja-paisa.webp', avail: true, drink: true, proteins: true,
+  { id: 'paisa', cat: 'Especiales', name: 'Bandeja Paisa', price: 35000, tag: 'La favorita', img: '/assets/bandeja-paisa.webp', avail: true, drink: true,
     desc: 'Arroz, frijol, ensalada, papa a la francesa, maduro, chorizo, molida, chicharrón, aguacate, huevo y arepa. Guandolo o jugo.',
     rem: R('Arroz', 'Frijol', 'Ensalada', 'Papa a la francesa', 'Maduro', 'Chorizo', 'Molida', 'Chicharrón', 'Aguacate', 'Huevo', 'Arepa') },
   { id: 'especial', cat: 'Especiales', name: 'Bandeja Especial', price: 25000, tag: 'A elección', img: '/assets/bandeja-especial.webp', avail: true, soup: true, proteins: true, drink: true,
     desc: 'Sopa del día. Res, cerdo, pollo, molida o chicharrón, con arroz, papa a la francesa, maduro, aguacate, huevo, ensalada y arepa.',
     rem: R('Arroz', 'Papa a la francesa', 'Maduro', 'Aguacate', 'Huevo', 'Ensalada', 'Arepa') },
-  { id: 'cazuela', cat: 'Especiales', name: 'Cazuela de Frijoles', price: 35000, img: '/assets/cazuela-2.webp', avail: true, proteins: true, drink: true,
+  { id: 'cazuela', cat: 'Especiales', name: 'Cazuela de Frijoles', price: 35000, img: '/assets/cazuela-2.webp', avail: true, drink: true,
     desc: 'Sopa de frijoles, maicitos, ripio de papa, platanitos, chicharrón, aguacate, chorizo, arroz y arepa.',
     rem: R('Maicitos', 'Ripio de papa', 'Platanitos', 'Chicharrón', 'Aguacate', 'Chorizo', 'Arroz', 'Arepa') },
   // Saturday's mondongo, offered on Sundays only when the owner switches it on (when there is leftover).
@@ -95,6 +95,14 @@ export const MENU: Dish[] = [
 export const DESSERT_FLAVORS: Opt[] = [
   'Limón', 'Café', 'Tiramisú', 'Cheesecake Oreo', 'Maracuyá', 'Napoleón', 'Arequipe', 'Cheesecake Milo', 'Cheesecake Mora',
 ].map(label => ({ id: label.normalize('NFD').replace(/[^a-zA-Z]/g, '').toLowerCase(), label }))
+
+/** Paid additions offered at the end of every dish: each protein apart, plus rice and fries. */
+export interface Addon { id: string; label: string; price: number }
+export const proteinAddonPrice = (id: string) => (id === 'molida' ? 5000 : 10000)
+export const SIDE_ADDONS: Addon[] = [
+  { id: 'arroz', label: 'Arroz', price: 6000 },
+  { id: 'papas', label: 'Papas a la francesa', price: 5000 },
+]
 
 export const FEATURED_IDS = ['paisa', 'especial', 'trucha']
 

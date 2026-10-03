@@ -114,7 +114,7 @@ do $$ declare o public.orders; m public.order_messages; begin
   update public.settings set juices = '[{"id":"jugo","label":"Jugo","out":true}]'::jsonb where id = 1;
   assert (select juices->0->>'out' from public.settings) = 'true', 'owner can update settings';
   o := public.advance_order(1044); o := public.advance_order(1044);
-  assert o.status = 'listo', 'end of flow is idempotent';
+  assert o.status = 'camino', 'en camino is the last step (idempotent)';
 end $$;
 commit;
 

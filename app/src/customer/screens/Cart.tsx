@@ -32,6 +32,7 @@ export function Cart() {
               {it.opts.length > 0 && <div className={k.meta}>{it.opts.join(' · ')}</div>}
               {it.proteinLabel && <div className={k.meta}>Proteína: {it.proteinLabel}</div>}
               {it.juiceLabel && <div className={k.meta} style={{ marginTop: 2 }}>Bebida: {it.juiceLabel}</div>}
+              {it.addons && it.addons.length > 0 && <div className={k.meta} style={{ marginTop: 2 }}>Adición: {it.addons.join(', ')}</div>}
               {it.removed.length > 0 && <div className={k.removed}>Sin {it.removed.join(', ').toLowerCase()}</div>}
               {it.note && <div className={k.meta} style={{ marginTop: 2, fontStyle: 'italic' }}>“{it.note}”</div>}
               <button type="button" className={k.remove} onClick={() => setDev(st => ({ cart: st.cart.filter(x => x.key !== it.key) }))}>Quitar</button>

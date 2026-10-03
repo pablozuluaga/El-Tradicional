@@ -27,7 +27,7 @@ export function Confirm() {
         <div className={x.text}>
           {order.origin === 'domicilio'
             ? <>Ya le avisamos a la cocina. Tu pedido {orderId(order.num)} llega en <b>45 min – 1 hora</b> a {order.zoneLabel}.
-                {order.deliveryPending && <> Te confirmamos por el chat el valor del domicilio.</>}</>
+                {order.deliveryPending && <> El restaurante asignará el precio del domicilio y te lo confirmará por el chat.</>}</>
             : <>Ya le avisamos a la cocina. Tu pedido {orderId(order.num)} te espera en el local; te avisamos por el chat cuando esté <b>listo para recoger</b>.</>}
         </div>
         <TonoTip variant="confirm" w={48} h={52} style={{ marginTop: 18, padding: '12px 14px', textAlign: 'left', width: '100%' }} textStyle={{ lineHeight: 1.45 }}>

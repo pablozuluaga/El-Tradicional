@@ -75,7 +75,7 @@ export const GUIDES: Record<Exclude<GuideId, 'desktop'>, Guide> = {
     id: 'androidChrome', chip: 'Android · Chrome', heading: 'Android con Chrome',
     steps: [
       { title: 'Toca los tres puntos, arriba a la derecha', text: <>Están junto a la barra de la dirección de Chrome.</>, scene: <AndroidChromeBar /> },
-      { title: 'Toca “Agregar a la pantalla principal”', text: <>Está casi al final del menú. En algunos celulares dice <b>Instalar app</b>: es lo mismo.</>, scene: <AndroidChromeMenu /> },
+      { title: 'Toca “Agregar a la pantalla principal”', text: <>Está casi al final del menú. En algunos celulares dice <b>Instalar app</b>: es lo mismo. <b>No toques la flecha ⬇ de arriba del menú</b>: esa solo guarda una copia de la página sin internet.</>, scene: <AndroidChromeMenu /> },
       { title: 'Elige “Instalar”', text: <>Si Chrome te pregunta, elige <b>Instalar</b> (no “Crear acceso directo”): así se abre como app.</>, scene: <AndroidChromeSheet /> },
       { title: 'Confirma con “Instalar”', text: <>Toca <b>Instalar</b>. Si tu celular pregunta dónde ponerla, toca <b>Agregar</b> o <b>Agregar automáticamente</b>. No pide permisos ni cuenta de Google.</>, scene: <AndroidInstallDialog /> },
       androidDone,

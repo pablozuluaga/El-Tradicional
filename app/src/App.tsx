@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/react'
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import CustomerApp from './customer/CustomerApp.tsx'
@@ -13,6 +14,8 @@ export default function App() {
         <Route path="/admin/*" element={<Suspense fallback={<div className="app-shell dark" />}><OwnerApp /></Suspense>} />
         <Route path="/*" element={<CustomerApp />} />
       </Routes>
+      {/* Vercel Web Analytics: visitors and page views (no-op outside Vercel) */}
+      <Analytics />
     </BrowserRouter>
   )
 }

@@ -255,13 +255,6 @@ export class SupabaseStore implements RestaurantStore {
     return order
   }
 
-  async updateOrder(num: number, draft: OrderDraft): Promise<Order> {
-    const { error } = await this.sb.rpc('update_order', { p_num: num, p: draftToPayload(draft) })
-    if (error) fail(error, 'No se pudo guardar el cambio. Revisa tu conexión e intenta de nuevo.')
-    await this.refreshOrder(num)
-    return this.snap.orders.find(o => o.num === num)!
-  }
-
   async setReview(num: number, p: ReviewPatch) {
     const { data, error } = await this.sb.rpc('set_review', {
       p_num: num, p_stars: p.stars ?? null, p_comment: p.comment ?? null, p_rated: p.rated ?? null,

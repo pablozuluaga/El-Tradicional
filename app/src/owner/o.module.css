@@ -49,6 +49,8 @@
 .kv { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; }
 .kv span { color: #a89d8c; flex: none; }
 .kv b { color: #fff; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.itemRow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.itemPrice { flex: none; font-size: 13.5px; color: #fff; font-weight: 700; }
 .item { font-size: 13.5px; color: #F2EADD; line-height: 1.45; padding-left: 12px; position: relative; }
 .item::before { content: '•'; position: absolute; left: 0; color: #F0B7A0; }
 .dLabel { font-size: 11px; color: #8b8070; }

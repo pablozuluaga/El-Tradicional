@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { newId } from '../../domain/ids.ts'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { fmt } from '../../domain/format.ts'
 import { DESSERT_ID, EXTRA_JUICE_IDS } from '../../domain/catalog.ts'
 import { addonsFor, dishById, effRem, flavorsFor, simpleExtrasFor, initialProtein, isDishSoldOut, isExtra, juiceFlavorsFor, proteinsOf } from '../../domain/menu.ts'
@@ -15,29 +15,49 @@ import x from './Dish.module.css'
 export function Dish() {
   const { id = '' } = useParams()
   const s = useSnapshot().settings
+  const [dev] = useDevice()
+  const [params] = useSearchParams()
   const d = dishById(s, id)
   if (!d) return <Navigate to={P.menu} replace />
-  return <DishDetail key={d.id} d={d} s={s} />
+  // ?editar=<cart line key>: change a dish already in the cart, with its choices filled in
+  const editLine = dev.cart.find(l => l.key === params.get('editar') && l.dishId === d.id) ?? null
+  return <DishDetail key={d.id + (editLine?.key ?? '')} d={d} s={s} editLine={editLine} />
 }
 
-function DishDetail({ d, s }: { d: DishT; s: Settings }) {
+/** The cart line's choices as this screen's state (labels back to option ids). */
+function fromLine(d: DishT, s: Settings, l: CartLine) {
+  const choices: Record<string, string> = {}
+  for (const g of d.groups ?? []) {
+    const o = g.options.find(x => l.opts.includes(x.label))
+    if (o) choices[g.id] = o.id
+  }
+  const protein = proteinsOf(d).find(p => p.label === l.proteinLabel)?.id ?? initialProtein(s, d)
+  const juice = s.juices.find(j => j.label === l.juiceLabel)?.id ?? null
+  const removed = Object.fromEntries(effRem(d, choices).filter(r => l.removed.includes(r.label)).map(r => [r.id, true]))
+  const addons = Object.fromEntries(addonsFor(s).filter(a => l.addons?.includes(a.label)).map(a => [a.id, true]))
+  return { choices, protein, juice, removed, addons, qty: l.qty, note: l.note }
+}
+
+function DishDetail({ d, s, editLine }: { d: DishT; s: Settings; editLine: CartLine | null }) {
   const nav = useNavigate()
   const [, setDev] = useDevice()
-  const [choices, setChoices] = useState<Record<string, string>>({})
-  const [protein, setProtein] = useState<string | null>(() => initialProtein(s, d))
-  const [juice, setJuice] = useState<string | null>(null)
-  const [removed, setRemoved] = useState<Record<string, boolean>>({})
-  const [qty, setQty] = useState(1)
-  const [note, setNote] = useState('')
+  const [init] = useState(() => (editLine ? fromLine(d, s, editLine) : null))
+  const [choices, setChoices] = useState<Record<string, string>>(init?.choices ?? {})
+  const [protein, setProtein] = useState<string | null>(() => init ? init.protein : initialProtein(s, d))
+  const [juice, setJuice] = useState<string | null>(init?.juice ?? null)
+  const [removed, setRemoved] = useState<Record<string, boolean>>(init?.removed ?? {})
+  const [qty, setQty] = useState(init?.qty ?? 1)
+  const [note, setNote] = useState(init?.note ?? '')
   // juices and desserts bought apart, offered at the end of every main dish
   const [extraQty, setExtraQty] = useState<Record<string, number>>({})
   const [flavors, setFlavors] = useState<Record<string, boolean>>({})
   // `${juiceId}:${flavorId}` → picked, once the owner has created juice flavors
   const [juicePicks, setJuicePicks] = useState<Record<string, boolean>>({})
-  const offerExtras = !isExtra(d)
+  // juices/desserts apart are their own cart lines: not offered again while editing a dish
+  const offerExtras = !isExtra(d) && !editLine
   // paid additions on the plate (each protein apart, rice, fries)
-  const [addonPicks, setAddonPicks] = useState<Record<string, boolean>>({})
-  const addons = offerExtras ? addonsFor(s) : []
+  const [addonPicks, setAddonPicks] = useState<Record<string, boolean>>(init?.addons ?? {})
+  const addons = !isExtra(d) ? addonsFor(s) : []
   const pickedAddons = addons.filter(a => addonPicks[a.id])
   const addonsUnit = pickedAddons.reduce((t, a) => t + a.price, 0)
   const juices = offerExtras ? EXTRA_JUICE_IDS.map(id => dishById(s, id)).filter((j): j is DishT => !!j && !isDishSoldOut(s, j)) : []
@@ -68,7 +88,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
   const add = () => {
     if (!canAdd) return
     const line: CartLine = {
-      key: newId(),
+      key: editLine?.key ?? newId(),
       dishId: d.id, name: d.name, cat: d.cat, basePrice: d.price + addonsUnit, domPrice: (d.priceDom || d.price) + addonsUnit, qty,
       opts: groups.map(g => g.options.find(o => o.id === choices[g.id])?.label).filter((v): v is string => !!v),
       proteinLabel: d.proteins && protein ? prots.find(p => p.id === protein)?.label ?? null : null,
@@ -85,7 +105,8 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
       ...[...juiceLines, ...otherLines].map(l => extra(l.j, l.n, l.opts)),
       ...(dessert ? pickedFlavors.map(f => extra(dessert, 1, [f.label])) : []),
     ]
-    setDev(st => ({ cart: [...st.cart, line, ...extras] }))
+    if (editLine) setDev(st => ({ cart: st.cart.map(l => (l.key === editLine.key ? line : l)) }))
+    else setDev(st => ({ cart: [...st.cart, line, ...extras] }))
     nav(P.cart)
   }
 
@@ -94,7 +115,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
       <div className={`${c.scroll} noscroll`}>
         <div className={`${x.hero} ${d.img ? '' : x.heroShort}`}>
           {d.img ? <DishPhoto src={d.img} alt={d.name} /> : d.icon && <span className={x.heroIcon} aria-hidden="true">{d.icon}</span>}
-          <BackButton overPhoto onClick={() => nav(P.menu)} />
+          <BackButton overPhoto onClick={() => nav(editLine ? P.cart : P.menu)} />
         </div>
         <div className={x.head}>
           <div className={x.nameRow}><div className={x.name}>{d.name}</div><div className={x.price}>{fmt(d.price)}</div></div>
@@ -235,7 +256,7 @@ function DishDetail({ d, s }: { d: DishT; s: Settings }) {
           <button type="button" className={x.stepBtn} aria-label="Más" onClick={() => setQty(q => Math.min(20, q + 1))}>+</button>
         </div>
         {canAdd
-          ? <button type="button" className={x.add} onClick={add}>Agregar · {fmt((d.price + addonsUnit) * qty + extrasTotal)}</button>
+          ? <button type="button" className={x.add} onClick={add}>{editLine ? 'Guardar cambios' : 'Agregar'} · {fmt((d.price + addonsUnit) * qty + extrasTotal)}</button>
           : <div className={x.blocked}>{hint}</div>}
       </div>
     </>

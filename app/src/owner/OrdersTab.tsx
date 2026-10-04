@@ -122,7 +122,16 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
 
           <div className={o.sec}>
             <div className={o.secHead}>🍽️ Pedido</div>
-            {(ord.itemsList.length ? ord.itemsList : [ord.items]).map((l, i) => <div key={i} className={o.item}>{l}</div>)}
+            {(ord.itemsList.length ? ord.itemsList : [ord.items]).map((l, i) => {
+              // lines[] follows the cart order, like itemsList: price of each dish (qty × unit)
+              const ln = ord.itemsList.length === ord.lines.length ? ord.lines[i] : undefined
+              return (
+                <div key={i} className={o.itemRow}>
+                  <div className={o.item}>{l}</div>
+                  {ln && <b className={o.itemPrice}>{fmt(ln.qty * ln.unit)}</b>}
+                </div>
+              )
+            })}
           </div>
 
           <div className={o.sec}>

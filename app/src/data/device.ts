@@ -21,10 +21,6 @@ export interface DeviceState {
   pay: string
   phone: string
   lastOrderNum: number | null
-  /** the cart each order was placed with (this device), to load it back for editing */
-  orderCarts: Record<string, CartLine[]>
-  /** order being edited from the cart, if any */
-  editingOrder: number | null
 }
 
 const KEY = 'et:device:v1'
@@ -42,8 +38,6 @@ const initial = (): DeviceState => ({
   cart: [],
   mode: 'domicilio', zone: '', zoneOther: '', pay: 'efectivo', phone: '',
   lastOrderNum: null,
-  orderCarts: {},
-  editingOrder: null,
 })
 
 function load(): DeviceState {

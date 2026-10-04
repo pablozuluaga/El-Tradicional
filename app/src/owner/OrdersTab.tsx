@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { dateTime, fmt, orderId } from '../domain/format.ts'
 import { discountName } from '../domain/loyalty.ts'
-import { advanceLabel, BAR_COLORS, canReject, hasUnread, isFinished, isOtherZoneOrder, MAX_DELIVERY_FEE, originLabel, OWNER_BADGE, ownerAmounts, STAGE, STAGE_MAX } from '../domain/orders.ts'
+import { advanceLabel, BAR_COLORS, canReject, hasUnread, isFinished, isOtherZoneOrder, MAX_DELIVERY_FEE, originLabel, OWNER_BADGE, ownerAmounts, STAGE, STAGE_MAX, ordersInPeriod, type OrderPeriod } from '../domain/orders.ts'
 import type { Order } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { UnreadDot } from '../ui/ui.tsx'
@@ -186,14 +186,29 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
   )
 }
 
+const PERIODS: { id: OrderPeriod; label: string }[] = [{ id: 'hoy', label: 'Hoy' }, { id: 'semana', label: 'Esta semana' }, { id: 'todos', label: 'Todos' }]
+
 export function OrdersTab({ onChat }: { onChat: (num: number) => void }) {
-  const orders = useSnapshot().orders
+  const all = useSnapshot().orders
   const [openNum, setOpenNum] = useState<number | null>(null)
+  const [period, setPeriod] = useState<OrderPeriod>('hoy')
+  const orders = ordersInPeriod(all, period)
   return (
     <>
       <ReportCard />
+      <div className={o.chipsWrap} role="tablist" aria-label="Mostrar pedidos de" style={{ marginBottom: 12 }}>
+        {PERIODS.map(p => {
+          const n = ordersInPeriod(all, p.id).length
+          return (
+            <button key={p.id} type="button" role="tab" aria-selected={period === p.id} className={`${o.dayChip} ${period === p.id ? o.dayChipOn : ''}`}
+              onClick={() => setPeriod(p.id)}>{p.label} ({n})</button>
+          )
+        })}
+      </div>
       <div className={o.list}>
-        {orders.length === 0 && <div style={{ fontSize: 12.5, color: '#8b8070', textAlign: 'center', padding: '24px 0' }}>Todavía no hay pedidos. Los nuevos aparecen aquí al instante.</div>}
+        {orders.length === 0 && <div style={{ fontSize: 12.5, color: '#8b8070', textAlign: 'center', padding: '24px 0' }}>
+          {all.length === 0 ? 'Todavía no hay pedidos. Los nuevos aparecen aquí al instante.' : period === 'hoy' ? 'Hoy todavía no hay pedidos. Los nuevos aparecen aquí al instante.' : 'No hay pedidos esta semana.'}
+        </div>}
         {orders.map(ord => (
           <OrderCard key={ord.num} ord={ord} open={openNum === ord.num} onToggle={() => setOpenNum(v => (v === ord.num ? null : ord.num))} onChat={() => onChat(ord.num)} />
         ))}

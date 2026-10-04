@@ -137,3 +137,19 @@ export function hasUnread(o: Pick<Order, 'chat' | 'clientSeenId' | 'ownerSeenId'
 }
 
 export const lastMessageId = (o: Pick<Order, 'chat'>) => o.chat.reduce((m, x) => Math.max(m, x.id), 0)
+
+// ---- owner list filter ------------------------------------------------------
+
+export type OrderPeriod = 'todos' | 'semana' | 'hoy'
+
+/** Calendar date in Colombia (UTC-5 all year) as a day number, so "today" doesn't depend on the device's zone. */
+const bogotaDayNum = (d: Date) => Math.floor((d.getTime() - 5 * 3600_000) / 86_400_000)
+
+/** Orders from today, from this week (Monday to Sunday) or all of them. */
+export function ordersInPeriod<T extends Pick<Order, 'createdAt'>>(orders: T[], period: OrderPeriod, now = new Date()): T[] {
+  if (period === 'todos') return orders
+  const today = bogotaDayNum(now)
+  // 1970-01-01 was a Thursday: day 0 → weekday index 3 when Monday = 0
+  const from = period === 'hoy' ? today : today - ((today + 3) % 7)
+  return orders.filter(o => bogotaDayNum(new Date(o.createdAt)) >= from)
+}

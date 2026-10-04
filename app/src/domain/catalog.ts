@@ -56,7 +56,8 @@ export const DAILY_MENUS: DailyMenu[] = [
     desc: 'Sopa de mondongo acompañada con aguacate, arroz, ensalada y arepa.', rem: R('Aguacate', 'Arroz', 'Ensalada', 'Arepa') },
   { day: 'domingo', label: 'Domingo', name: 'Sancocho trifásico', soupDish: true, sopas: WEEKEND_SOPAS, proteinChoice: false,
     specialProts: [{ id: 'sudadoposta', label: 'Sudado de posta' }], price: 35000, priceDom: 35000, drink: true, img: '/assets/sancocho-2.webp',
-    desc: 'Arroz, aguacate, arepa y ensalada. Guandolo o jugo.', rem: R('Arroz', 'Aguacate', 'Arepa', 'Ensalada') },
+    desc: 'Sancocho con cerdo, res, pollo, mazorca, papa, yuca, maduro, acompañado de arroz, aguacate, ensalada y arepa.',
+    rem: R('Mazorca', 'Papa', 'Yuca', 'Maduro', 'Arroz', 'Aguacate', 'Ensalada', 'Arepa') },
 ]
 
 export const EXTRAS_CAT = 'Bebidas y postres'

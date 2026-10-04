@@ -339,3 +339,18 @@ test('mazamorra and owner-created items apart; owner plate add-ons with prices a
   assert.equal(byLabel.Huevo, 2000)
   assert.equal(byLabel['Papas a la francesa'], undefined, 'switched off')
 })
+
+test('owner order filter: today, this week (Monday to Sunday, Colombia time) or all', async () => {
+  const { ordersInPeriod } = await import('../src/domain/orders.ts')
+  const now = new Date('2026-10-07T20:00:00Z') // Wednesday 7 Oct, 3pm in Bogotá
+  const at = (iso: string) => mkOrder({ createdAt: iso })
+  const list = [
+    at('2026-10-07T16:00:00Z'), // today 11am
+    at('2026-10-07T04:00:00Z'), // Tuesday 11pm in Bogotá (already Wednesday in UTC)
+    at('2026-10-05T15:00:00Z'), // Monday
+    at('2026-10-04T15:00:00Z'), // last Sunday
+  ]
+  assert.equal(ordersInPeriod(list, 'hoy', now).length, 1)
+  assert.equal(ordersInPeriod(list, 'semana', now).length, 3)
+  assert.equal(ordersInPeriod(list, 'todos', now).length, 4)
+})

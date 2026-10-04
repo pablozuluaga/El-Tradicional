@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { OTHER_ZONE_ID, PAYS } from '../../domain/catalog.ts'
 import { discountName } from '../../domain/loyalty.ts'
 import { fmt } from '../../domain/format.ts'
-import { itemsDetail, itemsSummary, orderLines } from '../../domain/orders.ts'
+import { itemsDetail, itemsSummary, orderLines, packAddressNotes } from '../../domain/orders.ts'
 import { isPhone } from '../../domain/placement.ts'
 import { deliveryFee, discountFor, isOtherZone, orderTotal, subtotal, zoneById, zonesOf } from '../../domain/pricing.ts'
 import type { OrderDraft } from '../../domain/types.ts'
@@ -70,8 +70,8 @@ export function Checkout() {
       origin: dev.mode,
       zoneId: dom ? zone!.id : null,
       zoneLabel: dom ? zone!.label : null,
-      address: dom && addr ? [addr.line, addr.apt].filter(Boolean).join(', ') : 'Recoge en el local',
-      addressNotes: dom && addr ? addr.notes : '',
+      address: dom && addr ? addr.line : 'Recoge en el local',
+      addressNotes: dom && addr ? packAddressNotes(addr.apt, addr.notes) : '',
       items: itemsSummary(dev.cart),
       itemsList: itemsDetail(dev.cart),
       lines: orderLines(dev.cart, dev.mode),
@@ -137,7 +137,7 @@ export function Checkout() {
               {formOpen ? (
                 <div className={k.form}>
                   <input className={c.input} value={fLine} onChange={e => { setLine(e.target.value); setError('') }} placeholder="Dirección (ej: Calle 32B # 32C Sur-02)" aria-label="Dirección" autoComplete="street-address" />
-                  <input className={c.input} value={fApt} onChange={e => setApt(e.target.value)} placeholder="Apto / Torre / Interior (opcional)" aria-label="Apto / Torre / Interior" />
+                  <input className={c.input} value={fApt} onChange={e => setApt(e.target.value)} placeholder="Nombre del edificio / Apto / Torre (opcional)" aria-label="Nombre del edificio, apartamento o torre" />
                   <input className={c.input} value={fNotes} onChange={e => setNotes(e.target.value)} placeholder="Indicaciones para el domiciliario (opcional)" aria-label="Indicaciones para el domiciliario" />
                   <button type="button" className={k.saveBtn} onClick={saveAddr}>Guardar dirección</button>
                 </div>

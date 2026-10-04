@@ -364,3 +364,12 @@ test('barrios come from the owner list when set; the default list otherwise', as
   assert.equal(deliveryFee('domicilio', 'obrero', zonesOf(own)), 4000)
   assert.equal(deliveryFee('domicilio', 'alto_flores', zonesOf(own)), 0, 'removed barrio has no fee')
 })
+
+test('building/apartment travels in the notes, not in the address', async () => {
+  const { packAddressNotes, splitAddressNotes } = await import('../src/domain/orders.ts')
+  const packed = packAddressNotes(' Torre 3 apto 502 ', 'Portería azul')
+  assert.deepEqual(splitAddressNotes(packed), { apt: 'Torre 3 apto 502', notes: 'Portería azul' })
+  assert.deepEqual(splitAddressNotes(packAddressNotes('', 'Timbre')), { apt: '', notes: 'Timbre' })
+  assert.equal(packAddressNotes('', ''), '')
+  assert.deepEqual(splitAddressNotes('Casa esquinera'), { apt: '', notes: 'Casa esquinera' })
+})

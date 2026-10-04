@@ -108,7 +108,7 @@ export function Profile() {
         {formOpen && (
           <div className={x.form}>
             <input className={c.input} value={fLine} onChange={e => setLine(e.target.value)} placeholder="Dirección" aria-label="Dirección" />
-            <input className={c.input} value={fApt} onChange={e => setApt(e.target.value)} placeholder="Apto / Torre (opcional)" aria-label="Apto / Torre" />
+            <input className={c.input} value={fApt} onChange={e => setApt(e.target.value)} placeholder="Nombre del edificio / Apto / Torre (opcional)" aria-label="Nombre del edificio, apartamento o torre" />
             <button type="button" className={x.saveBtn} onClick={saveAddr}>Guardar dirección</button>
           </div>
         )}

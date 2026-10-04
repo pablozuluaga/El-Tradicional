@@ -37,6 +37,20 @@ export const orderLines = (cart: CartLine[], mode: Origin): OrderLine[] =>
   cart.map(c => ({ dishId: c.dishId, name: c.name, qty: c.qty, unit: unitPrice(c, mode) }))
 
 /** Barrio "Otro": the customer pays the delivery on arrival; the owner notes its price for their own totals. */
+const BUILDING = 'Edificio / Apto / Torre: '
+
+/**
+ * The building/apartment travels inside the delivery notes (its own first line), so the address
+ * itself stays the literal street address that Google Maps can find.
+ */
+export const packAddressNotes = (apt: string, notes: string) =>
+  [apt.trim() && BUILDING + apt.trim(), notes.trim()].filter(Boolean).join('\n')
+
+export function splitAddressNotes(s: string): { apt: string; notes: string } {
+  const [first, ...rest] = s.split('\n')
+  return first.startsWith(BUILDING) ? { apt: first.slice(BUILDING.length), notes: rest.join('\n') } : { apt: '', notes: s }
+}
+
 export const isOtherZoneOrder = (o: Pick<Order, 'origin' | 'zoneId'>) => o.origin === 'domicilio' && o.zoneId === OTHER_ZONE_ID
 
 /**

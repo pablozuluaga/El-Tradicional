@@ -36,6 +36,8 @@ export interface RestaurantStore {
 
   // customer
   placeOrder(draft: OrderDraft): Promise<Order>
+  /** Changes an own order while the restaurant hasn't accepted it ('nuevo'); keeps its discount benefit. */
+  updateOrder(num: number, draft: OrderDraft): Promise<Order>
   setReview(num: number, patch: ReviewPatch): Promise<void>
 
   // both

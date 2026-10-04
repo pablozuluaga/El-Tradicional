@@ -9,6 +9,7 @@ import { NewDishForm } from './NewDishForm.tsx'
 import { DayListPanel } from './DayListPanel.tsx'
 import { PriceEditor } from './PriceEditor.tsx'
 import { ExtrasPanel } from './ExtrasPanel.tsx'
+import { ZonesPanel } from './ZonesPanel.tsx'
 import o from './o.module.css'
 
 const GREEN = '#2F7D46', RED = '#C8161D'
@@ -168,6 +169,7 @@ export function MenuTab() {
           : <button type="button" className={o.redBtn} style={{ padding: 12 }} onClick={() => setCreating(true)}>+ Crear plato</button>}
       </div>
       <ExtrasPanel />
+      <ZonesPanel />
     </>
   )
 }

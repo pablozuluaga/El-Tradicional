@@ -197,6 +197,7 @@ export const defaultSettings = (): Settings => ({
   priceOverrides: {},
   customExtras: [],
   customAddons: [],
+  zones: null,
   customDishes: [],
 })
 

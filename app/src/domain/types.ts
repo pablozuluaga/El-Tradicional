@@ -103,6 +103,8 @@ export interface Settings {
   priceOverrides: Record<string, number>
   /** items the owner created to sell apart (shown with juices and desserts) */
   customExtras: { id: string; name: string; price: number }[]
+  /** the owner's barrios with their delivery price; null = the default list (ZONES) */
+  zones: { id: string; label: string; fee: number }[] | null
   /** plate add-ons the owner created (next to the proteins, rice and fries) */
   customAddons: { id: string; label: string; price: number }[]
   customDishes: CustomDish[]

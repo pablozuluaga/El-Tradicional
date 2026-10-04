@@ -215,4 +215,37 @@ do $$ declare o public.orders; begin
 end $$;
 commit;
 
+-- 9. the customer edits their own order while it is still 'nuevo'; never someone else's or an accepted one
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'cust_b')::text, true);
+do $$ declare o public.orders; n bigint; begin
+  o := public.place_order(public.t_payload('b@example.com', 'recoger', 'paisa', 35000));
+  n := o.num;
+  o := public.update_order(n, public.t_payload('b@example.com', 'domicilio', 'especial', 50000) || '{"items":"2 Bandeja Especial"}');
+  assert o.subtotal = 50000 and o.origin = 'domicilio' and o.delivery = 3000 and o.items = '2 Bandeja Especial', 'order updated';
+  assert o.total = 50000 - o.discount + 3000, 'total recomputed';
+  assert (select sender from public.order_messages where order_num = n order by id desc limit 1) = 'cliente', 'owner is told by chat';
+  assert o.client_seen_id = (select max(id) from public.order_messages where order_num = n), 'own message seen';
+  begin perform public.update_order(1043, public.t_payload('b@example.com')); assert false, 'not someone else''s order';
+  exception when insufficient_privilege then null; end;
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
+select public.advance_order(max(num)) from public.orders where customer_id = :'cust_b';
+commit;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'cust_b')::text, true);
+do $$ declare n bigint; begin
+  select max(num) into n from public.orders where customer_id = (select auth.uid());
+  begin perform public.update_order(n, public.t_payload('b@example.com')); assert false, 'accepted orders are locked';
+  exception when raise_exception then assert sqlerrm like 'El restaurante ya aceptó%', sqlerrm; end;
+end $$;
+commit;
+
 drop function public.t_payload(text, text, text, int);

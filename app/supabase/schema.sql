@@ -248,6 +248,65 @@ begin
   return o;
 end $$;
 
+-- The customer changes their own order while the restaurant hasn't accepted it yet. Same checks as
+-- place_order; the discount keeps the benefit the order already had (recomputed on the new subtotal).
+create or replace function public.update_order(p_num bigint, p jsonb) returns public.orders
+language plpgsql security definer set search_path = '' as $$
+declare
+  uid uuid := auth.uid();
+  o public.orders;
+  s public.settings;
+  v_origin text := p->>'origin';
+  v_sub int := (p->>'subtotal')::int;
+  v_pending boolean := p->>'origin' = 'domicilio' and p->>'zone_id' = 'otro';
+  v_delivery int := case when p->>'origin' = 'domicilio' and not coalesce(p->>'zone_id' = 'otro', false)
+                         then coalesce((p->>'delivery')::int, 0) else 0 end;
+  v_discount int;
+  m_id bigint;
+begin
+  if uid is null then raise exception 'No autenticado.' using errcode = '28000'; end if;
+  select * into o from public.orders where num = p_num and customer_id = uid for update;
+  if not found then raise exception 'Pedido no encontrado.' using errcode = '42501'; end if;
+  if o.status <> 'nuevo' then raise exception 'El restaurante ya aceptó tu pedido. Escríbenos por el chat si necesitas cambiar algo.'; end if;
+  select * into s from public.settings where id = 1;
+  if not s.store_open then raise exception 'La cocina está cerrada en este momento. Atendemos 11:30am – 4pm.'; end if;
+  if v_origin is null or v_origin not in ('domicilio', 'recoger') then raise exception 'Modo de entrega inválido.'; end if;
+  if jsonb_typeof(p->'items_list') <> 'array' or jsonb_array_length(p->'items_list') = 0 then raise exception 'Tu carrito está vacío.'; end if;
+  if jsonb_typeof(p->'lines') <> 'array' then raise exception 'Pedido inválido.'; end if;
+  if v_sub is null or v_sub < 0 or v_delivery < 0 then raise exception 'Valores inválidos.'; end if;
+  if v_origin = 'domicilio' then
+    if coalesce(p->>'zone_id', '') = '' then raise exception 'Selecciona tu barrio.'; end if;
+    if v_pending and char_length(trim(coalesce(p->>'zone_label', ''))) = 0 then raise exception 'Escribe el nombre de tu barrio.'; end if;
+    if char_length(trim(coalesce(p->>'address', ''))) = 0 then raise exception 'Escribe la dirección de entrega.'; end if;
+  end if;
+  if exists (select 1 from jsonb_array_elements(p->'lines') l where coalesce((s.sold_dishes ->> (l->>'dishId'))::boolean, false)) then
+    raise exception 'Uno de los platos se agotó. Quítalo del carrito para continuar.';
+  end if;
+  if s.plato_dia is null and exists (select 1 from jsonb_array_elements(p->'lines') l where l->>'dishId' = 'dia') then
+    raise exception 'El menú del día ya no está disponible. Quítalo del carrito para continuar.';
+  end if;
+
+  v_discount := case when o.discount_kind is not null then round(v_sub * 0.2) else 0 end;
+  update public.orders set
+    phone = coalesce(nullif(trim(p->>'phone'), ''), o.phone),
+    origin = v_origin,
+    zone_id = case when v_origin = 'domicilio' then p->>'zone_id' end,
+    zone_label = case when v_origin = 'domicilio' then left(trim(p->>'zone_label'), 80) end,
+    address = case when v_origin = 'domicilio' then trim(p->>'address') else 'Recoge en el local' end,
+    address_notes = case when v_origin = 'domicilio' then trim(coalesce(p->>'address_notes', '')) else '' end,
+    items = p->>'items', items_list = p->'items_list', lines = p->'lines',
+    subtotal = v_sub, discount = v_discount, delivery = v_delivery, delivery_pending = coalesce(v_pending, false),
+    total = greatest(0, v_sub - v_discount + v_delivery),
+    pay = coalesce(p->>'pay', o.pay)
+  where num = p_num returning * into o;
+
+  insert into public.order_messages (order_num, sender, body)
+  values (p_num, 'cliente', left('✏️ Modifiqué mi pedido: ' || coalesce(p->>'items', ''), 1000))
+  returning id into m_id;
+  update public.orders set client_seen_id = m_id where num = p_num returning * into o;
+  return o;
+end $$;
+
 create or replace function public.advance_order(p_num bigint) returns public.orders
 language plpgsql security definer set search_path = '' as $$
 declare o public.orders; ns text;
@@ -323,10 +382,12 @@ end $$;
 -- Functions are executable by PUBLIC by default; only signed-in users may call the API ones.
 revoke execute on function public.is_owner(), public._eligibility(uuid, text), public._next_status(text), public._status_note(text, text),
   public.discount_eligibility(text), public.place_order(jsonb), public.advance_order(bigint), public.reject_order(bigint, text),
-  public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean), public.touch_updated_at()
+  public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean), public.touch_updated_at(),
+  public.update_order(bigint, jsonb)
   from public, anon;
 grant execute on function public.is_owner(), public.discount_eligibility(text), public.place_order(jsonb), public.advance_order(bigint),
-  public.reject_order(bigint, text), public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean)
+  public.reject_order(bigint, text), public.send_message(bigint, text), public.mark_seen(bigint), public.set_review(bigint, int, text, boolean),
+  public.update_order(bigint, jsonb)
   to authenticated;
 revoke execute on function public._eligibility(uuid, text) from authenticated;
 

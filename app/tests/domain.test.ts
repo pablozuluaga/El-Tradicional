@@ -354,3 +354,13 @@ test('owner order filter: today, this week (Monday to Sunday, Colombia time) or 
   assert.equal(ordersInPeriod(list, 'semana', now).length, 3)
   assert.equal(ordersInPeriod(list, 'todos', now).length, 4)
 })
+
+test('barrios come from the owner list when set; the default list otherwise', async () => {
+  const { deliveryFee, zonesOf } = await import('../src/domain/pricing.ts')
+  const s = defaultSettings()
+  assert.equal(zonesOf(s).length, 28)
+  const own = { ...s, zones: [{ id: 'z1', label: 'Sabaneta', fee: 9000 }, { id: 'obrero', label: 'El Obrero', fee: 4000 }] }
+  assert.equal(deliveryFee('domicilio', 'z1', zonesOf(own)), 9000)
+  assert.equal(deliveryFee('domicilio', 'obrero', zonesOf(own)), 4000)
+  assert.equal(deliveryFee('domicilio', 'alto_flores', zonesOf(own)), 0, 'removed barrio has no fee')
+})

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { dateTime, fmt, orderId } from '../domain/format.ts'
 import { discountName } from '../domain/loyalty.ts'
-import { advanceLabel, BAR_COLORS, canReject, hasUnread, isFinished, isOtherZoneOrder, MAX_DELIVERY_FEE, originLabel, OWNER_BADGE, ownerAmounts, STAGE, STAGE_MAX, ordersInPeriod, type OrderPeriod } from '../domain/orders.ts'
+import { advanceLabel, BAR_COLORS, canReject, hasUnread, isFinished, isOtherZoneOrder, MAX_DELIVERY_FEE, originLabel, OWNER_BADGE, ownerAmounts, splitAddressNotes, STAGE, STAGE_MAX, ordersInPeriod, type OrderPeriod } from '../domain/orders.ts'
 import type { Order } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { UnreadDot } from '../ui/ui.tsx'
@@ -55,8 +55,9 @@ function ReportCard() {
 
 /** WhatsApp wants the country code: Colombian mobiles are 10 digits starting with 3. */
 const waNumber = (digits: string) => (digits.length === 10 && digits.startsWith('3') ? '57' + digits : digits)
-const mapsUrl = (address: string, barrio: string | null) =>
-  'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([address, barrio, 'Envigado, Antioquia'].filter(Boolean).join(', '))
+// only the street address (plus the city): building, apartment and notes confuse the search
+const mapsUrl = (address: string) =>
+  'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address + ', Envigado, Antioquia')
 
 function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean; onToggle: () => void; onChat: () => void }) {
   const store = useStore()
@@ -75,6 +76,7 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
   const otherZone = isOtherZoneOrder(ord)
   const fees = useSnapshot().settings.deliveryFees
   const amounts = ownerAmounts(ord, fees)
+  const extra = splitAddressNotes(ord.addressNotes)
   const phoneDigits = (ord.phone ?? '').replace(/\D/g, '')
   const saveFee = (v: number) => run(store.updateSettings(st => ({ deliveryFees: { ...st.deliveryFees, [String(ord.num)]: v } })).then(() => setFee('')))
 
@@ -101,14 +103,15 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
               <>
                 <div className={o.addr}>{ord.address}</div>
                 {ord.zoneLabel && <span className={o.chip}>Barrio: {ord.zoneLabel}{otherZone ? ' (otro)' : ''}</span>}
-                {ord.addressNotes && <div className={o.note}><b>Indicaciones:</b> {ord.addressNotes}</div>}
+                {extra.apt && <div className={o.note}><b>Edificio / Apto / Torre:</b> {extra.apt}</div>}
+                {extra.notes && <div className={o.note}><b>Indicaciones:</b> {extra.notes}</div>}
               </>
             ) : <div className={o.addr}>El cliente pasa a recogerlo</div>}
             {(phoneDigits || dom) && (
               <div className={o.linkRow}>
                 {phoneDigits && <a className={o.pill} href={`tel:${phoneDigits}`}>📞 Llamar</a>}
                 {phoneDigits && <a className={o.pill} href={`https://wa.me/${waNumber(phoneDigits)}`} target="_blank" rel="noopener noreferrer">💬 WhatsApp</a>}
-                {dom && <a className={o.pill} href={mapsUrl(ord.address, ord.zoneLabel)} target="_blank" rel="noopener noreferrer">🗺️ Mapa</a>}
+                {dom && <a className={o.pill} href={mapsUrl(ord.address)} target="_blank" rel="noopener noreferrer">🗺️ Mapa</a>}
               </div>
             )}
           </div>

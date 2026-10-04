@@ -1,7 +1,7 @@
 import { defaultSettings, ORDER_NUM_START } from '../domain/catalog.ts'
-import { countingOrders, eligibility, emailUsedElsewhere } from '../domain/loyalty.ts'
+import { countingOrders, eligibility, emailUsedElsewhere, LOYALTY_RATE } from '../domain/loyalty.ts'
 import { advanceStep, canReject, lastMessageId, normalizeReason, rejectNote, WELCOME_MSG } from '../domain/orders.ts'
-import { isOtherZone } from '../domain/pricing.ts'
+import { discountFor, isOtherZone, orderTotal } from '../domain/pricing.ts'
 import { finalizeTotals, validateDraft } from '../domain/placement.ts'
 import { reportRows } from '../domain/report.ts'
 import type { ChatMessage, Order, OrderDraft, Settings } from '../domain/types.ts'
@@ -143,6 +143,29 @@ export class LocalStore implements RestaurantStore {
       d.orders.push(created)
     })
     return created!
+  }
+
+  async updateOrder(num: number, draft: OrderDraft): Promise<Order> {
+    let updated = null as Order | null
+    this.mutOrder(num, (o, d) => {
+      if (o.customerId !== this.deviceId) throw new StoreError('Pedido no encontrado.')
+      if (o.status !== 'nuevo') throw new StoreError('El restaurante ya aceptó tu pedido. Escríbenos por el chat si necesitas cambiar algo.')
+      const err = validateDraft(draft, d.settings)
+      if (err) throw new StoreError(err)
+      const deliveryPending = isOtherZone(draft.origin, draft.zoneId)
+      const delivery = deliveryPending ? 0 : draft.delivery
+      const discount = o.discountKind ? discountFor(draft.subtotal, LOYALTY_RATE) : 0
+      Object.assign(o, {
+        phone: draft.phone, origin: draft.origin, zoneId: draft.zoneId, zoneLabel: draft.zoneLabel, address: draft.address,
+        addressNotes: draft.addressNotes, items: draft.items, itemsList: draft.itemsList, lines: draft.lines, pay: draft.pay,
+        subtotal: draft.subtotal, discount, delivery, deliveryPending, total: orderTotal(draft.subtotal, discount, delivery),
+      })
+      const m = this.msg(d, 'cliente', ('✏️ Modifiqué mi pedido: ' + draft.items).slice(0, 1000))
+      o.chat.push(m)
+      o.clientSeenId = m.id
+      updated = { ...o }
+    })
+    return updated!
   }
 
   async advanceOrder(num: number) {

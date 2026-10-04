@@ -62,7 +62,7 @@ export interface MessageRow { id: number; order_num: number; sender: string; bod
  * ran a newer schema.sql may also have them as columns; the bag wins, the column is the fallback.
  */
 export const BAG_KEY = '__app'
-const BAG_FIELDS = ['daySoups', 'dayProteins', 'soldFlavors', 'dessertFlavors', 'juiceFlavors', 'dishOn', 'customDishes', 'deliveryFees', 'priceOverrides', 'customExtras', 'customAddons'] as const
+const BAG_FIELDS = ['daySoups', 'dayProteins', 'soldFlavors', 'dessertFlavors', 'juiceFlavors', 'dishOn', 'customDishes', 'deliveryFees', 'priceOverrides', 'customExtras', 'customAddons', 'zones'] as const
 type BagField = typeof BAG_FIELDS[number]
 const isBagField = (k: string): k is BagField => (BAG_FIELDS as readonly string[]).includes(k)
 
@@ -90,6 +90,7 @@ export function rowToSettings(r: SettingsRow): Settings {
     priceOverrides: bag.priceOverrides ?? {},
     customExtras: bag.customExtras ?? [],
     customAddons: bag.customAddons ?? [],
+    zones: bag.zones ?? null,
   }
 }
 

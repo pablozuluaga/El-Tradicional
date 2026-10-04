@@ -4,7 +4,12 @@ import { useStore } from '../data/hooks.ts'
 import o from './o.module.css'
 
 /** Shows a price with "Cambiar precio"; saves it as the owner's price for that dish (or day's menu). */
-export function PriceEditor({ id, price, name }: { id: string; price: number; name: string }) {
+export function PriceEditor({ id, price, name, onSave, allowZero = false }: {
+  id: string; price: number; name: string
+  /** saves somewhere else than the dish prices (e.g. a barrio's delivery fee) */
+  onSave?: (v: number) => Promise<void>
+  allowZero?: boolean
+}) {
   const store = useStore()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -12,16 +17,17 @@ export function PriceEditor({ id, price, name }: { id: string; price: number; na
   if (!editing) {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontSize: 12.5, color: '#c9bfae' }}>{fmt(price)}</span>
+        <span style={{ fontSize: 12.5, color: '#c9bfae' }}>{allowZero && price === 0 ? 'Sin costo' : fmt(price)}</span>
         <button type="button" className={o.linkBtn} style={{ marginTop: 0 }} onClick={() => { setDraft(String(price)); setErr(''); setEditing(true) }}>Cambiar precio</button>
       </span>
     )
   }
   const save = async () => {
     const v = Number(draft.replace(/\D/g, ''))
-    if (!v || v > 1_000_000) { setErr('Escribe un precio válido.'); return }
+    if ((!v && !(allowZero && draft.trim() !== '')) || v > 1_000_000) { setErr('Escribe un precio válido.'); return }
     try {
-      await store.updateSettings(s => ({ priceOverrides: { ...s.priceOverrides, [id]: v } }))
+      if (onSave) await onSave(v)
+      else await store.updateSettings(s => ({ priceOverrides: { ...s.priceOverrides, [id]: v } }))
       setEditing(false)
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'No se pudo guardar el precio.')

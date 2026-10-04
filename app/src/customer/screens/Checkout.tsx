@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { newId } from '../../domain/ids.ts'
 import { useNavigate } from 'react-router-dom'
-import { OTHER_ZONE_ID, PAYS, ZONES } from '../../domain/catalog.ts'
-import { fmt } from '../../domain/format.ts'
-import { discountName } from '../../domain/loyalty.ts'
+import { OTHER_ZONE_ID, PAYS } from '../../domain/catalog.ts'
+import { discountName, LOYALTY_RATE } from '../../domain/loyalty.ts'
+import { fmt, orderId } from '../../domain/format.ts'
+import { rememberCart } from '../editOrder.ts'
 import { itemsDetail, itemsSummary, orderLines } from '../../domain/orders.ts'
 import { isPhone } from '../../domain/placement.ts'
-import { deliveryFee, discountFor, isOtherZone, orderTotal, subtotal, zoneById } from '../../domain/pricing.ts'
+import { deliveryFee, discountFor, isOtherZone, orderTotal, subtotal, zoneById, zonesOf } from '../../domain/pricing.ts'
 import type { OrderDraft } from '../../domain/types.ts'
 import type { Address } from '../../data/device.ts'
 import { useDevice, useSnapshot, useStore } from '../../data/hooks.ts'
@@ -30,10 +31,14 @@ export function Checkout() {
   const other = isOtherZone(dev.mode, dev.zone || null)
   const otherName = dev.zoneOther.trim()
   // "Otro" isn't in ZONES: the customer types the barrio and the owner sets the fee on the order
-  const zone = other ? { id: OTHER_ZONE_ID, label: otherName, fee: 0 } : zoneById(dev.zone)
+  const zones = zonesOf(snap.settings)
+  const zone = other ? { id: OTHER_ZONE_ID, label: otherName, fee: 0 } : zoneById(dev.zone, zones)
   const sub = subtotal(dev.cart, dev.mode)
-  const discount = discountFor(sub, snap.eligibility.rate)
-  const fee = deliveryFee(dev.mode, dev.zone || null)
+  // editing an order keeps the benefit it was placed with
+  const editing = dev.editingOrder !== null ? snap.orders.find(o => o.num === dev.editingOrder) ?? null : null
+  const discKind = editing ? editing.discountKind : snap.eligibility.kind
+  const discount = discountFor(sub, editing ? (editing.discountKind ? LOYALTY_RATE : 0) : snap.eligibility.rate)
+  const fee = deliveryFee(dev.mode, dev.zone || null, zones)
   const total = orderTotal(sub, discount, fee)
   const saved = dev.addresses.find(a => a.id === dev.selectedAddr) ?? null
   const formOpen = dev.selectedAddr === 'new' || dev.addresses.length === 0 || !saved
@@ -80,9 +85,15 @@ export function Checkout() {
     }
     setBusy(true)
     try {
-      const order = await store.placeOrder(draft)
-      setDev({ cart: [], lastOrderNum: order.num })
-      nav(P.confirm, { replace: true })
+      if (editing) {
+        await store.updateOrder(editing.num, draft)
+        setDev(st => ({ cart: [], editingOrder: null, orderCarts: rememberCart(st, editing.num, st.cart) }))
+        nav(P.orders, { replace: true })
+      } else {
+        const order = await store.placeOrder(draft)
+        setDev(st => ({ cart: [], lastOrderNum: order.num, editingOrder: null, orderCarts: rememberCart(st, order.num, st.cart) }))
+        nav(P.confirm, { replace: true })
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo enviar el pedido. Intenta de nuevo.')
     } finally {
@@ -92,7 +103,7 @@ export function Checkout() {
 
   return (
     <>
-      <div className={c.header}><BackButton onClick={() => nav(P.cart)} /><div className={c.headerTitle}>Confirmar pedido</div></div>
+      <div className={c.header}><BackButton onClick={() => nav(P.cart)} /><div className={c.headerTitle}>{editing ? `Editar pedido ${orderId(editing.num)}` : 'Confirmar pedido'}</div></div>
       <div className={`${c.scroll} noscroll ${k.body}`}>
         <div className={c.label}>¿Cómo lo recibes?</div>
         <div className={k.modeRow}>
@@ -106,7 +117,7 @@ export function Checkout() {
             <div className={k.selectWrap}>
               <select id="barrio" required className={k.select} value={dev.zone} onChange={e => { setDev({ zone: e.target.value }); setError('') }}>
                 <option value="" disabled>Selecciona tu barrio…</option>
-                {ZONES.map(z => <option key={z.id} value={z.id}>{z.label}</option>)}
+                {zones.map(z => <option key={z.id} value={z.id}>{z.label}</option>)}
                 <option value={OTHER_ZONE_ID}>Otro (escribe tu barrio)</option>
               </select>
               <span className={k.caret}>▾</span>
@@ -167,13 +178,13 @@ export function Checkout() {
       </div>
       <div className={c.footer}>
         <div className={k.row}><span>Subtotal</span><span>{fmt(sub)}</span></div>
-        {discount > 0 && <div className={k.row} style={{ color: 'var(--red)' }}><span>{discountName(snap.eligibility.kind)}</span><span>−{fmt(discount)}</span></div>}
+        {discount > 0 && <div className={k.row} style={{ color: 'var(--red)' }}><span>{discountName(discKind)}</span><span>−{fmt(discount)}</span></div>}
         <div className={k.row} style={{ marginBottom: 10 }}>
           <span>Domicilio{dom ? '' : ' (recoge en local)'}</span><span>{!dom ? 'Recoge' : other ? 'Se paga al recibir' : zone ? fmt(fee) : '—'}</span>
         </div>
         <div className={k.total}><span>Total{other ? ' (sin domicilio)' : ''}</span><span>{fmt(total)}</span></div>
         {error && <div className={c.error} role="alert">{error}</div>}
-        <button type="button" className={c.primary} disabled={busy} onClick={place}>{busy ? 'Enviando…' : 'Hacer pedido'}</button>
+        <button type="button" className={c.primary} disabled={busy} onClick={place}>{busy ? 'Enviando…' : editing ? 'Guardar cambios' : 'Hacer pedido'}</button>
       </div>
     </>
   )

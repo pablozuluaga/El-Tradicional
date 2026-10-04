@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { dateTime, fmt, orderId } from '../../domain/format.ts'
 import { clientState, clientSteps, hasUnread, isOtherZoneOrder, STAGE } from '../../domain/orders.ts'
-import { useSnapshot } from '../../data/hooks.ts'
+import { useDevice, useSnapshot } from '../../data/hooks.ts'
+import { isEditable, startEdit } from '../editOrder.ts'
 import { Tono, TonoPoseSvg } from '../../ui/Tono.tsx'
 import { UnreadDot } from '../../ui/ui.tsx'
 import ui from '../../ui/ui.module.css'
@@ -12,6 +13,7 @@ import x from './Orders.module.css'
 export function Orders() {
   const nav = useNavigate()
   const orders = useSnapshot().orders
+  const [dev, setDev] = useDevice()
   return (
     <>
       <div className={x.head}><div className={c.pageTitle}>Mis pedidos</div><div className={x.sub}>Sigue tu pedido en vivo</div></div>
@@ -60,6 +62,13 @@ export function Orders() {
                     )
                   })}
                 </div>
+                {isEditable(o, dev) && (
+                  <button type="button" className={x.chatBtn} style={{ background: 'var(--ink)', color: '#fff', borderColor: 'var(--ink)' }}
+                    onClick={() => {
+                      if (dev.cart.length && dev.editingOrder !== o.num && !confirm('Tu carrito actual se reemplazará por el pedido ' + orderId(o.num) + '. ¿Continuar?')) return
+                      setDev(st => startEdit(o, st)); nav(P.cart)
+                    }}>✏️ Editar pedido</button>
+                )}
                 <button type="button" className={x.chatBtn} onClick={() => nav(P.chat(o.num))}>
                   💬 Chat con el restaurante
                   {hasUnread(o, 'cliente') && <UnreadDot size={14} top={-5} right={-5} />}

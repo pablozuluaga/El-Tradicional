@@ -5,7 +5,8 @@ import { advanceLabel, BAR_COLORS, canReject, hasUnread, isFinished, isOtherZone
 import type { Order } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { UnreadDot } from '../ui/ui.tsx'
-import { buildReport, downloadBlob } from './report.ts'
+import { downloadBlob } from './download.ts'
+import { buildReport } from './report.ts'
 import o from './o.module.css'
 
 function ReportCard() {

@@ -5,6 +5,7 @@ import { StoreProvider } from '../data/StoreProvider.tsx'
 import { AdminChat } from './AdminChat.tsx'
 import { MenuTab } from './MenuTab.tsx'
 import { OrdersTab } from './OrdersTab.tsx'
+import { InstallBanner } from './InstallBanner.tsx'
 import { OwnerLogin } from './OwnerLogin.tsx'
 import { PromosTab } from './PromosTab.tsx'
 import o from './o.module.css'
@@ -47,6 +48,7 @@ function Panel() {
       </div>
       <div className={`${o.content} noscroll`}>
         {snap.error && <div style={{ fontSize: 12, color: '#F0A0A0', marginBottom: 10 }} role="alert">{snap.error}</div>}
+        <InstallBanner />
         {tab === 'pedidos' && <OrdersTab onChat={setChatNum} />}
         {tab === 'menu' && <MenuTab />}
         {tab === 'promos' && <PromosTab />}

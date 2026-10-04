@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSnapshot, useStore } from '../data/hooks.ts'
+import { InstallBanner } from './InstallBanner.tsx'
 import o from './o.module.css'
 
 /** Supabase mode only: the owner signs in with the account listed in `public.owners`. */
@@ -25,6 +26,7 @@ export function OwnerLogin() {
         <button type="submit" className={o.redBtn} disabled={busy || !email || !password}>{busy ? 'Entrando…' : 'Entrar'}</button>
         {(err || snap.error) && <div style={{ fontSize: 12, color: '#F0A0A0', textAlign: 'center' }} role="alert">{err || snap.error}</div>}
       </form>
+      <div style={{ marginTop: 22 }}><InstallBanner /></div>
     </div>
   )
 }

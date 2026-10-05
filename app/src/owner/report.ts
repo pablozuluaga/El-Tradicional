@@ -20,7 +20,8 @@ const colLetter = (n: number) => {
  * Builds the billing workbook with the owner's template (title, gold range strip, zebra rows,
  * summary panel). v2: every total is written as a value (formulas showed up empty when opened),
  * rows are numbered 1, 2, 3…, and missing or odd data is tolerated. v3: "Platos vendidos" under the
- * summary (total and each dish, most sold first) and a payment column wide enough for its text.
+ * summary (total and each dish, most sold first, with quantity and money sold) and a payment
+ * column wide enough for its text.
  */
 export async function buildReport(rows: ReportRow[], from: string, to: string): Promise<{ blob: Blob; name: string }> {
   const ExcelJS = (await import('exceljs')).default
@@ -62,16 +63,19 @@ export async function buildReport(rows: ReportRow[], from: string, to: string): 
   const numPedidos = filtrados.length
   const ticketPromedio = numPedidos > 0 ? Math.round(totalIngresos / numPedidos) : 0
 
-  // ---------- Platos vendidos (de mayor a menor) ----------
-  const conteo = new Map<string, number>()
+  // ---------- Platos vendidos (de mayor a menor), con lo vendido en dinero ----------
+  const conteo = new Map<string, { cantidad: number; valor: number }>()
   for (const p of filtrados) {
     for (const it of p.items) {
-      const nombre = safeStr(it?.nombre), cantidad = toNumber(it?.cantidad)
-      if (nombre && cantidad > 0) conteo.set(nombre, (conteo.get(nombre) ?? 0) + cantidad)
+      const nombre = safeStr(it?.nombre), cantidad = toNumber(it?.cantidad), valor = toNumber(it?.valor)
+      if (!nombre || cantidad <= 0) continue
+      const acc = conteo.get(nombre) ?? { cantidad: 0, valor: 0 }
+      conteo.set(nombre, { cantidad: acc.cantidad + cantidad, valor: acc.valor + valor })
     }
   }
-  const platosVendidos = [...conteo.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
-  const totalPlatosVendidos = platosVendidos.reduce((s, [, n]) => s + n, 0)
+  const platosVendidos = [...conteo.entries()].sort((a, b) => b[1].cantidad - a[1].cantidad || b[1].valor - a[1].valor || a[0].localeCompare(b[0], 'es'))
+  const totalPlatosVendidos = platosVendidos.reduce((s, [, x]) => s + x.cantidad, 0)
+  const totalValorPlatos = platosVendidos.reduce((s, [, x]) => s + x.valor, 0)
 
   const AZUL = 'FF1F3A5F', DORADO = 'FFC9A96E', GRIS = 'FFF5F5F5', CREMA = 'FFFFFDF7', BLANCO = 'FFFFFFFF', TEXTO = 'FF1A1A1A'
   const wb = new ExcelJS.Workbook()
@@ -208,38 +212,61 @@ export async function buildReport(rows: ReportRow[], from: string, to: string): 
     vc.border = { right: med, top: thin, bottom: last ? med : thin }
   })
 
-  // ---------- Platos vendidos (debajo del resumen) ----------
+  // ---------- Platos vendidos (debajo del resumen): cantidad y dinero ----------
+  const colDinero = colVal + 1
+  ws.getColumn(colDinero).width = 20
   const filaPlatos = 4 + resumen.length + 2
-  ws.mergeCells(filaPlatos, colPanel, filaPlatos, colVal)
+  ws.mergeCells(filaPlatos, colPanel, filaPlatos, colDinero)
   const headPlatos = ws.getCell(filaPlatos, colPanel)
   headPlatos.value = 'PLATOS VENDIDOS'
   headPlatos.font = { name: 'Arial', size: 12, bold: true, color: { argb: BLANCO } }
   headPlatos.fill = solid(AZUL)
   headPlatos.alignment = { horizontal: 'center', vertical: 'middle' }
   headPlatos.border = { bottom: { style: 'medium', color: { argb: DORADO } } }
-  const lineasPlatos: [string, number, boolean][] = [
-    ['Total platos vendidos:', totalPlatosVendidos, true],
-    ...(platosVendidos.length ? platosVendidos.map(([n, c]) => [n, c, false] as [string, number, boolean]) : [['Sin platos en el rango', 0, false] as [string, number, boolean]]),
+  // sub-encabezados de las columnas
+  const filaSub = filaPlatos + 1
+  ;(['Plato', 'Cantidad', 'Total vendido'] as const).forEach((t, k) => {
+    const c = ws.getCell(filaSub, colPanel + k)
+    c.value = t
+    c.font = { name: 'Arial', size: 10, bold: true, color: { argb: TEXTO } }
+    c.fill = solid(DORADO)
+    c.alignment = { horizontal: k === 0 ? 'left' : 'right', vertical: 'middle', indent: 1 }
+    c.border = { top: thin, bottom: thin, ...(k === 0 ? { left: med } : {}), ...(k === 2 ? { right: med } : {}) }
+  })
+  const lineasPlatos: [string, number, number, boolean][] = [
+    ['Total platos vendidos:', totalPlatosVendidos, totalValorPlatos, true],
+    ...(platosVendidos.length
+      ? platosVendidos.map(([n, x]) => [n, x.cantidad, x.valor, false] as [string, number, number, boolean])
+      : [['Sin platos en el rango', 0, 0, false] as [string, number, number, boolean]]),
   ]
-  lineasPlatos.forEach(([label, valor, destacada], k) => {
-    const r = filaPlatos + 1 + k
-    const lc = ws.getCell(r, colPanel), vc = ws.getCell(r, colVal)
+  lineasPlatos.forEach(([label, cantidad, dinero, destacada], k) => {
+    const r = filaSub + 1 + k
+    const lc = ws.getCell(r, colPanel), vc = ws.getCell(r, colVal), dc = ws.getCell(r, colDinero)
     lc.value = label
-    vc.value = valor
+    vc.value = cantidad
     vc.numFmt = '0'
+    dc.value = dinero
+    dc.numFmt = COP
     const font = { name: 'Arial', size: destacada ? 12 : 10, bold: destacada, color: { argb: destacada ? BLANCO : TEXTO } }
     lc.font = font
     vc.font = { ...font, bold: true }
+    dc.font = { ...font, bold: true }
     lc.alignment = { horizontal: 'left', vertical: 'middle', indent: 1, wrapText: true }
     vc.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 }
+    dc.alignment = { horizontal: 'right', vertical: 'middle', indent: 1 }
     const fondo = destacada ? AZUL : k % 2 === 0 ? GRIS : CREMA
-    lc.fill = solid(fondo)
-    vc.fill = solid(fondo)
+    for (const c of [lc, vc, dc]) c.fill = solid(fondo)
     if (destacada) ws.getRow(r).height = Math.max(ws.getRow(r).height ?? 0, 26)
     const last = k === lineasPlatos.length - 1
     lc.border = { left: med, top: thin, bottom: last ? med : thin }
-    vc.border = { right: med, top: thin, bottom: last ? med : thin }
+    vc.border = { top: thin, bottom: last ? med : thin }
+    dc.border = { right: med, top: thin, bottom: last ? med : thin }
   })
+  if (platosVendidos.length) {
+    const nota = ws.getCell(filaSub + 1 + lineasPlatos.length, colPanel)
+    nota.value = 'Total vendido: precio de lista × cantidad, antes de descuentos.'
+    nota.font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF888888' } }
+  }
 
   // ---------- Verificación final ----------
   const V = colLetter(colVal)

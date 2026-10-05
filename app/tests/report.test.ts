@@ -6,7 +6,7 @@ import type { ReportRow } from '../src/domain/report.ts'
 
 const row = (p: Partial<ReportRow>): ReportRow => ({
   numero: 1043, fecha: new Date(2026, 9, 2, 12), cliente: 'Ana', pedido: '1× Bandeja Paisa', metodoPago: 'Efectivo',
-  valorPlato: 35000, valorDomicilio: 3000, correo: 'a@b.co', celular: '3001234567', items: [{ nombre: 'Bandeja Paisa', cantidad: 1 }], ...p,
+  valorPlato: 35000, valorDomicilio: 3000, correo: 'a@b.co', celular: '3001234567', items: [{ nombre: 'Bandeja Paisa', cantidad: 1, valor: 35000 }], ...p,
 })
 
 async function read(rows: ReportRow[], from = '', to = '') {
@@ -40,15 +40,17 @@ test('report v2: empty range keeps a filled summary and a placeholder row', asyn
   assert.match(String(ws.getCell('A2').value), /^Todos los pedidos .* 0 pedidos$/)
 })
 
-test('report v3: platos vendidos (total + most sold first) and a payment column that fits', async () => {
+test('report v3: platos vendidos (total + most sold first, with money) and a payment column that fits', async () => {
   const pago = 'Transferencia a Bancolombia (comprobante por WhatsApp)'
   const { ws } = await read([
-    row({ items: [{ nombre: 'Bandeja Paisa', cantidad: 2 }, { nombre: 'Jugo en agua', cantidad: 1 }] }),
-    row({ metodoPago: pago, items: [{ nombre: 'Trucha', cantidad: 1 }, { nombre: 'Bandeja Paisa', cantidad: 1 }] }),
+    row({ items: [{ nombre: 'Bandeja Paisa', cantidad: 2, valor: 70000 }, { nombre: 'Jugo en agua', cantidad: 1, valor: 10000 }] }),
+    row({ metodoPago: pago, items: [{ nombre: 'Trucha', cantidad: 1, valor: 35000 }, { nombre: 'Bandeja Paisa', cantidad: 1, valor: 35000 }] }),
   ])
   assert.equal(ws.getCell('L11').value, 'PLATOS VENDIDOS')
-  assert.equal(ws.getCell('L12').value, 'Total platos vendidos:')
-  assert.equal(ws.getCell('M12').value, 5)
-  assert.deepEqual([13, 14, 15].map(r => [ws.getCell('L' + r).value, ws.getCell('M' + r).value]), [['Bandeja Paisa', 3], ['Jugo en agua', 1], ['Trucha', 1]])
+  assert.deepEqual(['L12', 'M12', 'N12'].map(a => ws.getCell(a).value), ['Plato', 'Cantidad', 'Total vendido'])
+  const fila = (r: number) => ['L', 'M', 'N'].map(c => ws.getCell(c + r).value)
+  assert.deepEqual(fila(13), ['Total platos vendidos:', 5, 150000])
+  // most sold first; same quantity → more money first
+  assert.deepEqual([14, 15, 16].map(fila), [['Bandeja Paisa', 3, 105000], ['Trucha', 1, 35000], ['Jugo en agua', 1, 10000]])
   assert.ok(ws.getColumn(5).width! >= pago.length, 'payment method not cut')
 })

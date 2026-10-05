@@ -25,3 +25,21 @@ export function detectGuide(ua: string, touchPoints: number): GuideId {
   }
   return /SamsungBrowser/i.test(ua) ? 'samsung' : 'androidChrome'
 }
+
+/**
+ * Android browsers other than Chrome (Samsung Internet, Xiaomi, Huawei, Opera, Firefox, app
+ * webviews…): their install menus change between versions and are missing on older phones, so
+ * the page sends the customer to Chrome, where one button installs the app.
+ */
+export function androidNeedsChrome(ua: string): boolean {
+  if (!/Android/i.test(ua)) return false
+  if (/SamsungBrowser|MiuiBrowser|XiaoMi|HuaweiBrowser|HeyTapBrowser|OPR\/|Opera|Firefox|EdgA|UCBrowser|YaBrowser|DuckDuckGo|; wv\)/i.test(ua)) return true
+  return !/Chrome\//.test(ua)
+}
+
+/** Opens a page in Chrome from any Android browser (or the Play Store page of Chrome if missing). */
+export function chromeIntentUrl(href: string): string {
+  const u = new URL(href)
+  const fallback = encodeURIComponent('https://play.google.com/store/apps/details?id=com.android.chrome')
+  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${u.protocol.replace(':', '')};package=com.android.chrome;S.browser_fallback_url=${fallback};end`
+}

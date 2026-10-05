@@ -59,8 +59,8 @@ export function Site({ top = 40, cta = false }: { top?: number; cta?: boolean })
       <circle cx="150" cy={top + 48} r="29" fill="#fff" />
       <image href="/assets/logo.jpeg" x="123" y={top + 21} width="54" height="54" clipPath={`url(#logo${id})`} preserveAspectRatio="xMidYMid slice" />
       <text x="150" y={top + 102} fontSize="10" fill="#FFD9C7" textAnchor="middle" fontWeight="700" letterSpacing="1.5">COCINA TÍPICA · ENVIGADO</text>
-      <text x="150" y={top + 128} fontSize="19" fill="#fff" textAnchor="middle" fontFamily="Georgia, serif">Lleva El Tradicional</text>
-      <text x="150" y={top + 150} fontSize="19" fill="#fff" textAnchor="middle" fontFamily="Georgia, serif">en tu celular</text>
+      <text x="150" y={top + 128} fontSize="19" fill="#fff" textAnchor="middle" fontFamily="Georgia, serif">Instala la app de</text>
+      <text x="150" y={top + 150} fontSize="19" fill="#fff" textAnchor="middle" fontFamily="Georgia, serif">El Tradicional</text>
       {[0, 1, 2].map(i => (
         <g key={i}>
           <rect x="30" y={top + 196 + i * 34} width="24" height="24" rx="7" fill="#F6EFE4" />

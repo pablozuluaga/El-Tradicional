@@ -7,6 +7,7 @@ import { useSnapshot, useStore } from '../data/hooks.ts'
 import { UnreadDot } from '../ui/ui.tsx'
 import { downloadBlob } from './download.ts'
 import { buildReport } from './report.ts'
+import { Fold } from './Fold.tsx'
 import o from './o.module.css'
 
 function ReportCard() {
@@ -37,15 +38,14 @@ function ReportCard() {
   }
 
   return (
-    <div className={o.panel}>
-      <div className={o.panelHead}>Reporte para facturación</div>
+    <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         <label style={{ flex: 1 }}><div className={o.small}>Desde</div><input type="date" className={o.dateInput} value={from} max={to || undefined} onChange={e => { setFrom(e.target.value); setMsg('') }} /></label>
         <label style={{ flex: 1 }}><div className={o.small}>Hasta</div><input type="date" className={o.dateInput} value={to} min={from || undefined} onChange={e => { setTo(e.target.value); setMsg('') }} /></label>
       </div>
       <button type="button" className={o.greenBtn} onClick={download}>⬇ Descargar reporte en Excel (.xlsx)</button>
       <div className={o.hint}>
-        Archivo con formato profesional: pedidos, cliente, detalle, pago, totales y resumen del periodo.
+        Archivo con formato profesional: pedidos, cliente, detalle, pago, totales y resumen del periodo. Los pedidos rechazados o eliminados no se incluyen.
         {count !== null && <> {count} {count === 1 ? 'pedido en el rango' : 'pedidos en el rango'}.</>}
       </div>
       {msg && <div className={o.msg} role="status">{msg}</div>}
@@ -153,6 +153,10 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
               {ord.reviewComment ? <div style={{ fontSize: 13, color: '#e7ddce' }}>“{ord.reviewComment}”</div> : null}
             </div>
           )}
+          <button type="button" className={o.deleteBtn}
+            onClick={() => { if (confirm(`¿Eliminar el pedido ${orderId(ord.num)} de ${ord.name}?\n\nSe quita del panel y del reporte de facturación. No se puede deshacer.`)) run(store.updateSettings(st => ({ deletedOrders: { ...st.deletedOrders, [String(ord.num)]: true } }))) }}>
+            🗑 Eliminar pedido
+          </button>
         </div>
       )}
 
@@ -205,9 +209,12 @@ export function OrdersTab({ onChat }: { onChat: (num: number) => void }) {
   const [openNum, setOpenNum] = useState<number | null>(null)
   const [period, setPeriod] = useState<OrderPeriod>('hoy')
   const orders = ordersInPeriod(all, period)
+  const today = ordersInPeriod(all, 'hoy')
+  const pending = all.filter(x => x.status !== 'rechazado' && !isFinished(x.status)).length
   return (
     <>
-      <ReportCard />
+      <Fold id="pedidos" icon="🧾" title="Pedidos" defaultOpen
+        sub={`${today.length} ${today.length === 1 ? 'pedido' : 'pedidos'} hoy${pending ? ` · ${pending} por atender` : ''}`}>
       <div className={o.chipsWrap} role="tablist" aria-label="Mostrar pedidos de" style={{ marginBottom: 12 }}>
         {PERIODS.map(p => {
           const n = ordersInPeriod(all, p.id).length
@@ -225,6 +232,10 @@ export function OrdersTab({ onChat }: { onChat: (num: number) => void }) {
           <OrderCard key={ord.num} ord={ord} open={openNum === ord.num} onToggle={() => setOpenNum(v => (v === ord.num ? null : ord.num))} onChat={() => onChat(ord.num)} />
         ))}
       </div>
+      </Fold>
+      <Fold id="reporte" icon="📊" title="Reporte para facturación" sub="Descarga en Excel los pedidos de un rango de fechas">
+        <ReportCard />
+      </Fold>
     </>
   )
 }

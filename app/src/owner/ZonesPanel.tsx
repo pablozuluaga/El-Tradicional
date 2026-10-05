@@ -4,6 +4,7 @@ import { zonesOf } from '../domain/pricing.ts'
 import type { Settings } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { PriceEditor } from './PriceEditor.tsx'
+import { Fold } from './Fold.tsx'
 import o from './o.module.css'
 
 /** Barrios for delivery: the owner adds, removes and changes each delivery price. */
@@ -24,10 +25,8 @@ export function ZonesPanel() {
     setName(''); setFee(''); setErr('')
   }
   return (
-    <div className={o.panel} style={{ marginTop: 18 }}>
-      <details className={o.details} style={{ borderTop: 'none', paddingTop: 0 }}>
-        <summary className={o.summary}><span>Barrios y domicilios</span><span className={o.summarySub}>{zones.length} barrios · toca para ver, agregar o cambiar precios</span></summary>
-        <div className={o.list} style={{ gap: 8, paddingTop: 12 }}>
+    <Fold id="barrios" icon="🛵" title="Barrios y precio del domicilio" sub={`${zones.length} barrios · agregar, quitar o cambiar precios`}>
+        <div className={o.list} style={{ gap: 8 }}>
           {zones.map(z => (
             <div key={z.id} className={o.row} style={{ background: 'var(--ink)' }}>
               <div style={{ minWidth: 0 }}>
@@ -47,7 +46,6 @@ export function ZonesPanel() {
           </form>
           <div style={{ fontSize: 11.5, color: '#a89d8c' }}>La opción “Otro (escribe tu barrio)” siempre aparece al final para el cliente.</div>
         </div>
-      </details>
-    </div>
+    </Fold>
   )
 }

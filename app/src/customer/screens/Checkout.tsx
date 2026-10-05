@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { newId } from '../../domain/ids.ts'
 import { useNavigate } from 'react-router-dom'
 import { OTHER_ZONE_ID, PAYS } from '../../domain/catalog.ts'
@@ -12,6 +12,7 @@ import type { Address } from '../../data/device.ts'
 import { useDevice, useSnapshot, useStore } from '../../data/hooks.ts'
 import { BackButton } from '../../ui/ui.tsx'
 import { P } from '../paths.ts'
+import { TransferBox } from '../TransferBox.tsx'
 import c from '../c.module.css'
 import k from './Checkout.module.css'
 
@@ -25,6 +26,7 @@ export function Checkout() {
   const [fNotes, setNotes] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const transferRef = useRef<HTMLDivElement>(null)
 
   const dom = dev.mode === 'domicilio'
   const other = isOtherZone(dev.mode, dev.zone || null)
@@ -158,12 +160,16 @@ export function Checkout() {
           {PAYS.map(p => {
             const on = dev.pay === p.id
             return (
-              <button key={p.id} type="button" role="radio" aria-checked={on} className={`${k.pay} ${on ? k.payOn : ''}`} onClick={() => setDev({ pay: p.id })}>
+              <button key={p.id} type="button" role="radio" aria-checked={on} className={`${k.pay} ${on ? k.payOn : ''}`} onClick={() => {
+                  setDev({ pay: p.id })
+                  if (p.id === 'transferencia') setTimeout(() => transferRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60)
+                }}>
                 <span>{p.label}</span><span style={{ color: on ? 'var(--red)' : '#cfc6b5' }}>{on ? '●' : '○'}</span>
               </button>
             )
           })}
         </div>
+        {dev.pay === 'transferencia' && <div ref={transferRef}><TransferBox total={total} /></div>}
         <div className={k.hours}>Horario de cocina: 11:30am – 4pm. Los pedidos se preparan al momento.</div>
       </div>
       <div className={c.footer}>

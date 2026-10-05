@@ -63,7 +63,7 @@ export function dailyDish(s: Settings): Dish | null {
     name: m.name ?? 'Menú del día',
     price: priceOf(s, m.day, m.price),
     priceDom: priceOf(s, m.day, m.priceDom),
-    tag: 'Hoy · ' + m.label,
+    tag: weekend ? 'Solo ' + m.label.toLowerCase() + 's' : 'Hoy · ' + m.label,
     img: m.img ?? DEFAULT_DAILY_IMG,
     avail: true,
     drink: m.drink,
@@ -131,10 +131,15 @@ export function specials(s: Settings, now = new Date(), allDays = false): Dish[]
     }))
 }
 
-/** Every dish the customer can see today: dish of the day first, then the fixed specials. */
+/** Every dish the customer can see today: a weekday menu del día first; the weekend one (mondongo,
+ *  sancocho) goes with the other specials, after the last of them. */
 export function allDishes(s: Settings, now = new Date()): Dish[] {
   const d = dailyDish(s)
-  return [...(d ? [d] : []), ...specials(s, now)]
+  const rest = specials(s, now)
+  if (!d) return rest
+  if (d.cat === 'Menú del día') return [d, ...rest]
+  const i = rest.findLastIndex(x => x.cat === d.cat) + 1
+  return [...rest.slice(0, i), d, ...rest.slice(i)]
 }
 
 export const dishById = (s: Settings, id: string, now = new Date()): Dish | null => allDishes(s, now).find(d => d.id === id) ?? null

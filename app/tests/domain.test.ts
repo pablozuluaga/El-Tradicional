@@ -29,7 +29,7 @@ test('weekday menu: unnamed, sopas + sin sopa, default protein, day toggles', ()
   assert.equal(d.name, 'Menú del día')
   assert.equal(d.cat, 'Menú del día')
   assert.equal(d.tag, 'Hoy · Lunes')
-  assert.equal(d.price, 20000)
+  assert.equal(d.price, 22000)
   assert.deepEqual(d.groups![0].options.map(o => o.label), ['Sopa campesina', 'Frijoles', 'Sin sopa'])
   assert.equal(d.defProt, 'sudadopollo')
   assert.deepEqual(d.protList!.map(p => p.id), ['sudadopollo', 'res', 'cerdo', 'pollo', 'chicharron', 'molida'])
@@ -58,6 +58,10 @@ test('weekend dishes keep their names, go under Especiales, no protein choice', 
   assert.equal(d.price, 35000)
   assert.deepEqual(categories(s), ['Todos', 'Especiales', 'Pescados', 'Bebidas y postres'])
   assert.equal(dailyDish({ ...defaultSettings(), platoDia: 'domingo' })!.name, 'Sancocho trifásico')
+  assert.equal(d.tag, 'Solo sábados')
+  // not first like the weekday menu: after the other specials, before the fish
+  assert.deepEqual(allDishes(s).filter(x => x.cat !== 'Bebidas y postres').map(x => x.id), ['paisa', 'especial', 'cazuela', 'lengua', 'dia', 'trucha', 'tilapia'])
+  assert.equal(allDishes({ ...defaultSettings(), platoDia: 'lunes' })[0].id, 'dia', 'weekday menu stays first')
 })
 
 test('description overrides apply to specials and daily menus', () => {
@@ -248,12 +252,13 @@ test('Sunday offers sudado de posta in the protein dishes; owner-added special p
   assert.ok(!dailyDish(off)!.protList!.some(p => p.label === 'Lomo'))
 })
 
-test('Lengua is a Saturday-only dish with the day soup; desserts follow the owner flavor switches', () => {
+test('Lengua is a weekend dish with the day soup; desserts follow the owner flavor switches', () => {
   const sab = { ...defaultSettings(), platoDia: 'sabado' as const }
   const l = dishById(sab, 'lengua')!
   assert.equal(l.groups![0].id, 'sopa')
   assert.deepEqual(l.rem.map(r => r.label), ['Arroz', 'Papa cocinada', 'Yuca cocinada', 'Ensalada', 'Arepa'])
   assert.equal(dishById({ ...defaultSettings(), platoDia: 'lunes' }, 'lengua'), null)
+  assert.ok(dishById({ ...defaultSettings(), platoDia: 'domingo' }, 'lengua'), 'also on Sundays')
   const postre = dishById(sab, 'postre')!
   assert.equal(postre.price, 13000)
   assert.equal(postre.groups![0].options.length, 9)
@@ -327,7 +332,7 @@ test('optional additions: each protein $10.000 except molida $5.000, arroz $6.00
 test('mazamorra and owner-created items apart; owner plate add-ons with prices and switches', async () => {
   const { addonsFor, addonKey, simpleExtrasFor } = await import('../src/domain/menu.ts')
   const s = { ...defaultSettings(), platoDia: 'lunes' as const }
-  assert.equal(dishById(s, 'mazamorra')!.price, 3000)
+  assert.equal(dishById(s, 'mazamorra')!.price, 4000)
   assert.deepEqual(simpleExtrasFor(s).map(d => d.id), ['mazamorra'])
   const own = { ...s, customExtras: [{ id: 'extra1', name: 'Arepa con queso', price: 4000 }], priceOverrides: { mazamorra: 3500 } }
   assert.deepEqual(simpleExtrasFor(own).map(d => `${d.name} ${d.price}`), ['Mazamorra 3500', 'Arepa con queso 4000'])
@@ -372,4 +377,13 @@ test('building/apartment travels in the notes, not in the address', async () => 
   assert.deepEqual(splitAddressNotes(packAddressNotes('', 'Timbre')), { apt: '', notes: 'Timbre' })
   assert.equal(packAddressNotes('', ''), '')
   assert.deepEqual(splitAddressNotes('Casa esquinera'), { apt: '', notes: 'Casa esquinera' })
+})
+
+test('deleted orders leave the owner list and the billing report', async () => {
+  const { visibleOrders } = await import('../src/domain/orders.ts')
+  const a = mkOrder({ num: 3001 }), b = mkOrder({ num: 3002, status: 'listo' })
+  const s = { ...defaultSettings(), deletedOrders: { '3002': true } }
+  assert.deepEqual(visibleOrders([a, b], s).map(o => o.num), [3001])
+  assert.deepEqual(visibleOrders([a, b], defaultSettings()).map(o => o.num), [3001, 3002])
+  assert.deepEqual(reportRows([a, b], '', '', {}, s.deletedOrders).map(r => r.numero), [3001])
 })

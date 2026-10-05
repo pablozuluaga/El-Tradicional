@@ -1,4 +1,4 @@
-import type { CartLine, Order, OrderLine, OrderStatus, Origin, Sender } from './types.ts'
+import type { CartLine, Order, OrderLine, OrderStatus, Origin, Sender, Settings } from './types.ts'
 import { OTHER_ZONE_ID } from './catalog.ts'
 import { unitPrice } from './pricing.ts'
 
@@ -166,4 +166,10 @@ export function ordersInPeriod<T extends Pick<Order, 'createdAt'>>(orders: T[], 
   // 1970-01-01 was a Thursday: day 0 → weekday index 3 when Monday = 0
   const from = period === 'hoy' ? today : today - ((today + 3) % 7)
   return orders.filter(o => bogotaDayNum(new Date(o.createdAt)) >= from)
+}
+
+/** Orders minus the ones the owner deleted (`Settings.deletedOrders`). */
+export const visibleOrders = (orders: Order[], s: Pick<Settings, 'deletedOrders'>): Order[] => {
+  const del = s.deletedOrders ?? {}
+  return Object.keys(del).length ? orders.filter(o => !del[String(o.num)]) : orders
 }

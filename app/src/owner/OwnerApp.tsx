@@ -11,7 +11,7 @@ import { PromosTab } from './PromosTab.tsx'
 import o from './o.module.css'
 
 type Tab = 'pedidos' | 'menu' | 'promos'
-const TABS: [Tab, string][] = [['pedidos', 'Pedidos'], ['menu', 'Menú'], ['promos', 'Promos']]
+const TABS: [Tab, string][] = [['pedidos', '🧾 Pedidos'], ['menu', '🍽️ Menú'], ['promos', '🎁 Promos']]
 
 function Panel() {
   const store = useStore()

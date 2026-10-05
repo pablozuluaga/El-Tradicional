@@ -24,11 +24,11 @@ export const inRange = (iso: string, desde: Date | null, hasta: Date | null) => 
   return !(desde && d < desde) && !(hasta && d > hasta)
 }
 
-/** Billing rows: rejected orders are not sales, so they are left out. */
-export function reportRows(orders: Order[], from: string, to: string, fees: Record<string, number> = {}): ReportRow[] {
+/** Billing rows: rejected and deleted orders are not sales, so they are left out. */
+export function reportRows(orders: Order[], from: string, to: string, fees: Record<string, number> = {}, deleted: Record<string, boolean> = {}): ReportRow[] {
   const { desde, hasta } = reportRange(from, to)
   return orders
-    .filter(o => o.status !== 'rechazado' && inRange(o.createdAt, desde, hasta))
+    .filter(o => o.status !== 'rechazado' && !deleted[String(o.num)] && inRange(o.createdAt, desde, hasta))
     .map(o => ({
       numero: o.num,
       fecha: new Date(o.createdAt),

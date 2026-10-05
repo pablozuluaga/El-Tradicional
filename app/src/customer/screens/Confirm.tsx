@@ -41,7 +41,7 @@ export function Confirm() {
           </div>
         )}
         {order.pay === PAYS.find(p => p.id === 'transferencia')?.label && (
-          <div style={{ marginTop: 18, width: '100%', textAlign: 'left' }}><TransferBox total={order.total} orderLabel={orderId(order.num)} /></div>
+          <div style={{ marginTop: 18, width: '100%', textAlign: 'left' }}><TransferBox total={order.total} name={order.name === 'Cliente app' ? '' : order.name} orderLabel={orderId(order.num)} /></div>
         )}
         <TonoTip variant="confirm" w={48} h={52} style={{ marginTop: 18, padding: '12px 14px', textAlign: 'left', width: '100%' }} textStyle={{ lineHeight: 1.45 }}>
           Gracias por tu pedido. Guarda tu dirección en el perfil para que la próxima vez el proceso sea aún más rápido. 🛵

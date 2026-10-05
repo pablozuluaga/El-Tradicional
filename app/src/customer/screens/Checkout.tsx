@@ -27,6 +27,9 @@ export function Checkout() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const transferRef = useRef<HTMLDivElement>(null)
+  // always starts on cash: a transfer is chosen on purpose for each order
+  const [pay, setPay] = useState('efectivo')
+  const fullName = (dev.firstName.trim() + ' ' + dev.lastName.trim()).trim()
 
   const dom = dev.mode === 'domicilio'
   const other = isOtherZone(dev.mode, dev.zone || null)
@@ -66,7 +69,7 @@ export function Checkout() {
     if (!customerId) { setError('No pudimos conectarnos. Revisa tu conexión e intenta de nuevo.'); return }
     const draft: OrderDraft = {
       customerId,
-      name: (dev.firstName.trim() + ' ' + dev.lastName.trim()).trim() || 'Cliente app',
+      name: fullName || 'Cliente app',
       email: dev.email.trim(),
       phone: dev.phone.trim(),
       origin: dev.mode,
@@ -79,7 +82,7 @@ export function Checkout() {
       lines: orderLines(dev.cart, dev.mode),
       subtotal: sub,
       delivery: fee,
-      pay: PAYS.find(p => p.id === dev.pay)?.label ?? PAYS[0].label,
+      pay: PAYS.find(p => p.id === pay)?.label ?? PAYS[0].label,
     }
     setBusy(true)
     try {
@@ -158,10 +161,10 @@ export function Checkout() {
         <div className={c.label}>Método de pago</div>
         <div className={k.stack} role="radiogroup" aria-label="Método de pago">
           {PAYS.map(p => {
-            const on = dev.pay === p.id
+            const on = pay === p.id
             return (
               <button key={p.id} type="button" role="radio" aria-checked={on} className={`${k.pay} ${on ? k.payOn : ''}`} onClick={() => {
-                  setDev({ pay: p.id })
+                  setPay(p.id)
                   if (p.id === 'transferencia') setTimeout(() => transferRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60)
                 }}>
                 <span>{p.label}</span><span style={{ color: on ? 'var(--red)' : '#cfc6b5' }}>{on ? '●' : '○'}</span>
@@ -169,7 +172,7 @@ export function Checkout() {
             )
           })}
         </div>
-        {dev.pay === 'transferencia' && <div ref={transferRef}><TransferBox total={total} /></div>}
+        {pay === 'transferencia' && <div ref={transferRef}><TransferBox total={total} name={fullName} /></div>}
         <div className={k.hours}>Horario de cocina: 11:30am – 4pm. Los pedidos se preparan al momento.</div>
       </div>
       <div className={c.footer}>

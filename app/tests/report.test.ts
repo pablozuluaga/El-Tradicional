@@ -6,7 +6,7 @@ import type { ReportRow } from '../src/domain/report.ts'
 
 const row = (p: Partial<ReportRow>): ReportRow => ({
   numero: 1043, fecha: new Date(2026, 9, 2, 12), cliente: 'Ana', pedido: '1× Bandeja Paisa', metodoPago: 'Efectivo',
-  valorPlato: 35000, valorDomicilio: 3000, correo: 'a@b.co', celular: '3001234567', ...p,
+  valorPlato: 35000, valorDomicilio: 3000, correo: 'a@b.co', celular: '3001234567', items: [{ nombre: 'Bandeja Paisa', cantidad: 1 }], ...p,
 })
 
 async function read(rows: ReportRow[], from = '', to = '') {
@@ -38,4 +38,17 @@ test('report v2: empty range keeps a filled summary and a placeholder row', asyn
   assert.equal(ws.getCell('A4').value, 'No hay pedidos en el rango seleccionado.')
   assert.deepEqual([4, 5, 6, 7, 8].map(r => ws.getCell('M' + r).value), [0, 0, 0, 0, 0])
   assert.match(String(ws.getCell('A2').value), /^Todos los pedidos .* 0 pedidos$/)
+})
+
+test('report v3: platos vendidos (total + most sold first) and a payment column that fits', async () => {
+  const pago = 'Transferencia a Bancolombia (comprobante por WhatsApp)'
+  const { ws } = await read([
+    row({ items: [{ nombre: 'Bandeja Paisa', cantidad: 2 }, { nombre: 'Jugo en agua', cantidad: 1 }] }),
+    row({ metodoPago: pago, items: [{ nombre: 'Trucha', cantidad: 1 }, { nombre: 'Bandeja Paisa', cantidad: 1 }] }),
+  ])
+  assert.equal(ws.getCell('L11').value, 'PLATOS VENDIDOS')
+  assert.equal(ws.getCell('L12').value, 'Total platos vendidos:')
+  assert.equal(ws.getCell('M12').value, 5)
+  assert.deepEqual([13, 14, 15].map(r => [ws.getCell('L' + r).value, ws.getCell('M' + r).value]), [['Bandeja Paisa', 3], ['Jugo en agua', 1], ['Trucha', 1]])
+  assert.ok(ws.getColumn(5).width! >= pago.length, 'payment method not cut')
 })

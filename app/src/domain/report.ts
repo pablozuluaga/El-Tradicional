@@ -11,6 +11,8 @@ export interface ReportRow {
   valorDomicilio: number
   correo: string
   celular: string
+  /** dishes of the order, for the "Platos vendidos" count */
+  items: { nombre: string; cantidad: number }[]
 }
 
 /** Local-time bounds from `<input type="date">` values ('' = open end). */
@@ -38,7 +40,8 @@ export function reportRows(orders: Order[], from: string, to: string, fees: Reco
       valorPlato: Math.max(0, o.subtotal - o.discount),
       valorDomicilio: ownerAmounts(o, fees).delivery ?? 0,
       correo: o.email,
-      celular: o.phone && o.phone !== '—' ? o.phone : '',
+      celular: o.phone && o.phone !== '—' ? String(o.phone) : '',
+      items: (o.lines ?? []).map(l => ({ nombre: l.name, cantidad: l.qty })),
     }))
     .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
 }

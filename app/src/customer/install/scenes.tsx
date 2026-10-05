@@ -197,13 +197,6 @@ function ChromeTopBar() {
   )
 }
 
-export const AndroidOurButton = () => (
-  <Phone os="android" label="Botón rojo Instalar la app en esta página">
-    <ChromeTopBar /><Site top={98} cta />
-    <Tap ring={[26, 404, 248, 54, 16]} from={[150, 530]} to={[150, 462]} labelAt={[150, 546]} />
-  </Phone>
-)
-
 export const AndroidInstallDialog = () => (
   <Phone os="android" label="Ventana Instalar app con el botón Instalar">
     <ChromeTopBar /><Site top={98} /><Dim o={0.4} />

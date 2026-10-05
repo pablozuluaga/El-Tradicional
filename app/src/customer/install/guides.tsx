@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { GuideId } from '../../pwa/platform.ts'
 import {
-  AndroidChromeBar, AndroidChromeMenu, AndroidChromeSheet, AndroidHome, AndroidInstallDialog, AndroidOurButton,
+  AndroidChromeBar, AndroidChromeMenu, AndroidChromeSheet, AndroidHome, AndroidInstallDialog,
   InAppBarScene, InAppMenu, Ios18Bar, Ios26Bar, Ios26Menu, Ios27Bar, Ios27Menu, IosAddSheet, IosChromeBar, IosHome,
   IosShareSheet, SamsungBar, SamsungConfirm, SamsungMenu, SamsungSubmenu, XiaomiPermission,
 } from './scenes.tsx'
@@ -108,11 +108,4 @@ export const GUIDES: Record<Exclude<GuideId, 'desktop'>, Guide> = {
   },
 }
 
-/** Android Chrome when the one-tap install is available: our button does the menu steps. */
-export const ANDROID_ONE_TAP: Step[] = [
-  { title: 'Toca el botón rojo “Instalar la app”', text: <>Está aquí abajo, en esta misma página.</>, scene: <AndroidOurButton /> },
-  { title: 'Confirma con “Instalar”', text: <>Chrome te pregunta si quieres instalarla: toca <b>Instalar</b>. No pide permisos ni cuenta de Google.</>, scene: <AndroidInstallDialog /> },
-  androidDone,
-]
 
-export const GUIDE_ORDER: Exclude<GuideId, 'desktop'>[] = ['ios27', 'ios26', 'ios18', 'iosChrome', 'androidChrome', 'samsung', 'inapp']

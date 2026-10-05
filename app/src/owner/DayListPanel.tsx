@@ -11,12 +11,12 @@ const GREEN = '#2F7D46', RED = '#C8161D'
 
 const KINDS = {
   sopa: {
-    title: 'Sopas', noun: 'sopa', empty: 'Sin sopas este día.', placeholder: 'Nueva sopa',
+    noun: 'sopa', empty: 'Sin sopas este día.', placeholder: 'Nueva sopa',
     help: 'Las del día salen en el menú del día y en los platos que traen sopa. Crea, quita o apaga las de cada día.',
     list: daySoupList, field: 'daySoups' as const,
   },
   prot: {
-    title: 'Proteínas especiales del día', noun: 'proteína', empty: 'Sin proteínas especiales este día.', placeholder: 'Nueva proteína',
+    noun: 'proteína', empty: 'Sin proteínas especiales este día.', placeholder: 'Nueva proteína',
     help: 'De lunes a viernes salen en el menú del día; sábado y domingo, en los platos donde se elige proteína (Bandeja Especial, Cazuela…).',
     list: dayProteinList, field: 'dayProteins' as const,
   },
@@ -48,8 +48,7 @@ export function DayListPanel({ kind }: { kind: 'sopa' | 'prot' }) {
   }
 
   return (
-    <div className={o.panel}>
-      <div className={o.panelHead} style={{ marginBottom: 4 }}>{K.title}</div>
+    <div>
       <div style={{ fontSize: 12, color: '#c9bfae', marginBottom: 10, lineHeight: 1.4 }}>{K.help}</div>
       <div className={o.chipsWrap}>
         {DAILY_MENUS.map(dm => (

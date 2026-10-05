@@ -2,6 +2,7 @@ import { createClient, type RealtimeChannel, type SupabaseClient } from '@supaba
 import { defaultSettings } from '../domain/catalog.ts'
 import { reportRange, reportRows } from '../domain/report.ts'
 import type { Order, OrderDraft, Settings } from '../domain/types.ts'
+import { visibleOrders } from '../domain/orders.ts'
 import { SUPABASE_KEY, SUPABASE_URL } from './backend.ts'
 import {
   draftToPayload, mergeOrderRow, rowToEligibility, rowToMessage, rowToOrder, rowToSettings, settingsPatchToRow, withMessage,
@@ -68,7 +69,9 @@ export class SupabaseStore implements RestaurantStore {
   getSnapshot = () => this.snap
   private set(p: Partial<Snapshot>) {
     if (this.disposed) return
-    this.snap = { ...this.snap, ...p }
+    const next = { ...this.snap, ...p }
+    if (p.orders || p.settings) next.orders = visibleOrders(next.orders, next.settings)
+    this.snap = next
     this.listeners.forEach(l => l())
   }
   private setOrders(fn: (orders: Order[]) => Order[]) {
@@ -319,6 +322,8 @@ export class SupabaseStore implements RestaurantStore {
       ? this.sb.from('orders').select('num', { count: 'exact', head: true })
       : this.sb.from('orders').select('*').order('created_at').limit(REPORT_LIMIT)
     q = q.neq('status', 'rechazado')
+    const deleted = Object.keys(this.snap.settings.deletedOrders ?? {}).map(Number).filter(Number.isInteger)
+    if (deleted.length) q = q.not('num', 'in', `(${deleted.join(',')})`)
     if (desde) q = q.gte('created_at', desde.toISOString())
     if (hasta) q = q.lte('created_at', hasta.toISOString())
     return q
@@ -327,7 +332,7 @@ export class SupabaseStore implements RestaurantStore {
   async reportRows(from: string, to: string) {
     const { data, error } = await this.rangeQuery(from, to, false)
     if (error) fail(error)
-    return reportRows(((data ?? []) as OrderRow[]).map(r => rowToOrder(r, [])), from, to, this.snap.settings.deliveryFees)
+    return reportRows(((data ?? []) as OrderRow[]).map(r => rowToOrder(r, [])), from, to, this.snap.settings.deliveryFees, this.snap.settings.deletedOrders)
   }
 
   async reportCount(from: string, to: string) {

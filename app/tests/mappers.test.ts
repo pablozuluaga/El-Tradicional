@@ -21,13 +21,14 @@ test('settings row ↔ domain', () => {
 
 test('newer settings live in a bag inside desc_overrides (no database change needed)', () => {
   const base = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, promos: [], desc_overrides: { paisa: 'Nueva' } })
-  const next = { ...base, priceOverrides: { paisa: 40000 }, deliveryFees: { '1043': 8000 } }
+  const next = { ...base, priceOverrides: { paisa: 40000 }, deliveryFees: { '1043': 8000 }, deletedOrders: { '1044': true } }
   const row = settingsPatchToRow({ priceOverrides: next.priceOverrides }, next)
   assert.deepEqual(Object.keys(row), ['desc_overrides'], 'only the existing column is written')
   const back = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, promos: [], desc_overrides: row.desc_overrides! })
   assert.deepEqual(back.descOverrides, { paisa: 'Nueva' }, 'descriptions kept, bag not mixed in')
   assert.deepEqual(back.priceOverrides, { paisa: 40000 })
   assert.deepEqual(back.deliveryFees, { '1043': 8000 })
+  assert.deepEqual(back.deletedOrders, { '1044': true })
   // a project that ran a newer schema.sql: the column is the fallback
   const fromColumn = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, promos: [], desc_overrides: {}, day_soups: { lunes: [{ id: 'x', label: 'X' }] } })
   assert.equal(fromColumn.daySoups.lunes![0].label, 'X')

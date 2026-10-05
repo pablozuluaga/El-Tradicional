@@ -108,6 +108,8 @@ export interface Settings {
   /** plate add-ons the owner created (next to the proteins, rice and fries) */
   customAddons: { id: string; label: string; price: number }[]
   customDishes: CustomDish[]
+  /** orders the owner deleted (by number): hidden everywhere and left out of the billing report */
+  deletedOrders: Record<string, boolean>
 }
 
 export interface CartLine {

@@ -1,6 +1,6 @@
 import { defaultSettings, ORDER_NUM_START } from '../domain/catalog.ts'
 import { countingOrders, eligibility, emailUsedElsewhere } from '../domain/loyalty.ts'
-import { advanceStep, canReject, lastMessageId, normalizeReason, rejectNote, WELCOME_MSG } from '../domain/orders.ts'
+import { advanceStep, canReject, lastMessageId, normalizeReason, rejectNote, visibleOrders, WELCOME_MSG } from '../domain/orders.ts'
 import { isOtherZone } from '../domain/pricing.ts'
 import { finalizeTotals, validateDraft } from '../domain/placement.ts'
 import { reportRows } from '../domain/report.ts'
@@ -54,7 +54,7 @@ export class LocalStore implements RestaurantStore {
   private onStorage = (e: StorageEvent) => { if (e.key === KEY) this.reload() }
 
   private build(doc: Doc): Snapshot {
-    const orders = (this.role_ === 'customer' ? doc.orders.filter(o => o.customerId === this.deviceId) : doc.orders)
+    const orders = visibleOrders(this.role_ === 'customer' ? doc.orders.filter(o => o.customerId === this.deviceId) : doc.orders, doc.settings)
       .slice().sort((a, b) => b.num - a.num)
     return {
       ready: true,
@@ -196,8 +196,8 @@ export class LocalStore implements RestaurantStore {
     })
   }
 
-  async reportRows(from: string, to: string) { const d = readDoc(); return reportRows(d.orders, from, to, d.settings.deliveryFees) }
-  async reportCount(from: string, to: string) { return reportRows(readDoc().orders, from, to).length }
+  async reportRows(from: string, to: string) { const d = readDoc(); return reportRows(d.orders, from, to, d.settings.deliveryFees, d.settings.deletedOrders) }
+  async reportCount(from: string, to: string) { const d = readDoc(); return reportRows(d.orders, from, to, {}, d.settings.deletedOrders).length }
 
   async signIn() {}
   async signOut() {}

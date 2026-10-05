@@ -5,6 +5,8 @@ import { orderId } from '../../domain/format.ts'
 import { isOtherZoneOrder } from '../../domain/orders.ts'
 import { useDevice, useSnapshot, useStore } from '../../data/hooks.ts'
 import { InstagramIcon, TonoTip } from '../../ui/ui.tsx'
+import { PAYS } from '../../domain/catalog.ts'
+import { TransferBox } from '../TransferBox.tsx'
 import { P } from '../paths.ts'
 import c from '../c.module.css'
 import x from './Confirm.module.css'
@@ -37,6 +39,9 @@ export function Confirm() {
             <span className={c.noticeIcon} aria-hidden="true">🛵</span>
             <div><b>El domicilio se paga al recibir el pedido</b>Ten listo el valor del domicilio a {order.zoneLabel} para cuando llegue el domiciliario.</div>
           </div>
+        )}
+        {order.pay === PAYS.find(p => p.id === 'transferencia')?.label && (
+          <div style={{ marginTop: 18, width: '100%', textAlign: 'left' }}><TransferBox total={order.total} orderLabel={orderId(order.num)} /></div>
         )}
         <TonoTip variant="confirm" w={48} h={52} style={{ marginTop: 18, padding: '12px 14px', textAlign: 'left', width: '100%' }} textStyle={{ lineHeight: 1.45 }}>
           Gracias por tu pedido. Guarda tu dirección en el perfil para que la próxima vez el proceso sea aún más rápido. 🛵

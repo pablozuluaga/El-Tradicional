@@ -7,6 +7,7 @@ import { PriceEditor } from './PriceEditor.tsx'
 import type { Settings } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { Toggle } from '../ui/ui.tsx'
+import { Fold } from './Fold.tsx'
 import o from './o.module.css'
 
 const GREEN = '#2F7D46', RED = '#C8161D'
@@ -60,16 +61,7 @@ function NewPricedItem({ noun, onAdd }: { noun: string; onAdd: (name: string, pr
   )
 }
 
-function Section({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
-  return (
-    <details className={o.details}>
-      <summary className={o.summary}><span>{title}</span><span className={o.summarySub}>{sub}</span></summary>
-      <div style={{ paddingTop: 12 }}>{children}</div>
-    </details>
-  )
-}
-
-/** Drinks, juices bought apart and desserts: less used, so each part folds away. */
+/** Drinks and desserts bought apart, other items and plate add-ons: one section each. */
 export function ExtrasPanel() {
   const store = useStore()
   const s = useSnapshot().settings
@@ -95,11 +87,9 @@ export function ExtrasPanel() {
   }
 
   return (
-    <div className={o.panel} style={{ marginTop: 18 }}>
-      <div className={o.panelHead} style={{ marginBottom: 4 }}>Bebidas, postres y adicionales</div>
-      <div style={{ fontSize: 12, color: '#c9bfae', marginBottom: 6, lineHeight: 1.4 }}>Toca cada parte para abrirla.</div>
+    <>
 
-      <Section title="Bebidas aparte" sub={drinks.map(d => `${d.name} ${fmt(d.price)}`).join(' · ')}>
+      <Fold id="bebidas-aparte" icon="🧃" title="Bebidas aparte" sub={drinks.map(d => `${d.name} ${fmt(d.price)}`).join(' · ')}>
         <div className={o.list} style={{ gap: 8, marginBottom: 12 }}>
           {drinks.map(d => row(d.id, d.name, d.id, d.price, d.id))}
         </div>
@@ -109,9 +99,9 @@ export function ExtrasPanel() {
           onToggle={id => upd(st => ({ juiceFlavors: st.juiceFlavors.map(x => x.id === id ? { ...x, out: !x.out } : x) }))}
           onRemove={id => upd(st => ({ juiceFlavors: st.juiceFlavors.filter(x => x.id !== id) }))}
           onAdd={label => upd(st => ({ juiceFlavors: [...(st.juiceFlavors ?? []), { id: newId('jf'), label, out: false }] }))} />
-      </Section>
+      </Fold>
 
-      <Section title="Postres" sub={`${fmt(dessert.price)} · ${dessertFlavorList(s).length} sabores`}>
+      <Fold id="postres" icon="🍰" title="Postres" sub={`${fmt(dessert.price)} · ${dessertFlavorList(s).length} sabores`}>
         <div className={o.row} style={{ background: 'var(--ink)', marginBottom: 12 }}>
           <div><div style={{ fontSize: 14, fontWeight: 500 }}>Vender postres hoy</div><PriceEditor id={dessert.id} name="Postre" price={dessert.price} /></div>
           {soldToggle(dessert.id, 'Postres')}
@@ -122,24 +112,24 @@ export function ExtrasPanel() {
           onToggle={id => upd(st => ({ soldFlavors: { ...st.soldFlavors, [id]: !st.soldFlavors[id] } }))}
           onRemove={id => upd(st => ({ dessertFlavors: dessertFlavorList(st).filter(x => x.id !== id) }))}
           onAdd={label => upd(st => ({ dessertFlavors: [...dessertFlavorList(st), { id: newId('pf'), label }] }))} />
-      </Section>
+      </Fold>
 
-      <Section title="Otros adicionales aparte" sub={(s.customExtras ?? []).length ? (s.customExtras ?? []).map(x => x.name).join(', ') : 'Crea lo que quieras vender aparte'}>
+      <Fold id="otros" icon="🛍️" title="Otros productos aparte" sub={(s.customExtras ?? []).length ? (s.customExtras ?? []).map(x => x.name).join(', ') : 'Crea lo que quieras vender aparte'}>
         <div className={o.list} style={{ gap: 8 }}>
           {(s.customExtras ?? []).length === 0 && <div style={{ fontSize: 12.5, color: '#a08a7a' }}>Salen en “Bebidas y postres” y al final de cada plato.</div>}
           {(s.customExtras ?? []).map(x => row(x.id, x.name, x.id, priceOf(s, x.id, x.price), x.id,
             () => upd(st => ({ customExtras: st.customExtras.filter(y => y.id !== x.id) }))))}
         </div>
         <NewPricedItem noun="adicional" onAdd={(name, price) => upd(st => ({ customExtras: [...(st.customExtras ?? []), { id: newId('extra'), name, price }] }))} />
-      </Section>
+      </Fold>
 
-      <Section title="Adiciones al plato" sub={addons.map(a => a.label).join(', ')}>
+      <Fold id="adiciones" icon="➕" title="Adiciones al plato" sub={addons.map(a => a.label).join(', ')}>
         <div className={o.list} style={{ gap: 8 }}>
           {addons.map(a => row(a.id, a.label, addonKey(a.id), a.price, addonKey(a.id),
             customAddonIds.has(a.id) ? () => upd(st => ({ customAddons: st.customAddons.filter(y => y.id !== a.id) })) : undefined))}
         </div>
         <NewPricedItem noun="adición" onAdd={(label, price) => upd(st => ({ customAddons: [...(st.customAddons ?? []), { id: newId('ad'), label, price }] }))} />
-      </Section>
-    </div>
+      </Fold>
+    </>
   )
 }

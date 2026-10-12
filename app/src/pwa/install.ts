@@ -50,6 +50,8 @@ type RelatedApp = { platform: string; url?: string }
  * True when this phone already has the customer app installed (Chrome on Android, from the
  * manifest's `related_applications`). Other browsers can't tell: they resolve false.
  */
+export const canDetectInstalledApp = () => 'getInstalledRelatedApps' in navigator
+
 export async function hasInstalledApp(): Promise<boolean> {
   const nav = navigator as Navigator & { getInstalledRelatedApps?: () => Promise<RelatedApp[]> }
   if (!nav.getInstalledRelatedApps) return false

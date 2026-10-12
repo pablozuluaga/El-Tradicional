@@ -43,4 +43,6 @@ test('Android browsers other than Chrome go to Chrome to install', () => {
 test('the open-the-app link targets the installed app, not a browser tab', () => {
   assert.equal(openAppIntentUrl('https://el-tradicional.vercel.app/'),
     'intent://el-tradicional.vercel.app/#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end')
+  assert.match(openAppIntentUrl('https://el-tradicional.vercel.app/', 'https://el-tradicional.vercel.app/instalar'),
+    /;S\.browser_fallback_url=https%3A%2F%2Fel-tradicional\.vercel\.app%2Finstalar;end$/)
 })

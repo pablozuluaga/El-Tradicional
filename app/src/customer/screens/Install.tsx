@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { WHATSAPP_URL } from '../../config.ts'
-import { canPromptInstall, hasInstalledApp, isStandalone, promptInstall, subscribeInstall, wasInstalled } from '../../pwa/install.ts'
+import { canDetectInstalledApp, canPromptInstall, hasInstalledApp, isStandalone, promptInstall, subscribeInstall, wasInstalled } from '../../pwa/install.ts'
 import { androidNeedsChrome, chromeIntentUrl, detectGuide, detectPlatform, openAppIntentUrl } from '../../pwa/platform.ts'
 import { WhatsAppIcon } from '../../ui/ui.tsx'
 import { GUIDES, START_AT, type Step } from '../install/guides.tsx'
@@ -12,8 +12,15 @@ import x from './Install.module.css'
 const INSTALL_URL = 'el-tradicional.vercel.app/instalar'
 /** How long to wait for Chrome's install button before showing the menu steps. */
 const PROMPT_WAIT_MS = 2500
-/** Android takes a few seconds after "Instalar" to put the app on the phone before it can be opened. */
-const APP_READY_MS = 6000
+/**
+ * After "Instalar", Android needs a while (longer on older phones) to put the app on the phone;
+ * opening it before that lands in the browser again. Chrome can tell when it's really there, so
+ * the page asks every POLL_MS; browsers that can't tell wait FALLBACK_MS instead.
+ */
+const POLL_MS = 1500
+const SETTLE_MS = 1500
+const MAX_WAIT_MS = 90_000
+const FALLBACK_MS = 20_000
 
 const START_CLASS = { 'bottom-left': g.bottomLeft, 'bottom-center': g.bottomCenter, 'bottom-right': g.bottomRight, 'top-right': g.topRight }
 
@@ -68,6 +75,8 @@ export function Install() {
   const [copied, setCopied] = useState(false)
   const firstStep = useRef<HTMLElement>(null)
   const [firstVisible, setFirstVisible] = useState(false)
+  // the "Empieza aquí" arrow waits until the customer has read the steps and asks for it
+  const [armed, setArmed] = useState(false)
 
   // already installed on this phone (Chrome on Android can tell): go straight to "Abrir la app"
   const [foundInstalled, setFoundInstalled] = useState(false)
@@ -80,8 +89,22 @@ export function Install() {
   }, [])
   useEffect(() => {
     if (!installed) return
-    const t = setTimeout(() => setAppReady(true), APP_READY_MS)
-    return () => clearTimeout(t)
+    let alive = true
+    const timers: ReturnType<typeof setTimeout>[] = []
+    const ready = () => { if (alive) setAppReady(true) }
+    if (!canDetectInstalledApp()) {
+      timers.push(setTimeout(ready, FALLBACK_MS))
+    } else {
+      const started = Date.now()
+      const check = async () => {
+        if (!alive) return
+        if (await hasInstalledApp()) timers.push(setTimeout(ready, SETTLE_MS))
+        else if (Date.now() - started > MAX_WAIT_MS) ready()
+        else timers.push(setTimeout(check, POLL_MS))
+      }
+      timers.push(setTimeout(check, POLL_MS))
+    }
+    return () => { alive = false; timers.forEach(clearTimeout) }
   }, [installed])
 
   const android = platform === 'android' || (platform === 'inapp' && /Android/i.test(ua))
@@ -106,7 +129,16 @@ export function Install() {
     return () => io.disconnect()
   }, [showSteps])
   const startId = mode === 'androidSteps' ? 'androidChrome' : iphone ? iosGuide.id : null
-  const start = showSteps && firstVisible && startId ? START_AT[startId] : undefined
+  const start = showSteps && armed && firstVisible && startId ? START_AT[startId] : undefined
+  const startReading = () => {
+    setArmed(true)
+    firstStep.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+  const readyCard = (
+    <Action title="¿Ya leíste los pasos?" text="Toca el botón y te mostramos con una flecha dónde empezar en tu pantalla.">
+      <button type="button" className={x.cta} onClick={startReading}>Sí, mostrarme dónde empezar</button>
+    </Action>
+  )
 
   const install = async () => {
     setBusy(true)
@@ -136,8 +168,13 @@ export function Install() {
                 <>
                   <div className={x.muted}>Ábrela con este botón o desde el ícono de El Tradicional en tu pantalla principal.</div>
                   {appReady
-                    ? <a className={x.cta} href={openAppIntentUrl(location.origin + '/')}>Abrir la app</a>
-                    : <button type="button" className={x.cta} disabled>Terminando de instalar…</button>}
+                    ? <a className={x.cta} href={openAppIntentUrl(location.origin + '/', location.origin + '/instalar')}>Abrir la app</a>
+                    : (
+                      <>
+                        <button type="button" className={x.cta} disabled>Terminando de instalar…</button>
+                        <div className={x.muted}>Espera un momento: el botón se activa solo cuando la app esté lista en tu celular.</div>
+                      </>
+                    )}
                 </>
               ) : (
                 <div className={x.muted}>Ahora <b>cierra Safari</b> y abre el ícono rojo de <b>El Tradicional</b> en tu pantalla de inicio.</div>
@@ -206,6 +243,7 @@ export function Install() {
             <>
               <div className={x.hint}>Sigue los pasos. En cada dibujo, <b>la flecha roja</b> te muestra dónde tocar.</div>
               <Steps steps={GUIDES.androidChrome.steps} firstRef={firstStep} />
+              {readyCard}
               {GUIDES.androidChrome.tip && (
                 <details className={g.tip}>
                   <summary>{GUIDES.androidChrome.tip.title}</summary>
@@ -219,6 +257,7 @@ export function Install() {
             <>
               <div className={x.hint}>Sigue los pasos. En cada dibujo, <b>la flecha roja</b> te muestra dónde tocar.</div>
               <Steps steps={iosGuide.steps} firstRef={firstStep} />
+              {readyCard}
               {(iosGuide.id === 'inapp' || iosGuide.id === 'iosChrome') && (
                 <Action title="¿No te aparece la opción?" text={<>Copia el enlace, abre <b>Safari</b> y pégalo arriba, en la barra de la dirección.</>}>
                   {copyButton('Copiar el enlace')}

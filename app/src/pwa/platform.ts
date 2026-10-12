@@ -46,9 +46,11 @@ export function chromeIntentUrl(href: string): string {
 
 /**
  * Opens the installed app on Android: an Android link to the site's address, which the installed
- * app claims, so Android opens it instead of the browser tab.
+ * app claims, so Android opens it instead of the browser tab. If no app answers yet, the browser
+ * goes to `fallback` (the install page, which offers the button again once the app is ready).
  */
-export function openAppIntentUrl(href: string): string {
+export function openAppIntentUrl(href: string, fallback?: string): string {
   const u = new URL(href)
-  return `intent://${u.host}${u.pathname}#Intent;scheme=${u.protocol.replace(':', '')};action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end`
+  const back = fallback ? `S.browser_fallback_url=${encodeURIComponent(fallback)};` : ''
+  return `intent://${u.host}${u.pathname}#Intent;scheme=${u.protocol.replace(':', '')};action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;${back}end`
 }

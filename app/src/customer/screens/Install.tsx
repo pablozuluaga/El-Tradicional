@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { WHATSAPP_URL } from '../../config.ts'
-import { canPromptInstall, isStandalone, promptInstall, subscribeInstall, wasInstalled } from '../../pwa/install.ts'
-import { androidNeedsChrome, chromeIntentUrl, detectGuide, detectPlatform } from '../../pwa/platform.ts'
+import { canPromptInstall, hasInstalledApp, isStandalone, promptInstall, subscribeInstall, wasInstalled } from '../../pwa/install.ts'
+import { androidNeedsChrome, chromeIntentUrl, detectGuide, detectPlatform, openAppIntentUrl } from '../../pwa/platform.ts'
 import { WhatsAppIcon } from '../../ui/ui.tsx'
 import { GUIDES, START_AT, type Step } from '../install/guides.tsx'
+import { AndroidHome, IosHome } from '../install/scenes.tsx'
 import g from '../install/install.module.css'
 import x from './Install.module.css'
 
 const INSTALL_URL = 'el-tradicional.vercel.app/instalar'
 /** How long to wait for Chrome's install button before showing the menu steps. */
 const PROMPT_WAIT_MS = 2500
+/** Android takes a few seconds after "Instalar" to put the app on the phone before it can be opened. */
+const APP_READY_MS = 6000
 
 const START_CLASS = { 'bottom-left': g.bottomLeft, 'bottom-center': g.bottomCenter, 'bottom-right': g.bottomRight, 'top-right': g.topRight }
 
@@ -66,15 +69,25 @@ export function Install() {
   const firstStep = useRef<HTMLElement>(null)
   const [firstVisible, setFirstVisible] = useState(false)
 
+  // already installed on this phone (Chrome on Android can tell): go straight to "Abrir la app"
+  const [foundInstalled, setFoundInstalled] = useState(false)
+  const [appReady, setAppReady] = useState(false)
+
   useEffect(() => {
     const t = setTimeout(() => setWaited(true), PROMPT_WAIT_MS)
+    void hasInstalledApp().then(yes => { if (yes) { setFoundInstalled(true); setAppReady(true) } })
     return () => clearTimeout(t)
   }, [])
+  useEffect(() => {
+    if (!installed) return
+    const t = setTimeout(() => setAppReady(true), APP_READY_MS)
+    return () => clearTimeout(t)
+  }, [installed])
 
   const android = platform === 'android' || (platform === 'inapp' && /Android/i.test(ua))
   const iphone = platform === 'ios' || (platform === 'inapp' && !android)
   const needsChrome = android && (platform === 'inapp' || androidNeedsChrome(ua))
-  const done = standalone || installed
+  const done = standalone || installed || foundInstalled
   // what this phone sees: exactly one of these, never a choice between them
   const mode = done ? 'done'
     : platform === 'desktop' ? 'desktop'
@@ -113,13 +126,33 @@ export function Install() {
     return (
       <div className="app-shell light">
         <div className={`${x.page} noscroll`}>
-          <div className={x.body} style={{ paddingTop: 60 }}>
+          <div className={x.body} style={{ paddingTop: 48 }}>
             <div className={x.done}>
               <div className={x.check} aria-hidden="true">✓</div>
-              <div className={x.doneTitle}>¡Listo, ya tienes la app!</div>
-              <div className={x.muted}>Búscala en tu pantalla de inicio con el logo de El Tradicional.</div>
-              <button type="button" className={x.cta} onClick={() => nav('/menu')}>Abrir el menú</button>
+              <div className={x.doneTitle}>{standalone ? 'Ya estás en la app' : '¡Listo, ya tienes la app!'}</div>
+              {standalone ? (
+                <button type="button" className={x.cta} onClick={() => nav('/menu')}>Ver el menú</button>
+              ) : android ? (
+                <>
+                  <div className={x.muted}>Ábrela con este botón o desde el ícono de El Tradicional en tu pantalla principal.</div>
+                  {appReady
+                    ? <a className={x.cta} href={openAppIntentUrl(location.origin + '/')}>Abrir la app</a>
+                    : <button type="button" className={x.cta} disabled>Terminando de instalar…</button>}
+                </>
+              ) : (
+                <div className={x.muted}>Ahora <b>cierra Safari</b> y abre el ícono rojo de <b>El Tradicional</b> en tu pantalla de inicio.</div>
+              )}
             </div>
+            {!standalone && (
+              <section className={g.step}>
+                <div className={g.sceneWrap}>{android ? <AndroidHome /> : <IosHome />}</div>
+                <p className={g.stepText}>
+                  {android
+                    ? <>Si se vuelve a abrir aquí en el navegador, cierra esta pestaña y toca el ícono de <b>El Tradicional</b> en tu pantalla principal (o en el cajón de apps).</>
+                    : <>El ícono queda junto a tus otras apps. Desde ahí se abre a pantalla completa, como cualquier app.</>}
+                </p>
+              </section>
+            )}
           </div>
         </div>
       </div>

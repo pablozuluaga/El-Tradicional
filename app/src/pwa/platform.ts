@@ -43,3 +43,12 @@ export function chromeIntentUrl(href: string): string {
   const fallback = encodeURIComponent('https://play.google.com/store/apps/details?id=com.android.chrome')
   return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${u.protocol.replace(':', '')};package=com.android.chrome;S.browser_fallback_url=${fallback};end`
 }
+
+/**
+ * Opens the installed app on Android: an Android link to the site's address, which the installed
+ * app claims, so Android opens it instead of the browser tab.
+ */
+export function openAppIntentUrl(href: string): string {
+  const u = new URL(href)
+  return `intent://${u.host}${u.pathname}#Intent;scheme=${u.protocol.replace(':', '')};action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end`
+}

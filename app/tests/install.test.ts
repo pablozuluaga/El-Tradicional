@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { androidNeedsChrome, chromeIntentUrl, detectGuide, detectPlatform } from '../src/pwa/platform.ts'
+import { androidNeedsChrome, chromeIntentUrl, detectGuide, detectPlatform, openAppIntentUrl } from '../src/pwa/platform.ts'
 
 test('detectPlatform picks the right install instructions', () => {
   const android = 'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36'
@@ -38,4 +38,9 @@ test('Android browsers other than Chrome go to Chrome to install', () => {
   assert.equal(androidNeedsChrome('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1'), false)
   assert.equal(chromeIntentUrl('https://el-tradicional.vercel.app/instalar'),
     'intent://el-tradicional.vercel.app/instalar#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.android.chrome;end')
+})
+
+test('the open-the-app link targets the installed app, not a browser tab', () => {
+  assert.equal(openAppIntentUrl('https://el-tradicional.vercel.app/'),
+    'intent://el-tradicional.vercel.app/#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end')
 })

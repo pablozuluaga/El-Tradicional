@@ -387,3 +387,21 @@ test('deleted orders leave the owner list and the billing report', async () => {
   assert.deepEqual(visibleOrders([a, b], defaultSettings()).map(o => o.num), [3001, 3002])
   assert.deepEqual(reportRows([a, b], '', '', {}, s.deletedOrders).map(r => r.numero), [3001])
 })
+
+test('switching a promotion off in the panel removes its discount', async () => {
+  const { withPromos, loyaltyOn } = await import('../src/domain/loyalty.ts')
+  const promos = defaultSettings().promos
+  const off = (id: string) => promos.map(p => (p.id === id ? { ...p, active: false } : p))
+  assert.deepEqual(eligibility([], 'dev-a', 'a@b.co', off('primer')), { rate: 0, kind: null, count: 0 })
+  assert.equal(eligibility([], 'dev-a', 'a@b.co', off('diez')).rate, 0.2, 'the other one stays')
+  assert.deepEqual(eligibility([], 'dev-a', 'a@b.co', promos.filter(p => p.id !== 'primer')).kind, null, 'deleted counts as off')
+  const ten = Array.from({ length: 10 }, (_, i) => mkOrder({ num: 4000 + i, customerId: 'dev-a' }))
+  assert.equal(eligibility(ten, 'dev-a', '', off('diez')).rate, 0)
+  assert.deepEqual(withPromos({ rate: 0.2, kind: 'diez', count: 10 }, promos), { rate: 0.2, kind: 'diez', count: 10 })
+  assert.equal(loyaltyOn(off('diez')), false)
+  assert.equal(loyaltyOn(promos), true)
+  const { finalizeTotals } = await import('../src/domain/placement.ts')
+  const draft = { subtotal: 35000, delivery: 0 } as Parameters<typeof finalizeTotals>[0]
+  assert.deepEqual(finalizeTotals(draft, 0, false, off('primer')), { discount: 0, discountKind: null, total: 35000 }, 'the saved order has no discount either')
+  assert.equal(finalizeTotals(draft, 0, false, promos).discount, 7000)
+})

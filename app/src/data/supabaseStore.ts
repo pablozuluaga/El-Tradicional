@@ -1,8 +1,9 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import { defaultSettings } from '../domain/catalog.ts'
 import { reportRange, reportRows } from '../domain/report.ts'
-import type { Order, OrderDraft, Settings } from '../domain/types.ts'
+import type { Eligibility, Order, OrderDraft, Settings } from '../domain/types.ts'
 import { visibleOrders } from '../domain/orders.ts'
+import { withPromos } from '../domain/loyalty.ts'
 import { SUPABASE_KEY, SUPABASE_URL } from './backend.ts'
 import {
   draftToPayload, mergeOrderRow, rowToEligibility, rowToMessage, rowToOrder, rowToSettings, settingsPatchToRow, withMessage,
@@ -53,6 +54,7 @@ export class SupabaseStore implements RestaurantStore {
   private disposed = false
   private unsubAuth: (() => void) | null = null
   private eligTimer: ReturnType<typeof setTimeout> | null = null
+  private serverElig: Eligibility = { rate: 0, kind: null, count: 0 }
 
   constructor(role: Role) {
     this.role = role
@@ -71,6 +73,11 @@ export class SupabaseStore implements RestaurantStore {
     if (this.disposed) return
     const next = { ...this.snap, ...p }
     if (p.orders || p.settings) next.orders = visibleOrders(next.orders, next.settings)
+    // the discount follows the panel's promotion switches right away (the server applies the same rule)
+    if (p.eligibility) this.serverElig = p.eligibility
+    if (p.eligibility || p.settings) next.eligibility = withPromos(this.serverElig, next.settings.promos)
+    // a promotion switched back on: ask the server again, since its last answer had it off
+    if (p.settings && JSON.stringify(p.settings.promos) !== JSON.stringify(this.snap.settings.promos)) this.scheduleEligibility()
     this.snap = next
     this.listeners.forEach(l => l())
   }

@@ -62,7 +62,7 @@ export class LocalStore implements RestaurantStore {
       error: null,
       settings: doc.settings,
       orders,
-      eligibility: eligibility(doc.orders, this.deviceId, this.email),
+      eligibility: eligibility(doc.orders, this.deviceId, this.email, doc.settings.promos),
     }
   }
 
@@ -120,7 +120,7 @@ export class LocalStore implements RestaurantStore {
       const deliveryPending = isOtherZone(draft.origin, draft.zoneId)
       if (deliveryPending) draft = { ...draft, delivery: 0 }
       const count = countingOrders(d.orders, this.deviceId).length
-      const totals = finalizeTotals(draft, count, emailUsedElsewhere(d.orders, this.deviceId, draft.email))
+      const totals = finalizeTotals(draft, count, emailUsedElsewhere(d.orders, this.deviceId, draft.email), d.settings.promos)
       const welcome = this.msg(d, 'dueno', WELCOME_MSG)
       const num = d.orderSeq
       d.orderSeq += 1

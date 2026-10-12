@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { INSTAGRAM_URL, REVIEW_URL } from '../../config.ts'
 import { orderId } from '../../domain/format.ts'
 import { isOtherZoneOrder } from '../../domain/orders.ts'
+import { loyaltyOn } from '../../domain/loyalty.ts'
 import { useDevice, useSnapshot, useStore } from '../../data/hooks.ts'
 import { InstagramIcon, TonoTip } from '../../ui/ui.tsx'
 import { PAYS } from '../../domain/catalog.ts'
@@ -46,10 +47,12 @@ export function Confirm() {
         <TonoTip variant="confirm" w={48} h={52} style={{ marginTop: 18, padding: '12px 14px', textAlign: 'left', width: '100%' }} textStyle={{ lineHeight: 1.45 }}>
           Gracias por tu pedido. Guarda tu dirección en el perfil para que la próxima vez el proceso sea aún más rápido. 🛵
         </TonoTip>
-        <div className={x.loyal}>
-          <div className={x.loyalHead}>Fidelidad</div>
-          <div className={x.loyalText}>Sigue juntando pedidos: ¡al llegar a 10 ganas un -20%! 🎉</div>
-        </div>
+        {loyaltyOn(snap.settings.promos) && (
+          <div className={x.loyal}>
+            <div className={x.loyalHead}>Fidelidad</div>
+            <div className={x.loyalText}>Sigue juntando pedidos: ¡al llegar a 10 ganas un -20%! 🎉</div>
+          </div>
+        )}
         <div className={x.review}>
           <div className={x.reviewTitle}>¿Cómo estuvo todo?</div>
           <div className={x.reviewSub}>Califica tu experiencia y ayúdanos a crecer.</div>

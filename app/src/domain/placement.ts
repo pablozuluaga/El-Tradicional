@@ -1,12 +1,12 @@
-import { OTHER_ZONE_ID } from './catalog.ts'
+import { DEFAULT_PROMOS, OTHER_ZONE_ID } from './catalog.ts'
 import { EMAIL_RE } from './format.ts'
 
 /** At least 7 digits (spaces, dashes and +57 allowed). */
 export const isPhone = (p: string) => (p.match(/\d/g) ?? []).length >= 7
-import { eligibilityFromCount } from './loyalty.ts'
+import { eligibilityFromCount, withPromos } from './loyalty.ts'
 import { dishById } from './menu.ts'
 import { discountFor, orderTotal } from './pricing.ts'
-import type { DiscountKind, OrderDraft, Settings } from './types.ts'
+import type { DiscountKind, OrderDraft, Promo, Settings } from './types.ts'
 
 /** Same checks the database runs in `place_order`; returns a customer-facing message or null. */
 export function validateDraft(d: OrderDraft, s: Settings): string | null {
@@ -29,8 +29,8 @@ export function validateDraft(d: OrderDraft, s: Settings): string | null {
 }
 
 /** Authoritative totals from the customer's benefit count (see `eligibilityFromCount`). */
-export function finalizeTotals(d: OrderDraft, countingOrders: number, emailUsed: boolean): { discount: number; discountKind: DiscountKind | null; total: number } {
-  const e = eligibilityFromCount(countingOrders, emailUsed)
+export function finalizeTotals(d: OrderDraft, countingOrders: number, emailUsed: boolean, promos: Promo[] = DEFAULT_PROMOS): { discount: number; discountKind: DiscountKind | null; total: number } {
+  const e = withPromos(eligibilityFromCount(countingOrders, emailUsed), promos)
   const discount = discountFor(d.subtotal, e.rate)
   return { discount, discountKind: discount > 0 ? e.kind : null, total: orderTotal(d.subtotal, discount, d.delivery) }
 }

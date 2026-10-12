@@ -1,4 +1,5 @@
-import type { DiscountKind, Eligibility, Order } from './types.ts'
+import { DEFAULT_PROMOS } from './catalog.ts'
+import type { DiscountKind, Eligibility, Order, Promo } from './types.ts'
 
 export const LOYALTY_EVERY = 10
 export const LOYALTY_RATE = 0.2
@@ -20,8 +21,18 @@ export function eligibilityFromCount(count: number, emailUsed = false): Eligibil
   return { rate: ready ? LOYALTY_RATE : 0, kind, count }
 }
 
-export const eligibility = (orders: Order[], customerId: string, email: string) =>
-  eligibilityFromCount(countingOrders(orders, customerId).length, emailUsedElsewhere(orders, customerId, email))
+/** A benefit applies only while its promotion ('primer', 'diez') is switched on in the owner panel.
+ *  Same rule as `_eligibility` in SQL; a deleted promotion counts as off. */
+export function withPromos(e: Eligibility, promos: Promo[]): Eligibility {
+  if (!e.kind || promos.some(p => p.id === e.kind && p.active)) return e
+  return { rate: 0, kind: null, count: e.count }
+}
+
+export const eligibility = (orders: Order[], customerId: string, email: string, promos: Promo[] = DEFAULT_PROMOS) =>
+  withPromos(eligibilityFromCount(countingOrders(orders, customerId).length, emailUsedElsewhere(orders, customerId, email)), promos)
+
+/** True while the "-20% every 10 orders" promotion is on (the stamp card only makes sense then). */
+export const loyaltyOn = (promos: Promo[]) => promos.some(p => p.id === 'diez' && p.active)
 
 export const discountName = (kind: DiscountKind | null) => (kind === 'diez' ? 'Premio 10 pedidos (-20%)' : 'Descuento primer pedido (-20%)')
 

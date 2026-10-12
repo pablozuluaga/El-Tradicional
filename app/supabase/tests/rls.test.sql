@@ -4,10 +4,11 @@
 \set cust_b '00000000-0000-0000-0000-00000000000c'
 \set cust_a2 '00000000-0000-0000-0000-00000000000d'
 \set cust_e '00000000-0000-0000-0000-00000000000e'
+\set cust_f '00000000-0000-0000-0000-00000000000f'
 
 insert into auth.users (id, email, is_anonymous) values
   (:'owner', 'dueno@example.com', false), (:'cust_a', null, true), (:'cust_b', null, true),
-  (:'cust_a2', null, true), (:'cust_e', null, true);
+  (:'cust_a2', null, true), (:'cust_e', null, true), (:'cust_f', null, true);
 insert into public.owners (user_id) values (:'owner');
 
 -- payload builder used by the tests
@@ -199,6 +200,45 @@ set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :'cust_e')::text, true);
 do $$ begin
   assert public.discount_eligibility('e@example.com')->>'kind' = 'diez', 'rejected reward order gives the benefit back';
+end $$;
+commit;
+
+-- 7b. promotions switched off in the panel: no discount while off
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
+update public.settings set promos = (select jsonb_agg(case when pr->>'id' = 'diez' then pr || '{"active":false}' else pr end) from jsonb_array_elements(promos) pr);
+select set_config('request.jwt.claims', json_build_object('sub', :'cust_e')::text, true);
+do $$ declare o public.orders; e jsonb; begin
+  e := public.discount_eligibility('e@example.com');
+  assert e->>'kind' is null and (e->>'rate')::numeric = 0, 'diez off: no reward ' || e;
+  o := public.place_order(public.t_payload('e@example.com', 'recoger', 'paisa', 20000));
+  assert o.discount = 0 and o.discount_kind is null and o.total = 20000, 'diez off: order without discount';
+end $$;
+rollback;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
+select set_config('request.jwt.claims', json_build_object('sub', :'cust_f')::text, true);
+do $$ begin
+  assert public.discount_eligibility('nuevo@example.com')->>'kind' = 'primer', 'new customer: welcome while the promo is on';
+end $$;
+select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
+update public.settings set promos = (select jsonb_agg(pr) from jsonb_array_elements(promos) pr where pr->>'id' <> 'primer');
+select set_config('request.jwt.claims', json_build_object('sub', :'cust_f')::text, true);
+do $$ declare o public.orders; begin
+  assert public.discount_eligibility('nuevo@example.com')->>'kind' is null, 'welcome promo deleted: no welcome discount';
+  o := public.place_order(public.t_payload('nuevo@example.com'));
+  assert o.discount = 0, 'welcome promo deleted: order without discount';
+end $$;
+rollback;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'cust_e')::text, true);
+do $$ begin
+  assert public.discount_eligibility('e@example.com')->>'kind' = 'diez', 'back on: reward available again';
 end $$;
 commit;
 

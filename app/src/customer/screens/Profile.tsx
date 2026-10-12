@@ -4,7 +4,7 @@ import { newId } from '../../domain/ids.ts'
 import { useNavigate } from 'react-router-dom'
 import { MAPS_URL, PHONE_TEL, WHATSAPP_URL } from '../../config.ts'
 import { dateShort, fmt, orderId } from '../../domain/format.ts'
-import { loyaltyCard, profileStats } from '../../domain/loyalty.ts'
+import { loyaltyCard, loyaltyOn, profileStats } from '../../domain/loyalty.ts'
 import { hasUnread, statusName } from '../../domain/orders.ts'
 import { downscaleAvatar, type Address } from '../../data/device.ts'
 import { useDevice, useSnapshot } from '../../data/hooks.ts'
@@ -25,6 +25,8 @@ export function Profile() {
   const fullName = (first + ' ' + last).trim()
   const initials = ((first[0] ?? '') + (last[0] ?? '')).toUpperCase()
   const card = loyaltyCard(snap.eligibility)
+  // the stamp card follows the "-20% every 10 orders" switch in the owner panel
+  const stamps = loyaltyOn(snap.settings.promos)
   const stats = profileStats(snap.orders)
   const unread = snap.orders.some(o => hasUnread(o, 'cliente'))
   const formOpen = dev.selectedAddr === 'new' || !dev.addresses.some(a => a.id === dev.selectedAddr)
@@ -75,15 +77,21 @@ export function Profile() {
         {unread && <UnreadDot size={14} top={-5} right={-5} />}
       </button>
 
-      <div className={x.loyal}>
-        <div className={x.loyalHead}>Cliente El Tradicional</div>
-        <div className={x.loyalTitle}>{card.title}</div>
-        <div className={x.loyalSub}>{card.sub}</div>
-        <div className={x.stamps} aria-label={card.label}>
-          {card.stamps.map((on, i) => on ? <span key={i} className={`${x.stamp} ${x.stampOn}`}>✓</span> : <span key={i} className={x.stamp} />)}
+      {(stamps || snap.eligibility.kind) && (
+        <div className={x.loyal}>
+          <div className={x.loyalHead}>Cliente El Tradicional</div>
+          <div className={x.loyalTitle}>{card.title}</div>
+          <div className={x.loyalSub}>{card.sub}</div>
+          {stamps && (
+            <>
+              <div className={x.stamps} aria-label={card.label}>
+                {card.stamps.map((on, i) => on ? <span key={i} className={`${x.stamp} ${x.stampOn}`}>✓</span> : <span key={i} className={x.stamp} />)}
+              </div>
+              <div className={x.stampsLabel}>{card.label}</div>
+            </>
+          )}
         </div>
-        <div className={x.stampsLabel}>{card.label}</div>
-      </div>
+      )}
 
       <div className={x.stats}>
         <div className={x.stat}><div className={x.statBig}>{stats.pedidos}</div><div className={x.statLabel}>Pedidos</div></div>

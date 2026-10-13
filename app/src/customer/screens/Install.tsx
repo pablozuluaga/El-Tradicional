@@ -13,12 +13,14 @@ const INSTALL_URL = 'el-tradicional.vercel.app/instalar'
 /** How long to wait for Chrome's install button before showing the menu steps. */
 const PROMPT_WAIT_MS = 2500
 /**
- * After "Instalar", Android needs a while (longer on older phones) to put the app on the phone;
- * opening it before that lands in the browser again. Chrome can tell when it's really there, so
- * the page asks every POLL_MS; browsers that can't tell wait FALLBACK_MS instead.
+ * After "Instalar", Android needs a while (longer on older phones) to put the app on the phone,
+ * and the icon shows up a bit after Chrome already reports it installed; opening it before that
+ * lands in the browser again. So "Abrir la app" waits at least MIN_WAIT_MS, and also until Chrome
+ * reports the app (asked every POLL_MS) plus SETTLE_MS. Browsers that can't tell wait FALLBACK_MS.
  */
+const MIN_WAIT_MS = 15_000
 const POLL_MS = 1500
-const SETTLE_MS = 1500
+const SETTLE_MS = 3000
 const MAX_WAIT_MS = 90_000
 const FALLBACK_MS = 20_000
 
@@ -81,6 +83,8 @@ export function Install() {
   // already installed on this phone (Chrome on Android can tell): go straight to "Abrir la app"
   const [foundInstalled, setFoundInstalled] = useState(false)
   const [appReady, setAppReady] = useState(false)
+  // seconds left of the minimum wait, shown on the button
+  const [left, setLeft] = useState(MIN_WAIT_MS / 1000)
 
   useEffect(() => {
     const t = setTimeout(() => setWaited(true), PROMPT_WAIT_MS)
@@ -91,20 +95,21 @@ export function Install() {
     if (!installed) return
     let alive = true
     const timers: ReturnType<typeof setTimeout>[] = []
-    const ready = () => { if (alive) setAppReady(true) }
+    const started = Date.now()
+    const readyAt = (t: number) => timers.push(setTimeout(() => { if (alive) setAppReady(true) }, Math.max(0, t - Date.now())))
+    const tick = setInterval(() => setLeft(Math.max(0, Math.ceil((started + MIN_WAIT_MS - Date.now()) / 1000))), 250)
     if (!canDetectInstalledApp()) {
-      timers.push(setTimeout(ready, FALLBACK_MS))
+      readyAt(started + FALLBACK_MS)
     } else {
-      const started = Date.now()
       const check = async () => {
         if (!alive) return
-        if (await hasInstalledApp()) timers.push(setTimeout(ready, SETTLE_MS))
-        else if (Date.now() - started > MAX_WAIT_MS) ready()
+        if (await hasInstalledApp()) readyAt(Math.max(started + MIN_WAIT_MS, Date.now() + SETTLE_MS))
+        else if (Date.now() - started > MAX_WAIT_MS) readyAt(Date.now())
         else timers.push(setTimeout(check, POLL_MS))
       }
       timers.push(setTimeout(check, POLL_MS))
     }
-    return () => { alive = false; timers.forEach(clearTimeout) }
+    return () => { alive = false; clearInterval(tick); timers.forEach(clearTimeout) }
   }, [installed])
 
   const android = platform === 'android' || (platform === 'inapp' && /Android/i.test(ua))
@@ -171,7 +176,7 @@ export function Install() {
                     ? <a className={x.cta} href={openAppIntentUrl(location.origin + '/', location.origin + '/instalar')}>Abrir la app</a>
                     : (
                       <>
-                        <button type="button" className={x.cta} disabled>Terminando de instalar…</button>
+                        <button type="button" className={x.cta} disabled>Terminando de instalar…{left > 0 ? ` ${left}` : ''}</button>
                         <div className={x.muted}>Espera un momento: el botón se activa solo cuando la app esté lista en tu celular.</div>
                       </>
                     )}

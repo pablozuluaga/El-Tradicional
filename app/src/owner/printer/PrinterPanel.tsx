@@ -46,9 +46,11 @@ export function PrinterPanel() {
   const st = usePrinter()
   const sample = useMemo(() => buildTicket(SAMPLE), [])
 
-  const sub = st.status === 'ready' || st.status === 'printing'
-    ? `${STATUS[st.status]}: ${st.name}${st.auto ? ' · imprime al aceptar' : ''}`
-    : STATUS[st.status]
+  const sub = st.status === 'printing' && st.progress !== null
+    ? `Imprimiendo… ${st.progress}%`
+    : st.status === 'ready' || st.status === 'printing'
+      ? `${STATUS[st.status]}: ${st.name}${st.auto ? ' · imprime al aceptar' : ''}`
+      : STATUS[st.status]
 
   return (
     <Fold id="impresora" icon="🖨️" title="Impresora de comandas" sub={sub}>
@@ -82,7 +84,10 @@ export function PrinterPanel() {
           <button type="button" className={o.smallRed} style={{ padding: 11, fontSize: 13.5 }} disabled={st.status !== 'ready'}
             onClick={() => void printer.printBlocks(sample)}>Imprimir comanda de prueba</button>
 
-          {st.error && <div className={o.msg} role="alert" style={{ color: '#F0A0A0', marginTop: 0 }}>{st.error}</div>}
+          {st.status === 'printing' && st.progress !== null && (
+            <div className={o.progress} aria-label={`Enviando a la impresora: ${st.progress}%`}><i style={{ width: st.progress + '%' }} /></div>
+          )}
+          {st.error && <div className={o.msg} role="alert" style={{ color: '#F0A0A0', marginTop: 0 }}>{st.error}{st.detail && <span style={{ display: 'block', color: '#a89d8c', fontSize: 11 }}>Detalle: {st.detail}</span>}</div>}
 
           <details className={o.details}>
             <summary className={o.summary}><span>Tipo de impresora</span><span className={o.summarySub}>Cámbialo solo si la prueba sale en blanco o con símbolos raros</span></summary>
@@ -93,6 +98,42 @@ export function PrinterPanel() {
               ))}
             </div>
           </details>
+
+          {(st.status === 'ready' || st.status === 'printing') && st.channels.length > 0 && (
+            <details className={o.details}>
+              <summary className={o.summary}><span>Diagnóstico: si no imprime</span><span className={o.summarySub}>Encuentra el canal y el tipo de impresora</span></summary>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 10 }}>
+                <div style={{ fontSize: 12.5, color: '#e7ddce', lineHeight: 1.5 }}>
+                  Toca <b>Probar</b> en cada canal, uno por uno, y mira la impresora:
+                  <br />• Si sale la <b>hoja de autoprueba</b>: toca <b>Usar este</b> y elige <b>Etiquetas (TSPL)</b>.
+                  <br />• Si sale la palabra <b>SELFTEST</b>: toca <b>Usar este</b> y elige <b>Recibos (ESC/POS)</b>.
+                  <br />• Si no sale nada, prueba el siguiente.
+                </div>
+                {st.channels.map(ch => (
+                  <div key={ch.key} className={o.row} style={{ background: 'var(--ink)', flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, fontFamily: 'monospace' }}>{ch.key}{st.channel === ch.key && <span style={{ color: '#7ED694', fontFamily: 'inherit' }}> · en uso</span>}</div>
+                      <div style={{ fontSize: 11, color: '#a89d8c' }}>{[ch.noResponse && 'rápido', ch.write && 'con confirmación'].filter(Boolean).join(' · ')}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button type="button" className={o.smallGhost} onClick={() => void printer.testChannel(ch.key)}>Probar</button>
+                      {st.channel !== ch.key && <button type="button" className={o.smallRed} onClick={() => printer.setChannel(ch.key)}>Usar este</button>}
+                    </div>
+                  </div>
+                ))}
+                <div>
+                  <div className={o.optHead}>Velocidad de envío</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {([['lenta', 'Lenta (más segura)'], ['normal', 'Normal'], ['rapida', 'Rápida']] as const).map(([id, label]) => (
+                      <button key={id} type="button" aria-pressed={st.speed === id} className={`${o.dayChip} ${st.speed === id ? o.dayChipOn : ''}`}
+                        onClick={() => printer.setSpeed(id)}>{label}</button>
+                    ))}
+                  </div>
+                  <div className={o.hint}>Si la autoprueba sale pero la comanda no, o sale cortada, usa <b>Lenta</b>.</div>
+                </div>
+              </div>
+            </details>
+          )}
 
           <details className={o.details}>
             <summary className={o.summary}><span>Así se ve la comanda</span><span className={o.summarySub}>Ejemplo con 48 mm de ancho</span></summary>

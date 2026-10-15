@@ -61,3 +61,22 @@ test('printer channels are named by their short id', async () => {
   assert.equal(shortUuid('000018f0-0000-1000-8000-00805f9b34fb'), '18F0')
   assert.equal(shortUuid('49535343-8841-43f4-a8d4-ecbe34729bb3'), '49535343')
 })
+
+test('text comanda: ASCII only, 32 columns, banner between rules, SIN in big bold', async () => {
+  const { COLS, escposText, layoutText, plain, wrapCols } = await import('../src/owner/printer/text.ts')
+  assert.equal(plain('2× Menú del día · Ñoño “ok”'), '2x Menu del dia - Nono "ok"')
+  assert.deepEqual(wrapCols('Calle 40 Sur # 27-15 Torre 2 apartamento 503 portería azul', 16), ['Calle 40 Sur #', '27-15 Torre 2', 'apartamento 503', 'portería azul'])
+  const lines = layoutText(buildTicket(mkOrder({
+    num: 2001, lines: [{ dishId: 'dia', name: 'Menú del día', qty: 2, unit: 22000, detail: { opts: ['Res'], removed: ['Arroz', 'Maduro'], addons: [], note: '' } }],
+  })))
+  assert.ok(lines.every(l => l.text.length <= (l.size === 3 ? COLS / 2 : COLS) && /^[\x20-\x7e]*$/.test(l.text)))
+  assert.deepEqual(lines.find(l => l.text === '#2001'), { text: '#2001', align: 'center', bold: true, size: 3 })
+  const i = lines.findIndex(l => l.text === 'DOMICILIO')
+  assert.equal(lines[i - 1].text, '='.repeat(COLS)); assert.equal(lines[i + 1].text, '='.repeat(COLS))
+  assert.deepEqual(lines.find(l => l.text.startsWith('>> SIN')), { text: '>> SIN ARROZ, MADURO', align: 'left', bold: true, size: 2 })
+  assert.ok(lines.some(l => l.text.startsWith('Total') && l.text.length === COLS))
+  const bytes = escposText(lines)
+  assert.deepEqual([...bytes.subarray(0, 7)], [0x1b, 0x40, 0x1c, 0x2e, 0x1b, 0x74, 0x00], 'init, Chinese mode off')
+  assert.deepEqual([...bytes.subarray(-3)], [0x1b, 0x64, 4], 'feed at the end, nothing after')
+  assert.ok(bytes.length < 1500, 'a few hundred bytes, not a 30 KB image: ' + bytes.length)
+})

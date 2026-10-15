@@ -1,12 +1,11 @@
 /**
- * Printer commands for a 1-bit image of the ticket. The ticket is always sent as an image, so
- * accents, ñ and the big fonts look the same on any printer, whatever code page it uses.
- * Two languages, because portable printers speak one or the other:
- * - TSPL: label printers (like the DIG-M220 in label mode). Continuous paper: GAP 0.
- * - ESC/POS: receipt printers.
+ * Printer commands for a 1-bit image of the ticket (the "Imagen" mode): accents and big type look
+ * exact, but it is ~30 KB, slow over Bluetooth. The default is text (text.ts). The DIG-M220 speaks
+ * ESC/POS; the TSPL encoder stays for label printers that only speak TSPL.
  */
 
-export type PrinterLang = 'tspl' | 'escpos'
+/** How the comanda is sent: ESC/POS text (small, fast; default) or an ESC/POS image (exact look, heavy). */
+export type PrinterLang = 'texto' | 'imagen'
 
 /** Head width of a 48 mm printer at 203 dpi (8 dots per mm). */
 export const PRINT_WIDTH = 384
@@ -67,4 +66,3 @@ export function tsplBitmap(img: Bitmap, feedMm = 6): Uint8Array {
   ])
 }
 
-export const encode = (lang: PrinterLang, img: Bitmap) => (lang === 'tspl' ? tsplBitmap(img) : escposRaster(img))

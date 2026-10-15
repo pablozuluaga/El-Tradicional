@@ -1,20 +1,22 @@
 import { packBits, PRINT_WIDTH, type Bitmap } from './encode.ts'
 import type { Block } from './ticket.ts'
+import { COLS, type TextLine } from './text.ts'
 
 const PAD = 6
 const W = PRINT_WIDTH - PAD * 2
 const FONT = 'Arial, "Helvetica Neue", Roboto, sans-serif'
 
-interface Style { size: number; weight: number; align: 'left' | 'center'; inverse?: boolean; spaceBefore: number }
+/** `lines`: thick rules above and below (no black backgrounds: they slow small printers down). */
+interface Style { size: number; weight: number; align: 'left' | 'center'; lines?: boolean; spaceBefore: number }
 
 const STYLES: Record<Exclude<Block['kind'], 'row' | 'rule' | 'gap'>, Style> = {
   brand: { size: 20, weight: 700, align: 'center', spaceBefore: 0 },
   number: { size: 64, weight: 800, align: 'center', spaceBefore: 2 },
   center: { size: 22, weight: 400, align: 'center', spaceBefore: 0 },
-  banner: { size: 30, weight: 800, align: 'center', inverse: true, spaceBefore: 10 },
+  banner: { size: 32, weight: 800, align: 'center', lines: true, spaceBefore: 10 },
   text: { size: 23, weight: 400, align: 'left', spaceBefore: 4 },
   dish: { size: 32, weight: 800, align: 'left', spaceBefore: 4 },
-  sin: { size: 28, weight: 800, align: 'left', inverse: true, spaceBefore: 6 },
+  sin: { size: 30, weight: 800, align: 'left', spaceBefore: 6 },
 }
 
 const font = (s: { size: number; weight: number }) => `${s.weight} ${s.size}px ${FONT}`
@@ -67,20 +69,18 @@ export function drawTicket(blocks: Block[]): HTMLCanvasElement {
     }
     const st = { ...STYLES[b.kind], ...(b.kind === 'text' && b.bold ? { weight: 700 } : {}) }
     measure.font = font(st)
-    const inner = st.inverse ? W - 16 : W
-    const lines = wrap(measure, b.text, inner)
+    const lines = wrap(measure, b.kind === 'sin' ? '» ' + b.text : b.text, W)
     const lh = Math.round(st.size * 1.22)
     const top = y + st.spaceBefore
-    const h = lines.length * lh + (st.inverse ? 10 : 0)
+    const h = lines.length * lh + (st.lines ? 16 : 0)
     ops.push({ y: top, op: (c, yy) => {
       c.font = font(st); c.textBaseline = 'top'
-      if (st.inverse) { c.fillStyle = '#000'; c.fillRect(PAD, yy, W, h); c.fillStyle = '#fff' }
+      if (st.lines) { c.fillRect(PAD, yy, W, 4); c.fillRect(PAD, yy + h - 4, W, 4) }
       lines.forEach((ln, i) => {
-        const ty = yy + i * lh + (st.inverse ? 6 : 0)
+        const ty = yy + i * lh + (st.lines ? 9 : 0)
         if (st.align === 'center') { c.textAlign = 'center'; c.fillText(ln, PAD + W / 2, ty) }
-        else { c.textAlign = 'left'; c.fillText(ln, PAD + (st.inverse ? 8 : 0), ty) }
+        else { c.textAlign = 'left'; c.fillText(ln, PAD, ty) }
       })
-      c.fillStyle = '#000'
     } })
     y = top + h
   }
@@ -98,4 +98,27 @@ export function ticketBitmap(blocks: Block[]): { bitmap: Bitmap; canvas: HTMLCan
   const canvas = drawTicket(blocks)
   const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data
   return { bitmap: packBits(data, canvas.width, canvas.height), canvas }
+}
+
+/** Preview of the text comanda: monospace, 32 columns, double height/width like the printer. */
+export function drawTextTicket(lines: TextLine[]): HTMLCanvasElement {
+  const cw = PRINT_WIDTH / COLS, lh = 26
+  const height = lines.reduce((h, l) => h + lh * (l.size === 1 ? 1 : 2), 0) + lh * 2
+  const canvas = document.createElement('canvas')
+  canvas.width = PRINT_WIDTH; canvas.height = height
+  const c = canvas.getContext('2d')!
+  c.fillStyle = '#fff'; c.fillRect(0, 0, canvas.width, canvas.height); c.fillStyle = '#000'
+  c.textBaseline = 'top'
+  let y = 6
+  for (const l of lines) {
+    const sx = l.size === 3 ? 2 : 1, sy = l.size === 1 ? 1 : 2
+    const w = l.text.length * cw * sx
+    const x = l.align === 'center' ? (PRINT_WIDTH - w) / 2 : l.align === 'right' ? PRINT_WIDTH - w : 0
+    c.save(); c.translate(x, y); c.scale(sx, sy)
+    c.font = `${l.bold ? 700 : 400} 20px "Courier New", Courier, monospace`
+    for (let i = 0; i < l.text.length; i++) c.fillText(l.text[i], i * cw, 0)
+    c.restore()
+    y += lh * sy
+  }
+  return canvas
 }

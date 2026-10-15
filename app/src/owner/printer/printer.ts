@@ -1,5 +1,6 @@
 import type { Order, OrderStatus } from '../../domain/types.ts'
-import { encode, type PrinterLang } from './encode.ts'
+import { escposRaster, type PrinterLang } from './encode.ts'
+import { escposText, layoutText, TEST_BYTES } from './text.ts'
 import { ticketBitmap } from './render.ts'
 import { buildTicket, type Block } from './ticket.ts'
 import { shortUuid } from './uuid.ts'
@@ -96,8 +97,12 @@ const KEY = 'et-printer'
 const PRINTED_KEY = 'et-printed'
 
 function load(): Saved {
-  const d: Saved = { lang: 'tspl', auto: true, name: null, channel: null, speed: 'normal' }
-  try { return { ...d, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } } catch { return d }
+  const d: Saved = { lang: 'texto', auto: true, name: null, channel: null, speed: 'normal' }
+  try {
+    const s: Saved = { ...d, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }
+    // earlier versions saved 'tspl'/'escpos' (the image): text works on this printer and is the default now
+    return s.lang === 'texto' || s.lang === 'imagen' ? s : { ...s, lang: 'texto' }
+  } catch { return d }
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -238,15 +243,15 @@ class Printer {
   }
 
   /**
-   * Diagnostic: sends the TSPL word SELFTEST to one channel. A label (TSPL) printer prints its
-   * self-test page; a receipt (ESC/POS) printer prints the word itself. Nothing means wrong channel.
+   * Diagnostic: sends one short ESC/POS line ("PRUEBA EL TRADICIONAL") to a channel. If it prints,
+   * that is the channel; nothing means a config channel that doesn't print.
    */
   async testChannel(key: string): Promise<void> {
     const c = this.chars.get(key)
     if (!c) return
     try {
       await this.ensureConnected()
-      await this.writeChunk(c, Uint8Array.from('SELFTEST\r\n', ch => ch.charCodeAt(0)))
+      await this.writeChunk(c, TEST_BYTES)
       this.set({ error: null, detail: null })
     } catch (e) {
       this.set({ error: 'No se pudo enviar la prueba por ese canal.', detail: e instanceof Error ? e.message : String(e) })
@@ -259,7 +264,7 @@ class Printer {
       this.set({ status: 'printing', error: null })
       try {
         await this.ensureConnected()
-        const data = encode(this.saved.lang, ticketBitmap(blocks).bitmap)
+        const data = this.saved.lang === 'texto' ? escposText(layoutText(blocks)) : escposRaster(ticketBitmap(blocks).bitmap)
         try {
           await this.write(data)
         } catch (e) {

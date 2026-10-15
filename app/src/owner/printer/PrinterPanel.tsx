@@ -4,7 +4,9 @@ import { Toggle } from '../../ui/ui.tsx'
 import { Fold } from '../Fold.tsx'
 import o from '../o.module.css'
 import { printer } from './printer.ts'
-import { drawTicket } from './render.ts'
+import { drawTextTicket, drawTicket } from './render.ts'
+import { layoutText } from './text.ts'
+import type { PrinterLang } from './encode.ts'
 import { buildTicket, type Block } from './ticket.ts'
 import { usePrinter } from './usePrinter.ts'
 
@@ -31,13 +33,13 @@ const STATUS: Record<string, string> = {
 }
 
 /** The ticket drawn exactly as it is sent to the printer. */
-function TicketPreview({ blocks }: { blocks: Block[] }) {
+function TicketPreview({ blocks, lang }: { blocks: Block[]; lang: PrinterLang }) {
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const c = drawTicket(blocks)
+    const c = lang === 'texto' ? drawTextTicket(layoutText(blocks)) : drawTicket(blocks)
     c.style.width = '100%'; c.style.height = 'auto'; c.style.display = 'block'
     box.current?.replaceChildren(c)
-  }, [blocks])
+  }, [blocks, lang])
   return <div ref={box} style={{ background: '#fff', borderRadius: 8, padding: 6, marginTop: 10, maxWidth: 260 }} />
 }
 
@@ -90,9 +92,9 @@ export function PrinterPanel() {
           {st.error && <div className={o.msg} role="alert" style={{ color: '#F0A0A0', marginTop: 0 }}>{st.error}{st.detail && <span style={{ display: 'block', color: '#a89d8c', fontSize: 11 }}>Detalle: {st.detail}</span>}</div>}
 
           <details className={o.details}>
-            <summary className={o.summary}><span>Tipo de impresora</span><span className={o.summarySub}>Cámbialo solo si la prueba sale en blanco o con símbolos raros</span></summary>
+            <summary className={o.summary}><span>Tipo de impresión</span><span className={o.summarySub}>Texto es más rápido y seguro; Imagen lleva tildes y letra más grande</span></summary>
             <div style={{ display: 'flex', gap: 8, paddingTop: 10 }}>
-              {([['tspl', 'Etiquetas (TSPL)'], ['escpos', 'Recibos (ESC/POS)']] as const).map(([id, label]) => (
+              {([['texto', 'Texto (recomendado)'], ['imagen', 'Imagen']] as const).map(([id, label]) => (
                 <button key={id} type="button" aria-pressed={st.lang === id} className={`${o.dayChip} ${st.lang === id ? o.dayChipOn : ''}`}
                   onClick={() => printer.setLang(id)}>{label}</button>
               ))}
@@ -105,8 +107,7 @@ export function PrinterPanel() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 10 }}>
                 <div style={{ fontSize: 12.5, color: '#e7ddce', lineHeight: 1.5 }}>
                   Toca <b>Probar</b> en cada canal, uno por uno, y mira la impresora:
-                  <br />• Si sale la <b>hoja de autoprueba</b>: toca <b>Usar este</b> y elige <b>Etiquetas (TSPL)</b>.
-                  <br />• Si sale la palabra <b>SELFTEST</b>: toca <b>Usar este</b> y elige <b>Recibos (ESC/POS)</b>.
+                  <br />• Si sale <b>PRUEBA EL TRADICIONAL</b>: ese es el canal, toca <b>Usar este</b>.
                   <br />• Si no sale nada, prueba el siguiente.
                 </div>
                 {st.channels.map(ch => (
@@ -129,7 +130,7 @@ export function PrinterPanel() {
                         onClick={() => printer.setSpeed(id)}>{label}</button>
                     ))}
                   </div>
-                  <div className={o.hint}>Si la autoprueba sale pero la comanda no, o sale cortada, usa <b>Lenta</b>.</div>
+                  <div className={o.hint}>Si la prueba sale pero la comanda no, o sale cortada, usa <b>Lenta</b>.</div>
                 </div>
               </div>
             </details>
@@ -137,7 +138,19 @@ export function PrinterPanel() {
 
           <details className={o.details}>
             <summary className={o.summary}><span>Así se ve la comanda</span><span className={o.summarySub}>Ejemplo con 48 mm de ancho</span></summary>
-            <TicketPreview blocks={sample} />
+            <TicketPreview blocks={sample} lang={st.lang} />
+          </details>
+
+          <details className={o.details}>
+            <summary className={o.summary}><span>¿Sale papel en blanco sin parar o la comanda sale cortada?</span><span className={o.summarySub}>La impresora está en modo etiquetas: cámbiala a papel continuo</span></summary>
+            <div style={{ fontSize: 12.5, color: '#e7ddce', lineHeight: 1.55, paddingTop: 8 }}>
+              En modo etiquetas la impresora corta la comanda al largo de una etiqueta y luego busca la siguiente, así que con rollo continuo saca papel sin parar.
+              <br />1. Desconecta la impresora aquí (botón <b>Desconectar</b>).
+              <br />2. Abre <b>Gprinter Life</b>, conéctala y entra a los ajustes de la impresora.
+              <br />3. En <b>Tipo de papel</b> elige <b>Papel continuo</b> (o "Recibo"), no "Etiqueta" ni "Marca negra", y guarda.
+              <br />4. Comprueba con la autoprueba (mantén el botón de papel al prenderla): debe decir <b>PAPER TYPE: CONTINUOUS</b> o similar.
+              <br />5. Vuelve aquí y conéctala de nuevo.
+            </div>
           </details>
 
           <div className={o.hint} style={{ marginTop: 0 }}>

@@ -2,6 +2,7 @@ import type { Order, OrderStatus } from '../../domain/types.ts'
 import { encode, type PrinterLang } from './encode.ts'
 import { ticketBitmap } from './render.ts'
 import { buildTicket, type Block } from './ticket.ts'
+import { shortUuid } from './uuid.ts'
 
 /*
  * The kitchen printer, over Bluetooth Low Energy from Chrome (Web Bluetooth). Safari/iPhone has
@@ -11,12 +12,13 @@ import { buildTicket, type Block } from './ticket.ts'
 
 // Minimal Web Bluetooth types (not in TypeScript's DOM lib).
 interface BtCharacteristic {
+  uuid: string
   properties: { write: boolean; writeWithoutResponse: boolean }
   writeValueWithoutResponse?(v: BufferSource): Promise<void>
   writeValueWithResponse?(v: BufferSource): Promise<void>
   writeValue(v: BufferSource): Promise<void>
 }
-interface BtService { getCharacteristics(): Promise<BtCharacteristic[]> }
+interface BtService { uuid: string; getCharacteristics(): Promise<BtCharacteristic[]> }
 interface BtServer { connected: boolean; connect(): Promise<BtServer>; disconnect(): void; getPrimaryServices(): Promise<BtService[]> }
 interface BtDevice extends EventTarget { id: string; name?: string; gatt?: BtServer }
 interface Bluetooth {
@@ -36,7 +38,36 @@ const SERVICES = [
   '0000ae00-0000-1000-8000-00805f9b34fb',
   '49535343-fe7d-4ae5-8fa9-9fafd205e455',
   'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+  '0000ffe5-0000-1000-8000-00805f9b34fb',
+  '0000ff12-0000-1000-8000-00805f9b34fb',
+  '0000af30-0000-1000-8000-00805f9b34fb',
+  '0000fee0-0000-1000-8000-00805f9b34fb',
+  '0000ff80-0000-1000-8000-00805f9b34fb',
 ]
+
+/** Characteristics that carry print data on known modules, best first (others are config/OTA). */
+const DATA_CHARS = [
+  '00002af1-0000-1000-8000-00805f9b34fb',
+  '49535343-8841-43f4-a8d4-ecbe34729bb3',
+  '0000ff02-0000-1000-8000-00805f9b34fb',
+  '0000ffe1-0000-1000-8000-00805f9b34fb',
+  '0000fff2-0000-1000-8000-00805f9b34fb',
+  '0000ae01-0000-1000-8000-00805f9b34fb',
+  'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f',
+  '6e400002-b5a3-f393-e0a9-e50e24dcca9e',
+]
+
+
+export interface Channel { key: string; service: string; char: string; write: boolean; noResponse: boolean }
+
+/** How fast the ticket goes out: printers with a small buffer lose data (and print nothing) if rushed. */
+export type Speed = 'lenta' | 'normal' | 'rapida'
+const SPEEDS: Record<Speed, { chunk: number; pause: number }> = {
+  lenta: { chunk: 20, pause: 20 },
+  normal: { chunk: 100, pause: 25 },
+  rapida: { chunk: 180, pause: 6 },
+}
 
 export type PrinterStatus = 'unsupported' | 'off' | 'connecting' | 'ready' | 'printing' | 'error'
 
@@ -50,14 +81,22 @@ export interface PrinterState {
   lang: PrinterLang
   /** print every order accepted (from any device) on this phone */
   auto: boolean
+  /** writable channels found on the printer, and the one in use */
+  channels: Channel[]
+  channel: string | null
+  speed: Speed
+  /** 0–100 while a ticket is going out */
+  progress: number | null
+  /** technical detail of the last failure, for support */
+  detail: string | null
 }
 
-interface Saved { lang: PrinterLang; auto: boolean; name: string | null; chunk: number }
+interface Saved { lang: PrinterLang; auto: boolean; name: string | null; channel: string | null; speed: Speed }
 const KEY = 'et-printer'
 const PRINTED_KEY = 'et-printed'
 
 function load(): Saved {
-  const d: Saved = { lang: 'tspl', auto: true, name: null, chunk: 180 }
+  const d: Saved = { lang: 'tspl', auto: true, name: null, channel: null, speed: 'normal' }
   try { return { ...d, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } } catch { return d }
 }
 
@@ -67,6 +106,7 @@ class Printer {
   private saved = load()
   private device: BtDevice | null = null
   private ch: BtCharacteristic | null = null
+  private chars = new Map<string, BtCharacteristic>()
   private queue: Promise<void> = Promise.resolve()
   private seen = new Map<number, OrderStatus>()
   private primed = false
@@ -75,6 +115,7 @@ class Printer {
   state: PrinterState = {
     status: bt() ? 'off' : 'unsupported',
     name: this.saved.name, error: null, failed: null, lang: this.saved.lang, auto: this.saved.auto,
+    channels: [], channel: this.saved.channel, speed: this.saved.speed, progress: null, detail: null,
   }
 
   subscribe = (l: () => void) => { this.listeners.add(l); return () => { this.listeners.delete(l) } }
@@ -86,6 +127,13 @@ class Printer {
   }
 
   setLang(lang: PrinterLang) { this.save({ lang }); this.set({ lang }) }
+  setSpeed(speed: Speed) { this.save({ speed }); this.set({ speed }) }
+  setChannel(key: string) {
+    const c = this.chars.get(key)
+    if (!c) return
+    this.ch = c
+    this.save({ channel: key }); this.set({ channel: key })
+  }
   setAuto(auto: boolean) { this.save({ auto }); this.set({ auto }); void this.keepAwake() }
 
   /** First time (and after Chrome forgets it): the owner picks the printer from Chrome's list. */
@@ -116,8 +164,8 @@ class Printer {
 
   disconnect() {
     this.device?.gatt?.disconnect()
-    this.device = null; this.ch = null
-    this.set({ status: 'off' })
+    this.device = null; this.ch = null; this.chars.clear()
+    this.set({ status: 'off', channels: [] })
   }
 
   private onDisconnected = () => {
@@ -130,15 +178,25 @@ class Printer {
     this.device = device
     device.addEventListener('gattserverdisconnected', this.onDisconnected)
     const server = await device.gatt!.connect()
-    let found: BtCharacteristic | null = null
-    for (const s of await server.getPrimaryServices()) {
-      for (const c of await s.getCharacteristics()) {
-        if (c.properties.writeWithoutResponse || c.properties.write) { found = c; break }
+    // every channel the printer accepts data on; the print data one is picked below
+    this.chars.clear()
+    const channels: Channel[] = []
+    for (const sv of await server.getPrimaryServices()) {
+      for (const c of await sv.getCharacteristics()) {
+        if (!c.properties.writeWithoutResponse && !c.properties.write) continue
+        const key = `${shortUuid(sv.uuid)}/${shortUuid(c.uuid)}`
+        this.chars.set(key, c)
+        channels.push({ key, service: sv.uuid, char: c.uuid, write: c.properties.write, noResponse: c.properties.writeWithoutResponse })
       }
-      if (found) break
     }
-    if (!found) throw new Error('no writable characteristic')
-    this.ch = found
+    const rank = (ch: Channel) => {
+      const known = DATA_CHARS.indexOf(ch.char.toLowerCase())
+      return known >= 0 ? known : DATA_CHARS.length + (ch.noResponse ? 0 : 1)
+    }
+    const pick = channels.find(ch => ch.key === this.saved.channel) ?? [...channels].sort((a, b) => rank(a) - rank(b))[0]
+    if (!pick) throw new Error('La impresora no tiene un canal para recibir datos')
+    this.ch = this.chars.get(pick.key)!
+    this.set({ channels, channel: pick.key })
     this.save({ name: device.name ?? null })
     this.set({ status: 'ready', name: device.name ?? 'Impresora', error: null })
     void this.keepAwake()
@@ -160,16 +218,38 @@ class Printer {
     throw new Error('not connected')
   }
 
+  private async writeChunk(c: BtCharacteristic, part: Uint8Array<ArrayBuffer>) {
+    // without response is faster; with response waits for the printer (safer, and the only way on some)
+    if (c.properties.writeWithoutResponse && c.writeValueWithoutResponse) await c.writeValueWithoutResponse(part)
+    else if (c.writeValueWithResponse) await c.writeValueWithResponse(part)
+    else await c.writeValue(part)
+  }
+
   private async write(data: Uint8Array) {
     const c = this.ch!
-    const size = this.saved.chunk
-    for (let i = 0, n = 0; i < data.length; i += size, n++) {
-      const part = data.slice(i, i + size)
-      if (c.properties.writeWithoutResponse && c.writeValueWithoutResponse) await c.writeValueWithoutResponse(part)
-      else if (c.writeValueWithResponse) await c.writeValueWithResponse(part)
-      else await c.writeValue(part)
-      // let the printer's small buffer drain
-      if (n % 6 === 5) await sleep(20)
+    const { chunk, pause } = SPEEDS[this.saved.speed]
+    let last = -1
+    for (let i = 0; i < data.length; i += chunk) {
+      await this.writeChunk(c, data.slice(i, i + chunk))
+      if (pause) await sleep(pause)
+      const pct = Math.floor(((i + chunk) / data.length) * 100)
+      if (pct >= last + 5) { last = pct; this.set({ progress: Math.min(100, pct) }) }
+    }
+  }
+
+  /**
+   * Diagnostic: sends the TSPL word SELFTEST to one channel. A label (TSPL) printer prints its
+   * self-test page; a receipt (ESC/POS) printer prints the word itself. Nothing means wrong channel.
+   */
+  async testChannel(key: string): Promise<void> {
+    const c = this.chars.get(key)
+    if (!c) return
+    try {
+      await this.ensureConnected()
+      await this.writeChunk(c, Uint8Array.from('SELFTEST\r\n', ch => ch.charCodeAt(0)))
+      this.set({ error: null, detail: null })
+    } catch (e) {
+      this.set({ error: 'No se pudo enviar la prueba por ese canal.', detail: e instanceof Error ? e.message : String(e) })
     }
   }
 
@@ -183,16 +263,18 @@ class Printer {
         try {
           await this.write(data)
         } catch (e) {
-          // some printers only take 20-byte writes: retry once with those
-          if (this.saved.chunk === 20) throw e
-          this.save({ chunk: 20 })
+          // some printers only take 20-byte writes: retry once that way
+          if (this.saved.speed === 'lenta') throw e
+          this.setSpeed('lenta')
           await this.write(data)
         }
         if (num !== null) this.markPrinted(num)
-        this.set({ status: 'ready', failed: this.state.failed === num ? null : this.state.failed })
-      } catch {
+        this.set({ status: 'ready', progress: null, detail: null, failed: this.state.failed === num ? null : this.state.failed })
+      } catch (e) {
         this.set({
           status: this.ch ? 'ready' : 'off',
+          progress: null,
+          detail: e instanceof Error ? e.message : String(e),
           failed: num,
           error: num !== null ? `No se pudo imprimir el pedido #${num}. Revisa que la impresora esté prendida y conectada.` : 'No se pudo imprimir. Revisa que la impresora esté prendida y conectada.',
         })

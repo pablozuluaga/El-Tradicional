@@ -55,3 +55,9 @@ test('printer commands for a 1-bit image: ESC/POS raster bands and a TSPL bitmap
   const at = tspl.indexOf('BITMAP 0,0,2,2,0,') + 'BITMAP 0,0,2,2,0,'.length
   assert.deepEqual([...tsplBitmap(img).subarray(at, at + 4)], [0x00, 0xff, 0xff, 0xff])
 })
+
+test('printer channels are named by their short id', async () => {
+  const { shortUuid } = await import('../src/owner/printer/uuid.ts')
+  assert.equal(shortUuid('000018f0-0000-1000-8000-00805f9b34fb'), '18F0')
+  assert.equal(shortUuid('49535343-8841-43f4-a8d4-ecbe34729bb3'), '49535343')
+})

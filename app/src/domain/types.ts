@@ -129,7 +129,17 @@ export interface CartLine {
   addons?: string[]
 }
 
-export interface OrderLine { dishId: string; name: string; qty: number; unit: number }
+/** What the kitchen needs about a dish: choices, what to leave out, paid add-ons and the note. */
+export interface LineDetail { opts: string[]; removed: string[]; addons: string[]; note: string }
+
+export interface OrderLine {
+  dishId: string
+  name: string
+  qty: number
+  unit: number
+  /** saved on orders placed from the kitchen-ticket release on; older orders only have `itemsList` */
+  detail?: LineDetail
+}
 
 export interface ChatMessage { id: number; from: Sender; text: string; at: string }
 

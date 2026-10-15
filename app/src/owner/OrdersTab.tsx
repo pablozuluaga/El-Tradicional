@@ -8,6 +8,9 @@ import { UnreadDot } from '../ui/ui.tsx'
 import { downloadBlob } from './download.ts'
 import { buildReport } from './report.ts'
 import { Fold } from './Fold.tsx'
+import { printer } from './printer/printer.ts'
+import { PrinterPanel } from './printer/PrinterPanel.tsx'
+import { usePrinter } from './printer/usePrinter.ts'
 import o from './o.module.css'
 
 function ReportCard() {
@@ -77,6 +80,7 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
   const fees = useSnapshot().settings.deliveryFees
   const amounts = ownerAmounts(ord, fees)
   const extra = splitAddressNotes(ord.addressNotes)
+  const canPrint = usePrinter().status !== 'unsupported'
   const phoneDigits = (ord.phone ?? '').replace(/\D/g, '')
   const saveFee = (v: number) => run(store.updateSettings(st => ({ deliveryFees: { ...st.deliveryFees, [String(ord.num)]: v } })).then(() => setFee('')))
 
@@ -153,6 +157,9 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
               {ord.reviewComment ? <div style={{ fontSize: 13, color: '#e7ddce' }}>“{ord.reviewComment}”</div> : null}
             </div>
           )}
+          {canPrint && (
+            <button type="button" className={o.printBtn} onClick={() => void printer.printOrder(ord, fees)}>🖨 Imprimir comanda</button>
+          )}
           <button type="button" className={o.deleteBtn}
             onClick={() => { if (confirm(`¿Eliminar el pedido ${orderId(ord.num)} de ${ord.name}?\n\nSe quita del panel y del reporte de facturación. No se puede deshacer.`)) run(store.updateSettings(st => ({ deletedOrders: { ...st.deletedOrders, [String(ord.num)]: true } }))) }}>
             🗑 Eliminar pedido
@@ -211,8 +218,18 @@ export function OrdersTab({ onChat }: { onChat: (num: number) => void }) {
   const orders = ordersInPeriod(all, period)
   const today = ordersInPeriod(all, 'hoy')
   const pending = all.filter(x => x.status !== 'rechazado' && !isFinished(x.status)).length
+  const pr = usePrinter()
+  const fees = useSnapshot().settings.deliveryFees
+  const failed = pr.failed !== null ? all.find(x => x.num === pr.failed) : undefined
   return (
     <>
+      {failed && (
+        <div className={o.printAlert} role="alert">
+          <span>🖨 {pr.error}</span>
+          <button type="button" className={o.smallRed} onClick={() => void printer.printOrder(failed, fees)}>Reintentar</button>
+        </div>
+      )}
+      <PrinterPanel />
       <Fold id="pedidos" icon="🧾" title="Pedidos" defaultOpen
         sub={`${today.length} ${today.length === 1 ? 'pedido' : 'pedidos'} hoy${pending ? ` · ${pending} por atender` : ''}`}>
       <div className={o.chipsWrap} role="tablist" aria-label="Mostrar pedidos de" style={{ marginBottom: 12 }}>

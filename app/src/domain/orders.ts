@@ -34,7 +34,13 @@ export function itemsDetail(cart: CartLine[]): string[] {
 }
 
 export const orderLines = (cart: CartLine[], mode: Origin): OrderLine[] =>
-  cart.map(c => ({ dishId: c.dishId, name: c.name, qty: c.qty, unit: unitPrice(c, mode) }))
+  cart.map(c => ({
+    dishId: c.dishId, name: c.name, qty: c.qty, unit: unitPrice(c, mode),
+    detail: {
+      opts: [c.proteinLabel, c.juiceLabel, ...c.opts].filter((x): x is string => !!x),
+      removed: c.removed, addons: c.addons ?? [], note: c.note.trim(),
+    },
+  }))
 
 /** Barrio "Otro": the customer pays the delivery on arrival; the owner notes its price for their own totals. */
 const BUILDING = 'Edificio / Apto / Torre: '

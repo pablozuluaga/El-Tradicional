@@ -5,6 +5,7 @@ import { StoreProvider } from '../data/StoreProvider.tsx'
 import { AdminChat } from './AdminChat.tsx'
 import { MenuTab } from './MenuTab.tsx'
 import { OrdersTab } from './OrdersTab.tsx'
+import { printer } from './printer/printer.ts'
 import { InstallBanner } from './InstallBanner.tsx'
 import { OwnerLogin } from './OwnerLogin.tsx'
 import { PromosTab } from './PromosTab.tsx'
@@ -20,6 +21,10 @@ function Panel() {
   const [chatNum, setChatNum] = useState<number | null>(null)
   const open = snap.settings.storeOpen
   const newMsgs = snap.orders.filter(x => hasUnread(x, 'dueno')).length
+
+  // kitchen printer: reconnect on open, print each order as it gets accepted (see printer.ts)
+  useEffect(() => { void printer.reconnect() }, [])
+  useEffect(() => { if (snap.ready && snap.authorized) printer.onOrders(snap.orders, snap.settings.deliveryFees) }, [snap.ready, snap.authorized, snap.orders, snap.settings.deliveryFees])
 
   useEffect(() => {
     document.title = (newMsgs ? `(${newMsgs}) ` : '') + 'Panel · El Tradicional'

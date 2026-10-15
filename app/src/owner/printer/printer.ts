@@ -2,6 +2,7 @@ import type { Order, OrderStatus } from '../../domain/types.ts'
 import { encode, type PrinterLang } from './encode.ts'
 import { ticketBitmap } from './render.ts'
 import { buildTicket, type Block } from './ticket.ts'
+import { shortUuid } from './uuid.ts'
 
 /*
  * The kitchen printer, over Bluetooth Low Energy from Chrome (Web Bluetooth). Safari/iPhone has
@@ -57,8 +58,6 @@ const DATA_CHARS = [
   '6e400002-b5a3-f393-e0a9-e50e24dcca9e',
 ]
 
-/** "0000ff02-0000-1000-8000-00805f9b34fb" → "FF02"; long custom ones keep their first block. */
-export const shortUuid = (u: string) => (/^0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb$/i.exec(u)?.[1] ?? u.split('-')[0]).toUpperCase()
 
 export interface Channel { key: string; service: string; char: string; write: boolean; noResponse: boolean }
 

@@ -57,7 +57,7 @@ test('printer commands for a 1-bit image: ESC/POS raster bands and a TSPL bitmap
 })
 
 test('printer channels are named by their short id', async () => {
-  const { shortUuid } = await import('../src/owner/printer/printer.ts')
+  const { shortUuid } = await import('../src/owner/printer/uuid.ts')
   assert.equal(shortUuid('000018f0-0000-1000-8000-00805f9b34fb'), '18F0')
   assert.equal(shortUuid('49535343-8841-43f4-a8d4-ecbe34729bb3'), '49535343')
 })

@@ -13,14 +13,6 @@
 .rowBtn { width: calc(100% - 32px); margin: 14px 16px 4px; background: #fff; border: 1px solid rgba(20,17,14,.1); cursor: pointer; border-radius: 16px; padding: 15px 16px; color: var(--ink); display: flex; align-items: center; gap: 12px; text-align: left; box-shadow: 0 6px 16px -12px rgba(20,17,14,.4); position: relative; }
 .rowTitle { font-weight: 600; font-size: 14px; }
 .rowSub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-.loyal { margin: 14px 16px 4px; background: linear-gradient(120deg, #C8161D, #7a0d12); border-radius: 20px; padding: 18px 20px; color: #fff; }
-.loyalHead { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .9; font-weight: 600; }
-.loyalTitle { font-family: var(--serif); font-size: 22px; margin-top: 3px; }
-.loyalSub { font-size: 12.5px; opacity: .92; margin-top: 5px; line-height: 1.4; }
-.stamps { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
-.stamp { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.5); display: block; }
-.stampOn { background: #fff; border: none; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--red); font-weight: 700; }
-.stampsLabel { font-size: 12px; opacity: .92; margin-top: 9px; }
 .stats { display: flex; gap: 10px; padding: 14px 16px 4px; }
 .stat { flex: 1; background: var(--cream); border-radius: 16px; padding: 14px 10px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
 .statBig { font-family: var(--serif); font-size: 26px; line-height: 1; }

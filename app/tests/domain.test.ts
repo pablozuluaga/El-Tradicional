@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { defaultSettings } from '../src/domain/catalog.ts'
 import { allDishes, bogotaDay, categories, dailyDish, dayOffKey, dishById, effRem, initialProtein, isDishSoldOut, serviceDay } from '../src/domain/menu.ts'
 import { deliveryFee, discountFor, orderTotal, subtotal } from '../src/domain/pricing.ts'
-import { eligibility, eligibilityFromCount, loyaltyCard, profileStats } from '../src/domain/loyalty.ts'
+import { profileStats } from '../src/domain/loyalty.ts'
 import { advanceLabel, advanceStep, canReject, clientSteps, hasUnread, isFinished, itemsDetail, itemsSummary, OWNER_BADGE } from '../src/domain/orders.ts'
 import { reportRows } from '../src/domain/report.ts'
 import { fmt } from '../src/domain/format.ts'
@@ -159,28 +159,14 @@ test('item strings match the prototype', () => {
   assert.deepEqual(itemsDetail(cart), ['2× Bandeja Paisa — res, jugo, ensalada, sin arepa, huevo, nota: bien caliente'])
 })
 
-test('loyalty: 20% on orders #1 and #11; rejected orders do not count; welcome is once per email', () => {
-  assert.deepEqual(eligibility([], 'dev-a', 'ana@example.com'), { rate: 0.2, kind: 'primer', count: 0 })
-  const nine = Array.from({ length: 9 }, () => mkOrder())
-  assert.equal(eligibility(nine, 'dev-a', '').rate, 0)
-  const ten = [...nine, mkOrder()]
-  assert.deepEqual(eligibility(ten, 'dev-a', ''), { rate: 0.2, kind: 'diez', count: 10 })
-  const rejected = [...nine, mkOrder({ status: 'rechazado' })]
-  assert.equal(eligibility(rejected, 'dev-a', '').count, 9)
-  // a new device with the same email does not get the welcome discount again
-  assert.deepEqual(eligibility([mkOrder()], 'dev-b', 'ANA@example.com '), { rate: 0, kind: null, count: 0 })
-  assert.equal(eligibility([mkOrder()], 'dev-b', 'otra@example.com').rate, 0.2)
-  assert.equal(eligibility([mkOrder({ status: 'rechazado' })], 'dev-b', 'ana@example.com').rate, 0.2)
-  // other devices never count toward this device's stamps
-  assert.equal(eligibility(ten, 'dev-b', 'ana@example.com').count, 0)
+test('no promotions: the saved order is subtotal plus delivery, never a discount', async () => {
+  const { finalizeTotals } = await import('../src/domain/placement.ts')
+  const draft = { subtotal: 35000, delivery: 6000 } as Parameters<typeof finalizeTotals>[0]
+  assert.deepEqual(finalizeTotals(draft), { discount: 0, discountKind: null, total: 41000 })
+  assert.deepEqual(defaultSettings().promos, [])
 })
 
-test('loyalty card and profile stats', () => {
-  assert.equal(loyaltyCard(eligibilityFromCount(0)).title, '¡Tienes -20% de bienvenida!')
-  const c = loyaltyCard(eligibilityFromCount(3))
-  assert.equal(c.stamps.filter(Boolean).length, 3)
-  assert.equal(c.label, 'Vas por 3 de 10 · a los 10 ganas -20%')
-  assert.equal(loyaltyCard(eligibilityFromCount(10)).title, '¡Ganaste -20% por tus 10 pedidos!')
+test('profile stats', () => {
   const st = profileStats([
     mkOrder(), mkOrder({ lines: [{ dishId: 'trucha', name: 'Trucha', qty: 3, unit: 35000 }] }),
     mkOrder({ status: 'rechazado', lines: [{ dishId: 'tilapia', name: 'Tilapia', qty: 9, unit: 1 }] }),
@@ -386,22 +372,4 @@ test('deleted orders leave the owner list and the billing report', async () => {
   assert.deepEqual(visibleOrders([a, b], s).map(o => o.num), [3001])
   assert.deepEqual(visibleOrders([a, b], defaultSettings()).map(o => o.num), [3001, 3002])
   assert.deepEqual(reportRows([a, b], '', '', {}, s.deletedOrders).map(r => r.numero), [3001])
-})
-
-test('switching a promotion off in the panel removes its discount', async () => {
-  const { withPromos, loyaltyOn } = await import('../src/domain/loyalty.ts')
-  const promos = defaultSettings().promos
-  const off = (id: string) => promos.map(p => (p.id === id ? { ...p, active: false } : p))
-  assert.deepEqual(eligibility([], 'dev-a', 'a@b.co', off('primer')), { rate: 0, kind: null, count: 0 })
-  assert.equal(eligibility([], 'dev-a', 'a@b.co', off('diez')).rate, 0.2, 'the other one stays')
-  assert.deepEqual(eligibility([], 'dev-a', 'a@b.co', promos.filter(p => p.id !== 'primer')).kind, null, 'deleted counts as off')
-  const ten = Array.from({ length: 10 }, (_, i) => mkOrder({ num: 4000 + i, customerId: 'dev-a' }))
-  assert.equal(eligibility(ten, 'dev-a', '', off('diez')).rate, 0)
-  assert.deepEqual(withPromos({ rate: 0.2, kind: 'diez', count: 10 }, promos), { rate: 0.2, kind: 'diez', count: 10 })
-  assert.equal(loyaltyOn(off('diez')), false)
-  assert.equal(loyaltyOn(promos), true)
-  const { finalizeTotals } = await import('../src/domain/placement.ts')
-  const draft = { subtotal: 35000, delivery: 0 } as Parameters<typeof finalizeTotals>[0]
-  assert.deepEqual(finalizeTotals(draft, 0, false, off('primer')), { discount: 0, discountKind: null, total: 35000 }, 'the saved order has no discount either')
-  assert.equal(finalizeTotals(draft, 0, false, promos).discount, 7000)
 })

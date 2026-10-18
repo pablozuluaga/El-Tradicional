@@ -27,7 +27,7 @@ begin;
 set local role anon;
 do $$ begin
   assert (select store_open from public.settings where id = 1), 'anon reads settings';
-  assert (select jsonb_array_length(promos) from public.settings) = 2, 'seeded promos';
+  assert (select jsonb_array_length(promos) from public.settings) = 0, 'no promotions seeded';
   begin update public.settings set store_open = false; assert false, 'anon update must fail';
   exception when insufficient_privilege then null; end;
   begin perform public.place_order(public.t_payload('x@example.com')); assert false, 'anon place_order must fail';
@@ -35,7 +35,7 @@ do $$ begin
 end $$;
 commit;
 
--- 2. customer A: first order gets the welcome 20%, second doesn't
+-- 2. customer A: orders at full price (no promotions)
 begin;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :'cust_a')::text, true);
@@ -43,10 +43,10 @@ do $$
 declare o public.orders; e jsonb;
 begin
   e := public.discount_eligibility('ana@example.com');
-  assert e->>'kind' = 'primer' and (e->>'rate')::numeric = 0.2, 'welcome eligible: ' || e;
+  assert e->>'kind' is null and (e->>'rate')::numeric = 0, 'no discount: ' || e;
   o := public.place_order(public.t_payload('ana@example.com'));
   assert o.num = 1043, 'numbering starts at 1043';
-  assert o.discount = 7000 and o.discount_kind = 'primer' and o.total = 35000 - 7000 + 3000, 'welcome discount applied';
+  assert o.discount = 0 and o.discount_kind is null and o.total = 35000 + 3000, 'first order at full price';
   assert o.customer_id = auth.uid(), 'owned by caller';
   assert (select count(*) from public.order_messages where order_num = o.num) = 1, 'welcome message';
   assert o.client_seen_id = o.owner_seen_id and o.client_seen_id > 0, 'seen ids set';
@@ -77,18 +77,18 @@ do $$ begin
   exception when insufficient_privilege then null; end;
   begin perform public.set_review(1043, 5, 'x', true); assert false, 'B cannot review A order';
   exception when insufficient_privilege then null; end;
-  assert (public.discount_eligibility('otra@example.com')->>'rate')::numeric = 0.2, 'other email still gets welcome';
+  assert (public.discount_eligibility('otra@example.com')->>'rate')::numeric = 0, 'no discount for anyone';
 end $$;
 commit;
 
--- 4. same email on a new device: no second welcome discount
+-- 4. same email on a new device: still no discount
 begin;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :'cust_a2')::text, true);
 do $$ declare o public.orders; begin
-  assert public.discount_eligibility(' ANA@example.com')->>'kind' is null, 'welcome blocked by email';
+  assert public.discount_eligibility(' ANA@example.com')->>'kind' is null, 'no discount';
   o := public.place_order(public.t_payload('Ana@Example.com'));
-  assert o.discount = 0, 'server refuses the reused welcome discount';
+  assert o.discount = 0, 'full price';
 end $$;
 commit;
 
@@ -175,72 +175,29 @@ do $$ begin
 end $$;
 commit;
 
--- 7. loyalty: after 10 orders, the 11th gets the 'diez' reward; a rejected order doesn't count
+-- 7. no promotions: even the 1st and the 11th order are at full price, whatever the settings say
 begin;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :'cust_e')::text, true);
 do $$ declare o public.orders; i int; begin
-  for i in 1..10 loop o := public.place_order(public.t_payload('e@example.com', 'recoger', 'paisa', 20000)); end loop;
-  assert (select count(*) filter (where discount > 0) from public.orders) = 1, 'only the first had a discount';
-  assert public.discount_eligibility('e@example.com')->>'kind' = 'diez', 'reward ready';
-  o := public.place_order(public.t_payload('e@example.com', 'recoger', 'paisa', 20000));
-  assert o.discount = 4000 and o.discount_kind = 'diez' and o.total = 16000, '11th order rewarded';
-  assert public.discount_eligibility('e@example.com')->>'kind' is null, 'reward used';
+  for i in 1..11 loop o := public.place_order(public.t_payload('e@example.com', 'recoger', 'paisa', 20000)); end loop;
+  assert (select count(*) filter (where discount > 0) from public.orders) = 0, 'no order ever gets a discount';
+  assert o.discount = 0 and o.discount_kind is null and o.total = 20000, '11th order at full price';
+  assert (public.discount_eligibility('e@example.com')->>'rate')::numeric = 0, 'no benefit pending';
 end $$;
 commit;
 
 begin;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
-select public.reject_order(max(num), 'prueba') from public.orders where customer_id = :'cust_e';
-commit;
-
-begin;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub', :'cust_e')::text, true);
-do $$ begin
-  assert public.discount_eligibility('e@example.com')->>'kind' = 'diez', 'rejected reward order gives the benefit back';
-end $$;
-commit;
-
--- 7b. promotions switched off in the panel: no discount while off
-begin;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
-update public.settings set promos = (select jsonb_agg(case when pr->>'id' = 'diez' then pr || '{"active":false}' else pr end) from jsonb_array_elements(promos) pr);
-select set_config('request.jwt.claims', json_build_object('sub', :'cust_e')::text, true);
-do $$ declare o public.orders; e jsonb; begin
-  e := public.discount_eligibility('e@example.com');
-  assert e->>'kind' is null and (e->>'rate')::numeric = 0, 'diez off: no reward ' || e;
-  o := public.place_order(public.t_payload('e@example.com', 'recoger', 'paisa', 20000));
-  assert o.discount = 0 and o.discount_kind is null and o.total = 20000, 'diez off: order without discount';
-end $$;
-rollback;
-
-begin;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
-select set_config('request.jwt.claims', json_build_object('sub', :'cust_f')::text, true);
-do $$ begin
-  assert public.discount_eligibility('nuevo@example.com')->>'kind' = 'primer', 'new customer: welcome while the promo is on';
-end $$;
-select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
-update public.settings set promos = (select jsonb_agg(pr) from jsonb_array_elements(promos) pr where pr->>'id' <> 'primer');
+update public.settings set promos = '[{"id":"primer","title":"x","sub":"x","active":true}]'::jsonb;
 select set_config('request.jwt.claims', json_build_object('sub', :'cust_f')::text, true);
 do $$ declare o public.orders; begin
-  assert public.discount_eligibility('nuevo@example.com')->>'kind' is null, 'welcome promo deleted: no welcome discount';
+  assert public.discount_eligibility('nuevo@example.com')->>'kind' is null, 'an old promo left in the settings gives nothing';
   o := public.place_order(public.t_payload('nuevo@example.com'));
-  assert o.discount = 0, 'welcome promo deleted: order without discount';
+  assert o.discount = 0, 'new customer pays full price';
 end $$;
 rollback;
-
-begin;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub', :'cust_e')::text, true);
-do $$ begin
-  assert public.discount_eligibility('e@example.com')->>'kind' = 'diez', 'back on: reward available again';
-end $$;
-commit;
 
 -- 8. barrio "Otro": no delivery in the total (paid on arrival); typed barrio required
 begin;

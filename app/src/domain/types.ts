@@ -178,7 +178,6 @@ export interface Order {
   chat: ChatMessage[]
 }
 
-export interface Eligibility { rate: number; kind: DiscountKind | null; count: number }
 
 /** What the customer sends when placing an order (server recomputes discount/total). */
 export interface OrderDraft {

@@ -2,7 +2,7 @@
   "id": "/admin",
   "name": "El Tradicional · Panel del dueño",
   "short_name": "ET Dueño",
-  "description": "Pedidos, menú del día y promociones de El Tradicional.",
+  "description": "Pedidos y menú del día de El Tradicional.",
   "lang": "es-CO",
   "start_url": "/admin",
   "scope": "/admin",

@@ -1,4 +1,4 @@
-import type { DailyMenu, DayId, Dish, Juice, Opt, Promo, Settings } from './types.ts'
+import type { DailyMenu, DayId, Dish, Juice, Opt, Settings } from './types.ts'
 
 const slug = (x: string) => x.normalize('NFD').replace(/[^a-zA-Z]/g, '').toLowerCase()
 /** Removable-ingredient list from labels (same id rule as the prototype). */
@@ -165,17 +165,12 @@ export const ONBOARDING = [
   { t: 'Explora nuestro menú', b: 'Toca la sección “Menú” para ver todos los platos disponibles hoy. La carta cambia cada día según lo que preparamos.' },
   { t: 'Personaliza tu plato', b: 'En cada plato puedes elegir tu sopa, proteína o bebida incluida, y quitar los ingredientes que prefieras.' },
   { t: 'Haz tu pedido', b: 'Cuando termines, ve al carrito y confirma. Te lo entregamos caliente y bien presentado. 🛵' },
-  { t: 'Gana con tu fidelidad', b: 'Crea tu cuenta y acumula sellos: al décimo pedido obtienes un descuento especial. ¡Vale la pena!' },
+  { t: 'Sigue tu pedido', b: 'En “Pedidos” ves en vivo cuando aceptamos tu pedido y cuando va en camino. Si necesitas algo, escríbenos por el chat.' },
 ]
 
 export const DEFAULT_JUICES: Juice[] = [
   { id: 'guandolo', label: 'Guandolo', out: false },
   { id: 'jugo', label: 'Jugo', out: false },
-]
-
-export const DEFAULT_PROMOS: Promo[] = [
-  { id: 'primer', title: '-20% en tu primer pedido', sub: 'Se aplica automáticamente en tu primera compra por la app.', active: true },
-  { id: 'diez', title: '-20% al completar 10 pedidos', sub: 'Completa 10 pedidos y el siguiente va con -20%.', active: true },
 ]
 
 export const defaultSettings = (): Settings => ({
@@ -185,7 +180,7 @@ export const defaultSettings = (): Settings => ({
   soldProteins: {},
   soldDishes: {},
   juices: DEFAULT_JUICES.map(j => ({ ...j })),
-  promos: DEFAULT_PROMOS.map(p => ({ ...p })),
+  promos: [],
   descOverrides: {},
   daySoups: {},
   dayProteins: {},

@@ -1,5 +1,4 @@
 import { defaultSettings, ORDER_NUM_START } from '../domain/catalog.ts'
-import { countingOrders, eligibility, emailUsedElsewhere } from '../domain/loyalty.ts'
 import { advanceStep, canReject, lastMessageId, normalizeReason, rejectNote, visibleOrders, WELCOME_MSG } from '../domain/orders.ts'
 import { isOtherZone } from '../domain/pricing.ts'
 import { finalizeTotals, validateDraft } from '../domain/placement.ts'
@@ -33,7 +32,6 @@ export class LocalStore implements RestaurantStore {
   readonly backend = 'local' as const
   private listeners = new Set<() => void>()
   private snap: Snapshot
-  private email = ''
   private channel: BroadcastChannel | null = null
   private readonly role_: Role
   private readonly deviceId: string
@@ -62,7 +60,6 @@ export class LocalStore implements RestaurantStore {
       error: null,
       settings: doc.settings,
       orders,
-      eligibility: eligibility(doc.orders, this.deviceId, this.email, doc.settings.promos),
     }
   }
 
@@ -101,13 +98,6 @@ export class LocalStore implements RestaurantStore {
   getSnapshot = () => this.snap
   customerId() { return this.role_ === 'customer' ? this.deviceId : null }
 
-  setCustomerEmail(email: string) {
-    if (email === this.email) return
-    this.email = email
-    this.snap = this.build(readDoc())
-    this.listeners.forEach(l => l())
-  }
-
   async updateSettings(fn: (s: Settings) => Partial<Settings>) {
     this.write(d => { d.settings = { ...d.settings, ...fn(d.settings) } })
   }
@@ -119,8 +109,7 @@ export class LocalStore implements RestaurantStore {
       if (err) throw new StoreError(err)
       const deliveryPending = isOtherZone(draft.origin, draft.zoneId)
       if (deliveryPending) draft = { ...draft, delivery: 0 }
-      const count = countingOrders(d.orders, this.deviceId).length
-      const totals = finalizeTotals(draft, count, emailUsedElsewhere(d.orders, this.deviceId, draft.email), d.settings.promos)
+      const totals = finalizeTotals(draft)
       const welcome = this.msg(d, 'dueno', WELCOME_MSG)
       const num = d.orderSeq
       d.orderSeq += 1

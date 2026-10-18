@@ -13,9 +13,8 @@
 .picker { border: 2px solid var(--red); border-radius: 14px; background: #fff; margin-bottom: 18px; overflow: hidden; }
 .pickerHead { padding: 11px 14px; font-size: 13px; font-weight: 700; color: var(--red); background: var(--pink); }
 .pickerList { display: flex; flex-direction: column; max-height: 340px; overflow-y: auto; }
-.zoneOpt { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: none; border-top: 1px solid var(--line); background: #fff; cursor: pointer; padding: 13px 14px; font-size: 14px; color: var(--ink); text-align: left; }
+.zoneOpt { border: none; border-top: 1px solid var(--line); background: #fff; cursor: pointer; padding: 13px 14px; font-size: 14px; color: var(--ink); text-align: left; }
 .zoneOptOn { background: var(--pink); font-weight: 600; }
-.zoneFee { font-size: 12.5px; color: var(--body); flex-shrink: 0; }
 .zoneOther { border: none; border-top: 1px dashed rgba(20,17,14,.24); background: #FBF8F3; cursor: pointer; padding: 13px 14px; font-size: 13px; color: var(--body); text-align: left; }
 .stack { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
 .addr { text-align: left; border: 1.5px solid rgba(20,17,14,.12); background: #fff; cursor: pointer; padding: 12px 15px; border-radius: 13px; color: var(--ink); }

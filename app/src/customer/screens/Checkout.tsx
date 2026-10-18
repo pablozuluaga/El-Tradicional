@@ -134,7 +134,7 @@ export function Checkout() {
                     const on = dev.zone === z.id
                     return (
                       <button key={z.id} type="button" role="radio" aria-checked={on} className={`${k.zoneOpt} ${on ? k.zoneOptOn : ''}`} onClick={() => pickZone(z.id)}>
-                        <span>{z.label}</span><span className={k.zoneFee}>{z.fee ? fmt(z.fee) : 'Sin costo'}</span>
+                        {z.label}
                       </button>
                     )
                   })}

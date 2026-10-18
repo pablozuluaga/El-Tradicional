@@ -38,7 +38,7 @@ export function Checkout() {
   const zone = other ? { id: OTHER_ZONE_ID, label: otherName, fee: 0 } : zoneById(dev.zone, zones)
   const sub = subtotal(dev.cart, dev.mode)
   const fee = deliveryFee(dev.mode, dev.zone || null, zones)
-  const total = orderTotal(sub, 0, fee)
+  const total = orderTotal(sub, fee)
   const [pickOpen, setPickOpen] = useState(false)
   // "Otro" (or a barrio the owner removed) is never kept from a past order: each order starts by choosing from the list
   useEffect(() => {

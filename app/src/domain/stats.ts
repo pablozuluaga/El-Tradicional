@@ -1,10 +1,4 @@
-import type { DiscountKind, Order } from './types.ts'
-
-/**
- * The restaurant no longer runs promotions or discounts. Orders placed before that may still
- * carry one: this names it in the owner's order detail.
- */
-export const discountName = (kind: DiscountKind | null) => (kind === 'diez' ? 'Premio 10 pedidos (-20%)' : 'Descuento primer pedido (-20%)')
+import type { Order } from './types.ts'
 
 /** Profile stats from the customer's own non-rejected orders. */
 export function profileStats(myOrders: Order[]) {

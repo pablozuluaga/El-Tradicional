@@ -11,7 +11,7 @@ export interface ReportRow {
   valorDomicilio: number
   correo: string
   celular: string
-  /** dishes of the order, for "Platos vendidos" (valor = cantidad × precio, before the order discount) */
+  /** dishes of the order, for "Platos vendidos" (valor = cantidad × precio) */
   items: { nombre: string; cantidad: number; valor?: number }[]
 }
 
@@ -37,7 +37,7 @@ export function reportRows(orders: Order[], from: string, to: string, fees: Reco
       cliente: o.name,
       pedido: o.itemsList.length ? o.itemsList.join(' · ') : o.items,
       metodoPago: o.pay,
-      valorPlato: Math.max(0, o.subtotal - o.discount),
+      valorPlato: o.subtotal,
       valorDomicilio: ownerAmounts(o, fees).delivery ?? 0,
       correo: o.email,
       celular: o.phone && o.phone !== '—' ? String(o.phone) : '',

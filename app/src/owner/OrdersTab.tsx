@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { dateTime, fmt, orderId } from '../domain/format.ts'
-import { discountName } from '../domain/loyalty.ts'
 import { advanceLabel, BAR_COLORS, canReject, hasUnread, isFinished, isOtherZoneOrder, MAX_DELIVERY_FEE, originLabel, OWNER_BADGE, ownerAmounts, splitAddressNotes, STAGE, STAGE_MAX, ordersInPeriod, type OrderPeriod } from '../domain/orders.ts'
 import type { Order } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
@@ -99,7 +98,6 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
             <div className={o.secHead}>💵 Pago</div>
             <div className={o.kv}><span>Forma de pago</span><b>{ord.pay}</b></div>
             <div className={o.kv}><span>Platos</span><b>{fmt(ord.subtotal)}</b></div>
-            {ord.discount > 0 && <div className={o.kv}><span>{discountName(ord.discountKind)}</span><b style={{ color: '#8FD09E' }}>−{fmt(ord.discount)}</b></div>}
             {dom && <div className={o.kv}><span>Domicilio{otherZone ? ' (lo paga al recibir)' : ''}</span><b>{amounts.delivery === null ? 'Por definir' : fmt(amounts.delivery)}</b></div>}
             <div className={o.kv} style={{ borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 7, marginTop: 2 }}><span style={{ color: '#fff', fontWeight: 600 }}>Total</span><b style={{ fontSize: 15 }}>{fmt(amounts.total)}</b></div>
           </div>

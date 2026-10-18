@@ -5,32 +5,31 @@ import { draftToPayload, mergeOrderRow, rowToMessage, rowToOrder, rowToSettings,
 const row: OrderRow = {
   num: 1043, customer_id: 'u1', name: 'Ana', email: 'a@b.co', phone: '—', origin: 'domicilio', zone_id: 'obrero', zone_label: 'El Obrero',
   address: 'Calle 1', address_notes: '', items: '1 X', items_list: ['1× X'], lines: [{ dishId: 'paisa', name: 'Bandeja Paisa', qty: 1, unit: 35000 }],
-  subtotal: 35000, discount: 7000, discount_kind: 'primer', delivery: 3000, total: 31000, pay: 'Efectivo', status: 'nuevo', reject_reason: null,
+  subtotal: 35000, delivery: 3000, total: 31000, pay: 'Efectivo', status: 'nuevo', reject_reason: null,
   rated: false, review_stars: null, review_comment: null, client_seen_id: 5, owner_seen_id: 5, created_at: '2026-09-25T17:00:00Z',
 }
 
 test('settings row ↔ domain', () => {
-  const s = rowToSettings({ id: 1, store_open: false, plato_dia: 'lunes', day_off: { 'lunes:sopa:campesina': true }, sold_proteins: null, sold_dishes: {}, juices: null, promos: [], desc_overrides: null })
+  const s = rowToSettings({ id: 1, store_open: false, plato_dia: 'lunes', day_off: { 'lunes:sopa:campesina': true }, sold_proteins: null, sold_dishes: {}, juices: null, desc_overrides: null })
   assert.equal(s.storeOpen, false)
   assert.equal(s.platoDia, 'lunes')
   assert.deepEqual(s.soldProteins, {})
   assert.equal(s.juices.length, 2)
-  assert.deepEqual(s.promos, [])
   assert.equal(settingsPatchToRow({ storeOpen: true }, s).store_open, true)
 })
 
 test('newer settings live in a bag inside desc_overrides (no database change needed)', () => {
-  const base = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, promos: [], desc_overrides: { paisa: 'Nueva' } })
+  const base = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, desc_overrides: { paisa: 'Nueva' } })
   const next = { ...base, priceOverrides: { paisa: 40000 }, deliveryFees: { '1043': 8000 }, deletedOrders: { '1044': true } }
   const row = settingsPatchToRow({ priceOverrides: next.priceOverrides }, next)
   assert.deepEqual(Object.keys(row), ['desc_overrides'], 'only the existing column is written')
-  const back = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, promos: [], desc_overrides: row.desc_overrides! })
+  const back = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, desc_overrides: row.desc_overrides! })
   assert.deepEqual(back.descOverrides, { paisa: 'Nueva' }, 'descriptions kept, bag not mixed in')
   assert.deepEqual(back.priceOverrides, { paisa: 40000 })
   assert.deepEqual(back.deliveryFees, { '1043': 8000 })
   assert.deepEqual(back.deletedOrders, { '1044': true })
   // a project that ran a newer schema.sql: the column is the fallback
-  const fromColumn = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, promos: [], desc_overrides: {}, day_soups: { lunes: [{ id: 'x', label: 'X' }] } })
+  const fromColumn = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, desc_overrides: {}, day_soups: { lunes: [{ id: 'x', label: 'X' }] } })
   assert.equal(fromColumn.daySoups.lunes![0].label, 'X')
 })
 
@@ -38,7 +37,8 @@ test('order row → domain, chat sorted, messages deduplicated', () => {
   const m1 = rowToMessage({ id: 5, order_num: 1043, sender: 'dueno', body: 'hola', created_at: '' })
   const m2 = rowToMessage({ id: 7, order_num: 1043, sender: 'cliente', body: 'gracias', created_at: '' })
   const o = rowToOrder(row, [m2, m1])
-  assert.equal(o.discountKind, 'primer')
+  // an old row saved with a discount (31000) still charges full price
+  assert.equal(o.total, 38000)
   assert.deepEqual(o.chat.map(m => m.id), [5, 7])
   assert.equal(withMessage(o, m2), o)
   assert.equal(withMessage(o, { ...m2, id: 6 }).chat[1].id, 6)

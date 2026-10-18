@@ -2,7 +2,6 @@ export type DayId = 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 's
 export type OrderStatus = 'nuevo' | 'aceptado' | 'camino' | 'listo' | 'rechazado'
 export type Origin = 'domicilio' | 'recoger'
 export type Sender = 'cliente' | 'dueno'
-export type DiscountKind = 'primer' | 'diez'
 
 export interface Opt { id: string; label: string; rem?: Opt[] }
 
@@ -73,7 +72,6 @@ export interface CustomDish {
 }
 
 export interface Juice { id: string; label: string; out: boolean }
-export interface Promo { id: string; title: string; sub: string; active: boolean }
 
 export interface Settings {
   storeOpen: boolean
@@ -83,7 +81,6 @@ export interface Settings {
   soldProteins: Record<string, boolean>
   soldDishes: Record<string, boolean>
   juices: Juice[]
-  promos: Promo[]
   descOverrides: Record<string, string>
   /** the owner's soup list per day; a day missing here uses its default soups */
   daySoups: Partial<Record<DayId, Opt[]>>
@@ -160,11 +157,10 @@ export interface Order {
   itemsList: string[]
   lines: OrderLine[]
   subtotal: number
-  discount: number
-  discountKind: DiscountKind | null
   delivery: number
   /** barrio "Otro": the owner still has to set the delivery fee */
   deliveryPending: boolean
+  /** always subtotal + delivery: the restaurant charges full price */
   total: number
   pay: string
   createdAt: string
@@ -179,7 +175,7 @@ export interface Order {
 }
 
 
-/** What the customer sends when placing an order (server recomputes discount/total). */
+/** What the customer sends when placing an order (the server recomputes the total). */
 export interface OrderDraft {
   customerId: string
   name: string

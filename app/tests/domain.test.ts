@@ -2,8 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { defaultSettings } from '../src/domain/catalog.ts'
 import { allDishes, bogotaDay, categories, dailyDish, dayOffKey, dishById, effRem, initialProtein, isDishSoldOut, serviceDay } from '../src/domain/menu.ts'
-import { deliveryFee, discountFor, orderTotal, subtotal } from '../src/domain/pricing.ts'
-import { profileStats } from '../src/domain/loyalty.ts'
+import { deliveryFee, orderTotal, subtotal } from '../src/domain/pricing.ts'
+import { profileStats } from '../src/domain/stats.ts'
 import { advanceLabel, advanceStep, canReject, clientSteps, hasUnread, isFinished, itemsDetail, itemsSummary, OWNER_BADGE } from '../src/domain/orders.ts'
 import { reportRows } from '../src/domain/report.ts'
 import { fmt } from '../src/domain/format.ts'
@@ -150,7 +150,7 @@ test('pricing: zone fee replaces delivery, pickup is free', () => {
   assert.equal(deliveryFee('domicilio', 'magnolia'), 0)
   assert.equal(deliveryFee('recoger', 'alto_flores'), 0)
   assert.equal(deliveryFee('domicilio', null), 0)
-  assert.equal(orderTotal(90000, discountFor(90000, 0.2), 8000), 80000)
+  assert.equal(orderTotal(90000, 8000), 98000)
 })
 
 test('item strings match the prototype', () => {
@@ -159,11 +159,19 @@ test('item strings match the prototype', () => {
   assert.deepEqual(itemsDetail(cart), ['2× Bandeja Paisa — res, jugo, ensalada, sin arepa, huevo, nota: bien caliente'])
 })
 
-test('no promotions: the saved order is subtotal plus delivery, never a discount', async () => {
-  const { finalizeTotals } = await import('../src/domain/placement.ts')
-  const draft = { subtotal: 35000, delivery: 6000 } as Parameters<typeof finalizeTotals>[0]
-  assert.deepEqual(finalizeTotals(draft), { discount: 0, discountKind: null, total: 41000 })
-  assert.deepEqual(defaultSettings().promos, [])
+test('no discounts or promotions anywhere in the apps or the database', async () => {
+  const { readdirSync, readFileSync, statSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const files = (dir: string): string[] => readdirSync(dir).flatMap(f => {
+    const p = join(dir, f)
+    return statSync(p).isDirectory() ? files(p) : [p]
+  })
+  const root = new URL('..', import.meta.url).pathname
+  const sources = [...files(join(root, 'src')), ...files(join(root, 'supabase')), join(root, 'index.html'), join(root, 'public/manifest.webmanifest'), join(root, 'public/admin.webmanifest')]
+  const banned = /descuento|discount|promo|fidelidad|loyal|eligib/i
+  const hits = sources.filter(f => /\.(tsx?|css|sql|html|webmanifest)$/.test(f) && !f.endsWith('sin-descuentos.sql') && !f.includes('/supabase/tests/'))
+    .filter(f => banned.test(readFileSync(f, 'utf8')))
+  assert.deepEqual(hits, [])
 })
 
 test('profile stats', () => {
@@ -203,15 +211,15 @@ test('unread uses per-side seen counters', () => {
   assert.equal(hasUnread({ ...o, ownerSeenId: 2 }, 'dueno'), false)
 })
 
-test('report rows: date range, rejected excluded, value = subtotal - discount', () => {
+test('report rows: date range, rejected excluded, value = subtotal', () => {
   const rows = reportRows([
-    mkOrder({ num: 1, createdAt: new Date(2026, 8, 20, 12).toISOString(), subtotal: 35000, discount: 7000 }),
+    mkOrder({ num: 1, createdAt: new Date(2026, 8, 20, 12).toISOString(), subtotal: 35000 }),
     mkOrder({ num: 2, createdAt: new Date(2026, 8, 21, 12).toISOString(), status: 'rechazado' }),
     mkOrder({ num: 3, createdAt: new Date(2026, 8, 22, 23, 30).toISOString(), phone: '3001234567' }),
     mkOrder({ num: 4, createdAt: new Date(2026, 8, 23, 0, 30).toISOString() }),
   ], '2026-09-20', '2026-09-22')
   assert.deepEqual(rows.map(r => r.numero), [1, 3])
-  assert.equal(rows[0].valorPlato, 28000)
+  assert.equal(rows[0].valorPlato, 35000)
   assert.equal(rows[0].celular, '')
   assert.equal(rows[1].celular, '3001234567')
   assert.equal(reportRows([mkOrder()], '', '').length, 1)

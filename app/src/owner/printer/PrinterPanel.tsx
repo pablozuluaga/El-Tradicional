@@ -14,7 +14,7 @@ import { usePrinter } from './usePrinter.ts'
 const SAMPLE: Order = {
   num: 1001, customerId: '', name: 'Prueba Cliente', email: '', phone: '3001234567', origin: 'domicilio',
   zoneId: 'magnolia', zoneLabel: 'La Magnolia', address: 'Calle 40 Sur # 27-15', addressNotes: 'Edificio / Apto / Torre: Torre 2 apto 503\nPortería azul',
-  items: '', itemsList: [], subtotal: 57000, discount: 0, discountKind: null, delivery: 0, deliveryPending: false, total: 57000,
+  items: '', itemsList: [], subtotal: 57000, delivery: 0, deliveryPending: false, total: 57000,
   pay: 'Efectivo (contra entrega)', createdAt: new Date().toISOString(), status: 'aceptado', rejectReason: null, rated: false,
   reviewStars: null, reviewComment: null, clientSeenId: 0, ownerSeenId: 0, chat: [],
   lines: [

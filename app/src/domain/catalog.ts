@@ -180,7 +180,6 @@ export const defaultSettings = (): Settings => ({
   soldProteins: {},
   soldDishes: {},
   juices: DEFAULT_JUICES.map(j => ({ ...j })),
-  promos: [],
   descOverrides: {},
   daySoups: {},
   dayProteins: {},

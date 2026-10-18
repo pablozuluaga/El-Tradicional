@@ -1,5 +1,5 @@
 import { defaultSettings } from '../domain/catalog.ts'
-import type { ChatMessage, DayId, DiscountKind, Order, OrderDraft, OrderLine, OrderStatus, Origin, Sender, Settings } from '../domain/types.ts'
+import type { ChatMessage, DayId, Order, OrderDraft, OrderLine, OrderStatus, Origin, Sender, Settings } from '../domain/types.ts'
 
 /** Row shapes of the tables in supabase/schema.sql. */
 export interface SettingsRow {
@@ -10,7 +10,6 @@ export interface SettingsRow {
   sold_proteins: Record<string, boolean> | null
   sold_dishes: Record<string, boolean> | null
   juices: Settings['juices'] | null
-  promos: Settings['promos'] | null
   desc_overrides: Record<string, string> | null
   /** added later; missing until the project runs the updated schema.sql */
   day_soups?: Settings['daySoups'] | null
@@ -37,8 +36,6 @@ export interface OrderRow {
   items_list: string[] | null
   lines: OrderLine[] | null
   subtotal: number
-  discount: number
-  discount_kind: string | null
   delivery: number
   /** added later; missing until the project runs the updated schema.sql */
   delivery_pending?: boolean | null
@@ -77,7 +74,6 @@ export function rowToSettings(r: SettingsRow): Settings {
     soldProteins: r.sold_proteins ?? {},
     soldDishes: r.sold_dishes ?? {},
     juices: r.juices ?? d.juices,
-    promos: r.promos ?? d.promos,
     descOverrides: desc as Record<string, string>,
     daySoups: bag.daySoups ?? r.day_soups ?? {},
     dayProteins: bag.dayProteins ?? r.day_proteins ?? {},
@@ -102,7 +98,6 @@ const SETTINGS_COLUMNS: Record<Exclude<keyof Settings, BagField>, keyof Settings
   soldProteins: 'sold_proteins',
   soldDishes: 'sold_dishes',
   juices: 'juices',
-  promos: 'promos',
   descOverrides: 'desc_overrides',
 }
 
@@ -142,11 +137,10 @@ export function rowToOrder(r: OrderRow, chat: ChatMessage[]): Order {
     itemsList: r.items_list ?? [],
     lines: r.lines ?? [],
     subtotal: r.subtotal,
-    discount: r.discount,
-    discountKind: (r.discount_kind as DiscountKind | null) ?? null,
     delivery: r.delivery,
     deliveryPending: !!r.delivery_pending,
-    total: r.total,
+    // full price, whatever an older version of the database saved
+    total: r.subtotal + r.delivery,
     pay: r.pay,
     createdAt: r.created_at,
     status: r.status as OrderStatus,
@@ -160,7 +154,7 @@ export function rowToOrder(r: OrderRow, chat: ChatMessage[]): Order {
   }
 }
 
-/** The `p` argument of `place_order` (the server recomputes discount and total). */
+/** The `p` argument of `place_order` (the server recomputes the total). */
 export const draftToPayload = (d: OrderDraft) => ({
   name: d.name,
   email: d.email,

@@ -16,6 +16,6 @@ export const deliveryFee = (mode: Origin, zoneId: string | null, zones: Zone[] =
 /** Barrio "Otro" (typed by the customer): the owner sets the delivery fee on the order. */
 export const isOtherZone = (mode: Origin, zoneId: string | null) => mode === 'domicilio' && zoneId === OTHER_ZONE_ID
 
-export const discountFor = (sub: number, rate: number) => Math.round(sub * rate)
 
-export const orderTotal = (sub: number, discount: number, delivery: number) => Math.max(0, sub - discount + delivery)
+/** What the customer pays: the dishes at full price plus delivery. */
+export const orderTotal = (sub: number, delivery: number) => sub + delivery

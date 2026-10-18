@@ -1,7 +1,7 @@
 import { defaultSettings, ORDER_NUM_START } from '../domain/catalog.ts'
 import { advanceStep, canReject, lastMessageId, normalizeReason, rejectNote, visibleOrders, WELCOME_MSG } from '../domain/orders.ts'
-import { isOtherZone } from '../domain/pricing.ts'
-import { finalizeTotals, validateDraft } from '../domain/placement.ts'
+import { isOtherZone, orderTotal } from '../domain/pricing.ts'
+import { validateDraft } from '../domain/placement.ts'
 import { reportRows } from '../domain/report.ts'
 import type { ChatMessage, Order, OrderDraft, Settings } from '../domain/types.ts'
 import { StoreError, type ReviewPatch, type RestaurantStore, type Role, type Snapshot } from './store.ts'
@@ -109,7 +109,6 @@ export class LocalStore implements RestaurantStore {
       if (err) throw new StoreError(err)
       const deliveryPending = isOtherZone(draft.origin, draft.zoneId)
       if (deliveryPending) draft = { ...draft, delivery: 0 }
-      const totals = finalizeTotals(draft)
       const welcome = this.msg(d, 'dueno', WELCOME_MSG)
       const num = d.orderSeq
       d.orderSeq += 1
@@ -117,7 +116,7 @@ export class LocalStore implements RestaurantStore {
         ...draft,
         customerId: this.deviceId,
         num,
-        ...totals,
+        total: orderTotal(draft.subtotal, draft.delivery),
         deliveryPending,
         createdAt: new Date().toISOString(),
         status: 'nuevo',

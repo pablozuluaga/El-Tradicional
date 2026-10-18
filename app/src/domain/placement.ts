@@ -4,8 +4,7 @@ import { EMAIL_RE } from './format.ts'
 /** At least 7 digits (spaces, dashes and +57 allowed). */
 export const isPhone = (p: string) => (p.match(/\d/g) ?? []).length >= 7
 import { dishById } from './menu.ts'
-import { orderTotal } from './pricing.ts'
-import type { DiscountKind, OrderDraft, Settings } from './types.ts'
+import type { OrderDraft, Settings } from './types.ts'
 
 /** Same checks the database runs in `place_order`; returns a customer-facing message or null. */
 export function validateDraft(d: OrderDraft, s: Settings): string | null {
@@ -25,9 +24,4 @@ export function validateDraft(d: OrderDraft, s: Settings): string | null {
   if (sold) return `${sold.name} se agotó. Quítalo del carrito para continuar.`
   if (d.lines.some(l => l.dishId === 'dia') && !s.platoDia) return 'El menú del día ya no está disponible. Quítalo del carrito para continuar.'
   return null
-}
-
-/** Totals as saved: the restaurant offers no discounts, so it is the subtotal plus delivery. */
-export function finalizeTotals(d: OrderDraft): { discount: number; discountKind: DiscountKind | null; total: number } {
-  return { discount: 0, discountKind: null, total: orderTotal(d.subtotal, 0, d.delivery) }
 }

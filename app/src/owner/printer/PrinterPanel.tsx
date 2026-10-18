@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { Order } from '../../domain/types.ts'
 import { Toggle } from '../../ui/ui.tsx'
-import { Fold } from '../Fold.tsx'
+import { TabHead } from '../Fold.tsx'
 import o from '../o.module.css'
 import { printer } from './printer.ts'
 import { drawTextTicket, drawTicket } from './render.ts'
@@ -55,7 +55,9 @@ export function PrinterPanel() {
       : STATUS[st.status]
 
   return (
-    <Fold id="impresora" icon="🖨️" title="Impresora de comandas" sub={sub}>
+    <>
+      <TabHead title="Impresora de comandas" sub={sub} />
+      <div className={o.panel}>
       {st.status === 'unsupported' ? (
         <div style={{ fontSize: 13, color: '#e7ddce', lineHeight: 1.5 }}>
           Para imprimir, abre este panel en el <b>celular Android con Chrome</b> que queda junto a la impresora. Desde Safari (iPhone) no se puede conectar,
@@ -158,6 +160,7 @@ export function PrinterPanel() {
           </div>
         </div>
       )}
-    </Fold>
+      </div>
+    </>
   )
 }

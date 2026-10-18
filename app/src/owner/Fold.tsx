@@ -29,3 +29,8 @@ export function Fold({ id, icon, title, sub, defaultOpen = false, children }: {
 
 /** Small heading that groups several sections. */
 export const FoldGroup = ({ children }: { children: ReactNode }) => <div className={o.foldGroup}>{children}</div>
+
+/** Title of a tab of the owner panel, with an optional status line. */
+export const TabHead = ({ title, sub }: { title: string; sub?: ReactNode }) => (
+  <div className={o.tabHead}><div className={o.tabTitle}>{title}</div>{sub && <div className={o.tabSub}>{sub}</div>}</div>
+)

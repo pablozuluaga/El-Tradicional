@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
-import { hasUnread } from '../domain/orders.ts'
+import { hasUnread, isFinished } from '../domain/orders.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { StoreProvider } from '../data/StoreProvider.tsx'
 import { AdminChat } from './AdminChat.tsx'
+import { BillingTab } from './BillingTab.tsx'
 import { MenuTab } from './MenuTab.tsx'
 import { OrdersTab } from './OrdersTab.tsx'
 import { printer } from './printer/printer.ts'
+import { PrinterPanel } from './printer/PrinterPanel.tsx'
 import { InstallBanner } from './InstallBanner.tsx'
 import { OwnerLogin } from './OwnerLogin.tsx'
 import o from './o.module.css'
 
-type Tab = 'pedidos' | 'menu'
-const TABS: [Tab, string][] = [['pedidos', '🧾 Pedidos'], ['menu', '🍽️ Menú']]
+type Tab = 'pedidos' | 'menu' | 'impresora' | 'facturacion'
+const TABS: [Tab, string, string][] = [['pedidos', '🧾', 'Pedidos'], ['menu', '🍽️', 'Menú'], ['impresora', '🖨️', 'Impresora'], ['facturacion', '📊', 'Facturación']]
 
 function Panel() {
   const store = useStore()
@@ -20,6 +22,7 @@ function Panel() {
   const [chatNum, setChatNum] = useState<number | null>(null)
   const open = snap.settings.storeOpen
   const newMsgs = snap.orders.filter(x => hasUnread(x, 'dueno')).length
+  const pending = snap.orders.filter(x => x.status !== 'rechazado' && !isFinished(x.status)).length
 
   // kitchen printer: reconnect on open, print each order as it gets accepted (see printer.ts)
   useEffect(() => { void printer.reconnect() }, [])
@@ -46,15 +49,20 @@ function Panel() {
         </button>
       </div>
       <div className={o.tabs} role="tablist">
-        {TABS.map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} className={`${o.tab} ${tab === id ? o.tabOn : ''}`} onClick={() => setTab(id)}>{label}</button>
+        {TABS.map(([id, icon, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} className={`${o.tab} ${tab === id ? o.tabOn : ''}`} onClick={() => setTab(id)}>
+            <span className={o.tabIcon} aria-hidden="true">{icon}</span>{label}
+            {id === 'pedidos' && pending > 0 && <span className={o.tabCount} aria-label={`${pending} por atender`}>{pending}</span>}
+          </button>
         ))}
       </div>
       <div className={`${o.content} noscroll`}>
         {snap.error && <div style={{ fontSize: 12, color: '#F0A0A0', marginBottom: 10 }} role="alert">{snap.error}</div>}
         <InstallBanner />
-        {tab === 'pedidos' && <OrdersTab onChat={setChatNum} />}
+        {tab === 'pedidos' && <OrdersTab onChat={setChatNum} onPrinter={() => setTab('impresora')} />}
         {tab === 'menu' && <MenuTab />}
+        {tab === 'impresora' && <PrinterPanel />}
+        {tab === 'facturacion' && <BillingTab />}
         {store.backend === 'supabase' && <button type="button" className={o.signout} onClick={() => void store.signOut()}>Cerrar sesión</button>}
       </div>
       {chatNum !== null && <AdminChat num={chatNum} onClose={() => setChatNum(null)} />}

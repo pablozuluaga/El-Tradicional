@@ -16,5 +16,6 @@ PSQL=(run "$BIN/psql" -h "$DIR" -p "$PORT" -U postgres -d postgres -v ON_ERROR_S
 "${PSQL[@]}" -f "$HERE/supabase_stub.sql"
 "${PSQL[@]}" -f "$HERE/../schema.sql"
 "${PSQL[@]}" -f "$HERE/../schema.sql"   # re-runnable
+"${PSQL[@]}" -f "$HERE/../sin-descuentos.sql"   # the one-time cleanup is harmless on a clean project
 "${PSQL[@]}" -o /dev/null -f "$HERE/rls.test.sql"
 echo "SQL tests passed"

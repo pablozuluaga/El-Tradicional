@@ -27,7 +27,6 @@ begin;
 set local role anon;
 do $$ begin
   assert (select store_open from public.settings where id = 1), 'anon reads settings';
-  assert (select jsonb_array_length(promos) from public.settings) = 0, 'no promotions seeded';
   begin update public.settings set store_open = false; assert false, 'anon update must fail';
   exception when insufficient_privilege then null; end;
   begin perform public.place_order(public.t_payload('x@example.com')); assert false, 'anon place_order must fail';
@@ -35,23 +34,21 @@ do $$ begin
 end $$;
 commit;
 
--- 2. customer A: orders at full price (no promotions)
+-- 2. customer A: orders at full price
 begin;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :'cust_a')::text, true);
 do $$
-declare o public.orders; e jsonb;
+declare o public.orders;
 begin
-  e := public.discount_eligibility('ana@example.com');
-  assert e->>'kind' is null and (e->>'rate')::numeric = 0, 'no discount: ' || e;
   o := public.place_order(public.t_payload('ana@example.com'));
   assert o.num = 1043, 'numbering starts at 1043';
-  assert o.discount = 0 and o.discount_kind is null and o.total = 35000 + 3000, 'first order at full price';
+  assert o.subtotal = 35000 and o.total = 35000 + 3000, 'first order at full price';
   assert o.customer_id = auth.uid(), 'owned by caller';
   assert (select count(*) from public.order_messages where order_num = o.num) = 1, 'welcome message';
   assert o.client_seen_id = o.owner_seen_id and o.client_seen_id > 0, 'seen ids set';
   o := public.place_order(public.t_payload('ana@example.com', 'recoger', 'trucha'));
-  assert o.num = 1044 and o.discount = 0 and o.discount_kind is null, 'no second discount';
+  assert o.num = 1044 and o.total = 35000, 'pickup: dishes only';
   assert o.delivery = 0 and o.zone_id is null and o.address = 'Recoge en el local', 'pickup ignores delivery/address';
   -- settings: RLS silently blocks a customer update
   update public.settings set store_open = false;
@@ -77,18 +74,16 @@ do $$ begin
   exception when insufficient_privilege then null; end;
   begin perform public.set_review(1043, 5, 'x', true); assert false, 'B cannot review A order';
   exception when insufficient_privilege then null; end;
-  assert (public.discount_eligibility('otra@example.com')->>'rate')::numeric = 0, 'no discount for anyone';
 end $$;
 commit;
 
--- 4. same email on a new device: still no discount
+-- 4. same email on a new device: same full price
 begin;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :'cust_a2')::text, true);
 do $$ declare o public.orders; begin
-  assert public.discount_eligibility(' ANA@example.com')->>'kind' is null, 'no discount';
   o := public.place_order(public.t_payload('Ana@Example.com'));
-  assert o.discount = 0, 'full price';
+  assert o.total = o.subtotal + o.delivery, 'full price';
 end $$;
 commit;
 
@@ -135,7 +130,6 @@ do $$ declare m public.order_messages; o public.orders; begin
   assert o.review_stars = 5 and o.review_comment = 'Muy rico' and not o.rated, 'stars clamped';
   o := public.set_review(1043, null, null, true);
   assert o.rated and o.review_stars = 5, 'rated keeps stars';
-  assert (public.discount_eligibility('ana@example.com')->>'count')::int = 2, 'count excludes nothing yet';
 end $$;
 commit;
 
@@ -175,29 +169,22 @@ do $$ begin
 end $$;
 commit;
 
--- 7. no promotions: even the 1st and the 11th order are at full price, whatever the settings say
+-- 7. every order is charged in full: dishes + delivery, the 1st, the 11th and any other
 begin;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :'cust_e')::text, true);
 do $$ declare o public.orders; i int; begin
   for i in 1..11 loop o := public.place_order(public.t_payload('e@example.com', 'recoger', 'paisa', 20000)); end loop;
-  assert (select count(*) filter (where discount > 0) from public.orders) = 0, 'no order ever gets a discount';
-  assert o.discount = 0 and o.discount_kind is null and o.total = 20000, '11th order at full price';
-  assert (public.discount_eligibility('e@example.com')->>'rate')::numeric = 0, 'no benefit pending';
+  assert o.total = 20000, '11th order at full price';
+  assert (select count(*) from public.orders where total <> subtotal + delivery) = 0, 'every order costs dishes + delivery';
 end $$;
 commit;
 
-begin;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
-update public.settings set promos = '[{"id":"primer","title":"x","sub":"x","active":true}]'::jsonb;
-select set_config('request.jwt.claims', json_build_object('sub', :'cust_f')::text, true);
-do $$ declare o public.orders; begin
-  assert public.discount_eligibility('nuevo@example.com')->>'kind' is null, 'an old promo left in the settings gives nothing';
-  o := public.place_order(public.t_payload('nuevo@example.com'));
-  assert o.discount = 0, 'new customer pays full price';
+-- the old promotion pieces are gone from the database
+do $$ begin
+  assert not exists (select 1 from information_schema.columns where table_schema = 'public' and column_name ~ 'discount|promo'), 'no discount/promo columns';
+  assert not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname ~ 'eligib|discount|update_order'), 'no discount functions';
 end $$;
-rollback;
 
 -- 8. barrio "Otro": no delivery in the total (paid on arrival); typed barrio required
 begin;
@@ -208,40 +195,7 @@ do $$ declare o public.orders; begin
   exception when raise_exception then assert sqlerrm = 'Escribe el nombre de tu barrio.', sqlerrm; end;
   o := public.place_order(public.t_payload('b@example.com') || '{"zone_id":"otro","zone_label":"La Paz"}');
   assert o.delivery = 0 and o.delivery_pending and o.zone_label = 'La Paz', 'fee pending, client value ignored';
-  assert o.total = o.subtotal - o.discount, 'total without delivery yet';
-end $$;
-commit;
-
--- 9. the customer edits their own order while it is still 'nuevo'; never someone else's or an accepted one
-begin;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub', :'cust_b')::text, true);
-do $$ declare o public.orders; n bigint; begin
-  o := public.place_order(public.t_payload('b@example.com', 'recoger', 'paisa', 35000));
-  n := o.num;
-  o := public.update_order(n, public.t_payload('b@example.com', 'domicilio', 'especial', 50000) || '{"items":"2 Bandeja Especial"}');
-  assert o.subtotal = 50000 and o.origin = 'domicilio' and o.delivery = 3000 and o.items = '2 Bandeja Especial', 'order updated';
-  assert o.total = 50000 - o.discount + 3000, 'total recomputed';
-  assert (select sender from public.order_messages where order_num = n order by id desc limit 1) = 'cliente', 'owner is told by chat';
-  assert o.client_seen_id = (select max(id) from public.order_messages where order_num = n), 'own message seen';
-  begin perform public.update_order(1043, public.t_payload('b@example.com')); assert false, 'not someone else''s order';
-  exception when insufficient_privilege then null; end;
-end $$;
-commit;
-
-begin;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
-select public.advance_order(max(num)) from public.orders where customer_id = :'cust_b';
-commit;
-
-begin;
-set local role authenticated;
-select set_config('request.jwt.claims', json_build_object('sub', :'cust_b')::text, true);
-do $$ declare n bigint; begin
-  select max(num) into n from public.orders where customer_id = (select auth.uid());
-  begin perform public.update_order(n, public.t_payload('b@example.com')); assert false, 'accepted orders are locked';
-  exception when raise_exception then assert sqlerrm like 'El restaurante ya aceptó%', sqlerrm; end;
+  assert o.total = o.subtotal, 'total without delivery yet';
 end $$;
 commit;
 

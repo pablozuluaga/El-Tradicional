@@ -264,7 +264,7 @@ export async function buildReport(rows: ReportRow[], from: string, to: string): 
   })
   if (platosVendidos.length) {
     const nota = ws.getCell(filaSub + 1 + lineasPlatos.length, colPanel)
-    nota.value = 'Total vendido: precio de lista × cantidad, antes de descuentos.'
+    nota.value = 'Total vendido: precio × cantidad.'
     nota.font = { name: 'Arial', size: 9, italic: true, color: { argb: 'FF888888' } }
   }
 

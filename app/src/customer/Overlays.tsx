@@ -60,9 +60,10 @@ export function Tour({ onDone }: { onDone: () => void }) {
   )
 }
 
-export function HelperButton({ onClick }: { onClick: () => void }) {
+/** `raised`: sits above the menu's "Ver tu pedido" bar. */
+export function HelperButton({ onClick, raised = false }: { onClick: () => void; raised?: boolean }) {
   return (
-    <button type="button" className={o.helper} onClick={onClick} title="Ayuda de Toño" aria-label="Ayuda de Toño">
+    <button type="button" className={`${o.helper} ${raised ? o.helperRaised : ''}`} onClick={onClick} title="Ayuda de Toño" aria-label="Ayuda de Toño">
       <div className="bob" style={{ width: 40, height: 46, animationDuration: '2.4s' }}><Tono variant="helper" width={40} height={46} /></div>
     </button>
   )

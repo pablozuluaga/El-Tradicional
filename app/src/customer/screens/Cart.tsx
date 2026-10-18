@@ -42,6 +42,7 @@ export function Cart() {
             </div>
           ))}
         </div>
+        {cart.length > 0 && <button type="button" className={k.addMore} onClick={() => nav(P.menu)}>＋ Añadir otro plato</button>}
       </div>
       {cart.length > 0 && (
         <div className={c.footer}>

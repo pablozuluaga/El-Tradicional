@@ -2,10 +2,21 @@
 .modeRow { display: flex; gap: 9px; margin-bottom: 18px; }
 .mode { flex: 1; padding: 13px; border-radius: 13px; border: 1.5px solid rgba(20,17,14,.12); background: #fff; cursor: pointer; font-weight: 500; color: var(--ink); font-size: 13.333px; }
 .modeOn { border-color: var(--red); background: var(--pink); font-weight: 600; }
-.selectWrap { position: relative; margin-bottom: 18px; }
-.select { width: 100%; appearance: none; -webkit-appearance: none; border: 1.5px solid var(--line-3); border-radius: 13px; padding: 13px 40px 13px 14px; font-size: 14px; color: var(--ink); background: #fff; outline: none; cursor: pointer; }
-.select:invalid { color: var(--muted); }
-.caret { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); font-size: 12px; }
+.barrio { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; border: 1.5px solid rgba(20,17,14,.12); background: #fff; cursor: pointer; padding: 13px 15px; border-radius: 13px; color: var(--ink); margin-bottom: 18px; }
+.barrioEmpty { border: 2px solid var(--red); }
+.barrioEmpty .barrioName { color: var(--red); font-weight: 700; }
+.barrioOn { border-color: var(--red); background: var(--pink); }
+.barrioName { display: block; font-size: 14.5px; font-weight: 600; }
+.barrioFee { display: block; font-size: 12px; color: var(--body); margin-top: 2px; }
+.barrioCaret { color: var(--red); font-size: 14px; }
+.barrioChange { font-size: 12.5px; font-weight: 600; color: var(--red); text-decoration: underline; flex-shrink: 0; }
+.picker { border: 2px solid var(--red); border-radius: 14px; background: #fff; margin-bottom: 18px; overflow: hidden; }
+.pickerHead { padding: 11px 14px; font-size: 13px; font-weight: 700; color: var(--red); background: var(--pink); }
+.pickerList { display: flex; flex-direction: column; max-height: 340px; overflow-y: auto; }
+.zoneOpt { display: flex; justify-content: space-between; align-items: center; gap: 10px; border: none; border-top: 1px solid var(--line); background: #fff; cursor: pointer; padding: 13px 14px; font-size: 14px; color: var(--ink); text-align: left; }
+.zoneOptOn { background: var(--pink); font-weight: 600; }
+.zoneFee { font-size: 12.5px; color: var(--body); flex-shrink: 0; }
+.zoneOther { border: none; border-top: 1px dashed rgba(20,17,14,.24); background: #FBF8F3; cursor: pointer; padding: 13px 14px; font-size: 13px; color: var(--body); text-align: left; }
 .stack { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
 .addr { text-align: left; border: 1.5px solid rgba(20,17,14,.12); background: #fff; cursor: pointer; padding: 12px 15px; border-radius: 13px; color: var(--ink); }
 .addrOn { border-color: var(--red); background: var(--pink); }

@@ -1,12 +1,11 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 import { defaultSettings } from '../domain/catalog.ts'
 import { reportRange, reportRows } from '../domain/report.ts'
-import type { Eligibility, Order, OrderDraft, Settings } from '../domain/types.ts'
+import type { Order, OrderDraft, Settings } from '../domain/types.ts'
 import { visibleOrders } from '../domain/orders.ts'
-import { withPromos } from '../domain/loyalty.ts'
 import { SUPABASE_KEY, SUPABASE_URL } from './backend.ts'
 import {
-  draftToPayload, mergeOrderRow, rowToEligibility, rowToMessage, rowToOrder, rowToSettings, settingsPatchToRow, withMessage,
+  draftToPayload, mergeOrderRow, rowToMessage, rowToOrder, rowToSettings, settingsPatchToRow, withMessage,
   type MessageRow, type OrderRow, type SettingsRow,
 } from './supabaseMappers.ts'
 import { StoreError, type ReviewPatch, type RestaurantStore, type Role, type Snapshot } from './store.ts'
@@ -45,16 +44,13 @@ export class SupabaseStore implements RestaurantStore {
   private sb: SupabaseClient
   private listeners = new Set<() => void>()
   private snap: Snapshot = {
-    ready: false, authorized: false, error: null, settings: defaultSettings(), orders: [], eligibility: { rate: 0, kind: null, count: 0 },
+    ready: false, authorized: false, error: null, settings: defaultSettings(), orders: [],
   }
   private uid: string | null = null
-  private email = ''
   private channel: RealtimeChannel | null = null
   private needsResync = false
   private disposed = false
   private unsubAuth: (() => void) | null = null
-  private eligTimer: ReturnType<typeof setTimeout> | null = null
-  private serverElig: Eligibility = { rate: 0, kind: null, count: 0 }
 
   constructor(role: Role) {
     this.role = role
@@ -73,11 +69,6 @@ export class SupabaseStore implements RestaurantStore {
     if (this.disposed) return
     const next = { ...this.snap, ...p }
     if (p.orders || p.settings) next.orders = visibleOrders(next.orders, next.settings)
-    // the discount follows the panel's promotion switches right away (the server applies the same rule)
-    if (p.eligibility) this.serverElig = p.eligibility
-    if (p.eligibility || p.settings) next.eligibility = withPromos(this.serverElig, next.settings.promos)
-    // a promotion switched back on: ask the server again, since its last answer had it off
-    if (p.settings && JSON.stringify(p.settings.promos) !== JSON.stringify(this.snap.settings.promos)) this.scheduleEligibility()
     this.snap = next
     this.listeners.forEach(l => l())
   }
@@ -114,7 +105,6 @@ export class SupabaseStore implements RestaurantStore {
         await this.loadOrders()
         this.subscribeRealtime()
         this.set({ ready: true, authorized: true })
-        this.scheduleEligibility()
       }
     } catch (e) {
       this.set({ ready: true, error: 'No pudimos conectarnos con el restaurante. Revisa tu conexión e intenta de nuevo.' })
@@ -142,7 +132,6 @@ export class SupabaseStore implements RestaurantStore {
     try {
       await Promise.all([this.loadSettings(), this.loadOrders()])
       this.set({ error: null })
-      this.scheduleEligibility()
     } catch (e) {
       console.error('[supabase] resync', e)
     }
@@ -154,7 +143,6 @@ export class SupabaseStore implements RestaurantStore {
     this.unsubAuth?.()
     document.removeEventListener('visibilitychange', this.onVisible)
     window.removeEventListener('online', this.onVisible)
-    if (this.eligTimer) clearTimeout(this.eligTimer)
     this.listeners.clear()
   }
 
@@ -214,7 +202,6 @@ export class SupabaseStore implements RestaurantStore {
         const prev = this.snap.orders.find(o => o.num === num)
         if (prev) this.upsertOrder(mergeOrderRow(prev, r))
         else void this.refreshOrder(num)
-        if (this.role === 'customer') this.scheduleEligibility()
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_messages' }, p => {
         const m = p.new as MessageRow
@@ -238,21 +225,6 @@ export class SupabaseStore implements RestaurantStore {
   }
 
   // ---- customer ------------------------------------------------------------------
-  setCustomerEmail(email: string) {
-    if (email === this.email) return
-    this.email = email
-    this.scheduleEligibility()
-  }
-
-  private scheduleEligibility() {
-    if (this.role !== 'customer' || !this.uid) return
-    if (this.eligTimer) clearTimeout(this.eligTimer)
-    this.eligTimer = setTimeout(async () => {
-      const { data, error } = await this.sb.rpc('discount_eligibility', { p_email: this.email })
-      if (!error) this.set({ eligibility: rowToEligibility(data) })
-    }, 150)
-  }
-
   async placeOrder(draft: OrderDraft): Promise<Order> {
     if (!this.uid) fail(null, 'No pudimos conectarnos. Revisa tu conexión e intenta de nuevo.')
     const { data, error } = await this.sb.rpc('place_order', { p: draftToPayload(draft) })
@@ -261,7 +233,6 @@ export class SupabaseStore implements RestaurantStore {
     const msgs = await this.loadMessages([Number(row.num)]).catch(() => new Map())
     const order = rowToOrder(row, msgs.get(Number(row.num)) ?? [])
     this.upsertOrder(order)
-    this.scheduleEligibility()
     return order
   }
 

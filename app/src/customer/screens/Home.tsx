@@ -22,7 +22,6 @@ export function Home() {
   const snap = useSnapshot()
   const [dev, setDev] = useDevice()
   const s = snap.settings
-  const promos = s.promos.filter(p => p.active && !(p.id === 'primer' && snap.eligibility.kind !== 'primer'))
   const featured = FEATURED_IDS.map(id => dishById(s, id)).filter(d => d !== null)
   const extras = specials(s).filter(isExtra)
   const order = (mode: Origin) => { setDev({ mode }); nav(P.menu) }
@@ -65,20 +64,6 @@ export function Home() {
           <span className={h.quickSub} style={{ color: 'rgba(240,183,160,.9)' }}>Sin costo de envío</span>
         </button>
       </div>
-
-      {promos.length > 0 && (
-        <>
-          <SectionHeading first eyebrow="Ofertas" title="Promociones" sub="Cupones y descuentos vigentes" />
-          <div className={`${h.promos} xscroll`}>
-            {promos.map(p => (
-              <button key={p.id} type="button" className={h.promo} onClick={() => nav(P.menu)}>
-                <div className={h.promoTitle}>{p.title}</div>
-                <div className={h.promoSub}>{p.sub}</div>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
 
       <SectionHeading eyebrow="Galería" title="El Tradicional por dentro" sub="Un vistazo al local y la cocina" />
       <div className={`${h.gallery} xscroll`}>

@@ -1,5 +1,5 @@
 import { defaultSettings } from '../domain/catalog.ts'
-import type { ChatMessage, DayId, DiscountKind, Eligibility, Order, OrderDraft, OrderLine, OrderStatus, Origin, Sender, Settings } from '../domain/types.ts'
+import type { ChatMessage, DayId, DiscountKind, Order, OrderDraft, OrderLine, OrderStatus, Origin, Sender, Settings } from '../domain/types.ts'
 
 /** Row shapes of the tables in supabase/schema.sql. */
 export interface SettingsRow {
@@ -177,11 +177,6 @@ export const draftToPayload = (d: OrderDraft) => ({
   delivery: d.delivery,
   pay: d.pay,
 })
-
-export function rowToEligibility(v: { rate: number | string; kind: string | null; count: number } | null): Eligibility {
-  if (!v) return { rate: 0, kind: null, count: 0 }
-  return { rate: Number(v.rate), kind: (v.kind as DiscountKind | null) ?? null, count: Number(v.count) }
-}
 
 /** Adds a message to an order once (realtime and RPC results can both deliver it). */
 export function withMessage(o: Order, m: ChatMessage): Order {

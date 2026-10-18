@@ -21,7 +21,7 @@ export function NameGate() {
           <div className="bob" style={{ flex: 'none', width: 76, height: 88, animationDuration: '2.4s' }}><Tono variant="gate" width={76} height={88} /></div>
           <div style={{ flex: 1, paddingTop: 6 }}>
             <div className={o.title} id="gate-title">¡Bienvenido a El Tradicional!</div>
-            <div className={o.body}>Soy Toño, tu guía en la app. Para comenzar, cuéntame tu nombre y correo. Así los pedidos quedan a tu nombre y podemos enviarte descuentos y novedades.</div>
+            <div className={o.body}>Soy Toño, tu guía en la app. Para comenzar, cuéntame tu nombre y correo. Así los pedidos quedan a tu nombre y te avisamos cómo va cada uno.</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>

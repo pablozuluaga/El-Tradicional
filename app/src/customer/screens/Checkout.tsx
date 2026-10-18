@@ -2,11 +2,10 @@ import { useRef, useState } from 'react'
 import { newId } from '../../domain/ids.ts'
 import { useNavigate } from 'react-router-dom'
 import { OTHER_ZONE_ID, PAYS } from '../../domain/catalog.ts'
-import { discountName } from '../../domain/loyalty.ts'
 import { fmt } from '../../domain/format.ts'
 import { itemsDetail, itemsSummary, orderLines, packAddressNotes } from '../../domain/orders.ts'
 import { isPhone } from '../../domain/placement.ts'
-import { deliveryFee, discountFor, isOtherZone, orderTotal, subtotal, zoneById, zonesOf } from '../../domain/pricing.ts'
+import { deliveryFee, isOtherZone, orderTotal, subtotal, zoneById, zonesOf } from '../../domain/pricing.ts'
 import type { OrderDraft } from '../../domain/types.ts'
 import type { Address } from '../../data/device.ts'
 import { useDevice, useSnapshot, useStore } from '../../data/hooks.ts'
@@ -38,9 +37,8 @@ export function Checkout() {
   const zones = zonesOf(snap.settings)
   const zone = other ? { id: OTHER_ZONE_ID, label: otherName, fee: 0 } : zoneById(dev.zone, zones)
   const sub = subtotal(dev.cart, dev.mode)
-  const discount = discountFor(sub, snap.eligibility.rate)
   const fee = deliveryFee(dev.mode, dev.zone || null, zones)
-  const total = orderTotal(sub, discount, fee)
+  const total = orderTotal(sub, 0, fee)
   const saved = dev.addresses.find(a => a.id === dev.selectedAddr) ?? null
   const formOpen = dev.selectedAddr === 'new' || dev.addresses.length === 0 || !saved
 
@@ -177,7 +175,6 @@ export function Checkout() {
       </div>
       <div className={c.footer}>
         <div className={k.row}><span>Subtotal</span><span>{fmt(sub)}</span></div>
-        {discount > 0 && <div className={k.row} style={{ color: 'var(--red)' }}><span>{discountName(snap.eligibility.kind)}</span><span>−{fmt(discount)}</span></div>}
         <div className={k.row} style={{ marginBottom: 10 }}>
           <span>Domicilio{dom ? '' : ' (recoge en local)'}</span><span>{!dom ? 'Recoge' : other ? 'Se paga al recibir' : zone ? fmt(fee) : '—'}</span>
         </div>

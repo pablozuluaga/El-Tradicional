@@ -207,7 +207,7 @@ export function Install() {
         <div className={x.hero}>
           <img className={x.logo} src="/assets/logo.jpeg" alt="El Tradicional" />
           <div className={x.title}>Instala la app de<br />El Tradicional</div>
-          <div className={x.sub}>Gratis, sin tiendas y sin contraseñas. -20% en tu primer pedido.</div>
+          <div className={x.sub}>Gratis, sin tiendas y sin contraseñas.</div>
         </div>
         <div className={x.body}>
           {mode === 'desktop' && (

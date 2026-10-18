@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { draftToPayload, mergeOrderRow, rowToEligibility, rowToMessage, rowToOrder, rowToSettings, settingsPatchToRow, withMessage, type OrderRow } from '../src/data/supabaseMappers.ts'
+import { draftToPayload, mergeOrderRow, rowToMessage, rowToOrder, rowToSettings, settingsPatchToRow, withMessage, type OrderRow } from '../src/data/supabaseMappers.ts'
 
 const row: OrderRow = {
   num: 1043, customer_id: 'u1', name: 'Ana', email: 'a@b.co', phone: '—', origin: 'domicilio', zone_id: 'obrero', zone_label: 'El Obrero',
@@ -47,10 +47,8 @@ test('order row → domain, chat sorted, messages deduplicated', () => {
   assert.equal(merged.chat.length, 2)
 })
 
-test('payload and eligibility', () => {
+test('order payload', () => {
   const p = draftToPayload({ customerId: 'u1', name: 'Ana', email: 'a@b.co', phone: '—', origin: 'recoger', zoneId: null, zoneLabel: null, address: 'Recoge en el local', addressNotes: '', items: 'x', itemsList: ['x'], lines: [], subtotal: 1, delivery: 0, pay: 'Efectivo' })
   assert.equal(p.zone_id, null)
   assert.equal('customerId' in p, false)
-  assert.deepEqual(rowToEligibility({ rate: '0.2', kind: 'primer', count: 0 }), { rate: 0.2, kind: 'primer', count: 0 })
-  assert.deepEqual(rowToEligibility(null), { rate: 0, kind: null, count: 0 })
 })

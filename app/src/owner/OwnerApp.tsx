@@ -8,11 +8,10 @@ import { OrdersTab } from './OrdersTab.tsx'
 import { printer } from './printer/printer.ts'
 import { InstallBanner } from './InstallBanner.tsx'
 import { OwnerLogin } from './OwnerLogin.tsx'
-import { PromosTab } from './PromosTab.tsx'
 import o from './o.module.css'
 
-type Tab = 'pedidos' | 'menu' | 'promos'
-const TABS: [Tab, string][] = [['pedidos', '🧾 Pedidos'], ['menu', '🍽️ Menú'], ['promos', '🎁 Promos']]
+type Tab = 'pedidos' | 'menu'
+const TABS: [Tab, string][] = [['pedidos', '🧾 Pedidos'], ['menu', '🍽️ Menú']]
 
 function Panel() {
   const store = useStore()
@@ -56,7 +55,6 @@ function Panel() {
         <InstallBanner />
         {tab === 'pedidos' && <OrdersTab onChat={setChatNum} />}
         {tab === 'menu' && <MenuTab />}
-        {tab === 'promos' && <PromosTab />}
         {store.backend === 'supabase' && <button type="button" className={o.signout} onClick={() => void store.signOut()}>Cerrar sesión</button>}
       </div>
       {chatNum !== null && <AdminChat num={chatNum} onClose={() => setChatNum(null)} />}

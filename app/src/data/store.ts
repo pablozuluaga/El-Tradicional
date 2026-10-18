@@ -1,4 +1,4 @@
-import type { Eligibility, Order, OrderDraft, Settings } from '../domain/types.ts'
+import type { Order, OrderDraft, Settings } from '../domain/types.ts'
 import type { ReportRow } from '../domain/report.ts'
 
 export type Role = 'customer' | 'owner'
@@ -8,8 +8,6 @@ export interface Snapshot {
   settings: Settings
   /** Customer: their own orders. Owner: recent + open orders. Newest first. */
   orders: Order[]
-  /** Customer only: benefit status for the next order. */
-  eligibility: Eligibility
   /** Owner (Supabase): signed in as an owner account. Always true in local mode. */
   authorized: boolean
   error: string | null
@@ -24,8 +22,6 @@ export interface RestaurantStore {
   getSnapshot(): Snapshot
   /** Customer id bound to this device (local uuid or Supabase anonymous user). */
   customerId(): string | null
-  /** Customer: tell the store which email to use for benefit eligibility. */
-  setCustomerEmail(email: string): void
 
   // owner
   updateSettings(fn: (s: Settings) => Partial<Settings>): Promise<void>

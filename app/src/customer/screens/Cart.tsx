@@ -49,7 +49,7 @@ export function Cart() {
             Recuerda que la bebida va incluida con tu plato, sin costo adicional. ¡Disfruta tu comida!
           </TonoTip>
           <div className={k.row}><span>Subtotal</span><span>{sub}</span></div>
-          <div className={k.note}>Domicilio y descuentos se calculan al confirmar.</div>
+          <div className={k.note}>El domicilio se calcula al confirmar.</div>
           <button type="button" className={`${c.primary} ${k.cta}`} onClick={() => nav(P.checkout)}><span>Continuar</span><span>{sub}</span></button>
         </div>
       )}

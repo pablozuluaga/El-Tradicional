@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { useDevice, useSnapshot, useStore } from '../data/hooks.ts'
+import { useDevice, useSnapshot } from '../data/hooks.ts'
 import { StoreProvider } from '../data/StoreProvider.tsx'
 import { BottomNav } from './BottomNav.tsx'
 import { HelperButton, NameGate, Tour } from './Overlays.tsx'
@@ -19,13 +19,11 @@ import { Profile } from './screens/Profile.tsx'
 const NAV_PATHS = [P.home, P.menu, P.cart, P.profile, P.orders]
 
 function Shell() {
-  const store = useStore()
   const { error } = useSnapshot()
   const [dev, setDev] = useDevice()
   const { pathname } = useLocation()
   const nav = useNavigate()
 
-  useEffect(() => { store.setCustomerEmail(dev.email) }, [store, dev.email])
   useEffect(() => {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#FFFFFF')
   }, [])

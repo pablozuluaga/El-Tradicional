@@ -46,7 +46,7 @@ function Shell() {
         <Route path="*" element={<Home />} />
       </Routes>
       {(pathname === P.home || pathname === P.menu) && !showTour && (
-        <HelperButton onClick={() => { setDev({ tourDone: false }); nav(P.home) }} />
+        <HelperButton raised={pathname === P.menu && dev.cart.length > 0} onClick={() => { setDev({ tourDone: false }); nav(P.home) }} />
       )}
       {NAV_PATHS.includes(pathname) && <BottomNav />}
       {!dev.gateDone && <NameGate />}

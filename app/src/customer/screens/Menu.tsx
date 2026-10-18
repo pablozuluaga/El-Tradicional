@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { allDishes, categories, isExtra } from '../../domain/menu.ts'
-import { useSnapshot } from '../../data/hooks.ts'
+import { fmt } from '../../domain/format.ts'
+import { subtotal } from '../../domain/pricing.ts'
+import { useDevice, useSnapshot } from '../../data/hooks.ts'
 import { TonoTip } from '../../ui/ui.tsx'
 import ui from '../../ui/ui.module.css'
 import { DishCard } from '../DishCard.tsx'
@@ -12,6 +14,8 @@ import m from './Menu.module.css'
 export function Menu() {
   const nav = useNavigate()
   const s = useSnapshot().settings
+  const [dev] = useDevice()
+  const inCart = dev.cart.reduce((n, it) => n + it.qty, 0)
   const [cat, setCat] = useState('Todos')
   const cats = categories(s)
   const active = cats.includes(cat) ? cat : 'Todos'
@@ -44,6 +48,13 @@ export function Menu() {
         {extras.length > 0 && <div className={m.groupHead}>Bebidas y postres <span>· todos los platos ya incluyen jugo</span></div>}
         {extras.map(d => <DishCard key={d.id} d={d} s={s} onOpen={() => nav(P.dish(d.id))} />)}
       </div>
+      {inCart > 0 && (
+        <div className={m.cartBarWrap}>
+          <button type="button" className={m.cartBar} onClick={() => nav(P.cart)}>
+            <span>Ver tu pedido ({inCart} {inCart === 1 ? 'plato' : 'platos'})</span><span>{fmt(subtotal(dev.cart, dev.mode))}</span>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

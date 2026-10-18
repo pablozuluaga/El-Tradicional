@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { newId } from '../../domain/ids.ts'
 import { useNavigate } from 'react-router-dom'
 import { OTHER_ZONE_ID, PAYS } from '../../domain/catalog.ts'
@@ -39,6 +39,12 @@ export function Checkout() {
   const sub = subtotal(dev.cart, dev.mode)
   const fee = deliveryFee(dev.mode, dev.zone || null, zones)
   const total = orderTotal(sub, 0, fee)
+  const [pickOpen, setPickOpen] = useState(false)
+  // "Otro" (or a barrio the owner removed) is never kept from a past order: each order starts by choosing from the list
+  useEffect(() => {
+    if (dev.zone && (dev.zone === OTHER_ZONE_ID || !zoneById(dev.zone, zones))) setDev({ zone: '' })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const pickZone = (id: string) => { setDev({ zone: id }); setPickOpen(false); setError('') }
   const saved = dev.addresses.find(a => a.id === dev.selectedAddr) ?? null
   const formOpen = dev.selectedAddr === 'new' || dev.addresses.length === 0 || !saved
 
@@ -57,7 +63,7 @@ export function Checkout() {
     if (!snap.settings.storeOpen) { setError('La cocina está cerrada en este momento. Atendemos 11:30am – 4pm.'); return }
     let addr = saved
     if (dom) {
-      if (!zone) { setError('Selecciona tu barrio.'); return }
+      if (!zone) { setPickOpen(true); setError('Elige tu barrio en la lista.'); return }
       if (other && !otherName) { setError('Escribe el nombre de tu barrio.'); return }
       addr = formOpen ? saveAddr() : saved
       if (!addr) { setError('Escribe la dirección de entrega.'); return }
@@ -106,19 +112,42 @@ export function Checkout() {
 
         {dom && (
           <>
-            <label className={c.label} htmlFor="barrio" style={{ display: 'block' }}>Barrio <span className={c.req}>*</span></label>
-            <div className={k.selectWrap}>
-              <select id="barrio" required className={k.select} value={dev.zone} onChange={e => { setDev({ zone: e.target.value }); setError('') }}>
-                <option value="" disabled>Selecciona tu barrio…</option>
-                {zones.map(z => <option key={z.id} value={z.id}>{z.label}</option>)}
-                <option value={OTHER_ZONE_ID}>Otro (escribe tu barrio)</option>
-              </select>
-              <span className={k.caret}>▾</span>
-            </div>
-            {other && (
+            <div className={c.label} id="barrio-label">Barrio <span className={c.req}>*</span></div>
+            {!pickOpen && (
+              zone ? (
+                <button type="button" className={`${k.barrio} ${k.barrioOn}`} onClick={() => setPickOpen(true)}>
+                  <span><span className={k.barrioName}>{other ? 'Otro barrio' : zone.label}</span>
+                    <span className={k.barrioFee}>{other ? 'Domicilio: se paga al recibir' : `Domicilio ${zone.fee ? fmt(zone.fee) : 'sin costo'}`}</span></span>
+                  <span className={k.barrioChange}>Cambiar</span>
+                </button>
+              ) : (
+                <button type="button" className={`${k.barrio} ${k.barrioEmpty}`} aria-expanded={false} onClick={() => setPickOpen(true)}>
+                  <span className={k.barrioName}>Elige tu barrio</span><span className={k.barrioCaret} aria-hidden="true">▾</span>
+                </button>
+              )
+            )}
+            {pickOpen && (
+              <div className={k.picker}>
+                <div className={k.pickerHead}>Toca tu barrio en la lista</div>
+                <div className={k.pickerList} role="radiogroup" aria-labelledby="barrio-label">
+                  {zones.map(z => {
+                    const on = dev.zone === z.id
+                    return (
+                      <button key={z.id} type="button" role="radio" aria-checked={on} className={`${k.zoneOpt} ${on ? k.zoneOptOn : ''}`} onClick={() => pickZone(z.id)}>
+                        <span>{z.label}</span><span className={k.zoneFee}>{z.fee ? fmt(z.fee) : 'Sin costo'}</span>
+                      </button>
+                    )
+                  })}
+                  <button type="button" role="radio" aria-checked={other} className={`${k.zoneOther} ${other ? k.zoneOptOn : ''}`} onClick={() => pickZone(OTHER_ZONE_ID)}>
+                    Mi barrio no está en la lista (Otro)
+                  </button>
+                </div>
+              </div>
+            )}
+            {other && !pickOpen && (
               <>
                 <input className={k.phone} style={{ marginTop: -8 }} value={dev.zoneOther} onChange={e => { setDev({ zoneOther: e.target.value }); setError('') }}
-                  placeholder="¿En qué barrio estás?" aria-label="Tu barrio" maxLength={80} autoFocus />
+                  placeholder="Escribe el nombre de tu barrio" aria-label="Tu barrio" maxLength={80} autoFocus />
                 <div className={c.notice} role="note" style={{ marginTop: -6, marginBottom: 18 }}>
                   <span className={c.noticeIcon} aria-hidden="true">🛵</span>
                   <div><b>El domicilio se paga al recibir el pedido</b>Como tu barrio no está en la lista, el valor del domicilio no va en este total: se cobra al momento de la entrega.</div>

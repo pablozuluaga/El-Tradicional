@@ -1,60 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { dateTime, fmt, orderId } from '../domain/format.ts'
 import { discountName } from '../domain/loyalty.ts'
 import { advanceLabel, BAR_COLORS, canReject, hasUnread, isFinished, isOtherZoneOrder, MAX_DELIVERY_FEE, originLabel, OWNER_BADGE, ownerAmounts, splitAddressNotes, STAGE, STAGE_MAX, ordersInPeriod, type OrderPeriod } from '../domain/orders.ts'
 import type { Order } from '../domain/types.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { UnreadDot } from '../ui/ui.tsx'
-import { downloadBlob } from './download.ts'
-import { buildReport } from './report.ts'
-import { Fold } from './Fold.tsx'
+import { TabHead } from './Fold.tsx'
 import { printer } from './printer/printer.ts'
-import { PrinterPanel } from './printer/PrinterPanel.tsx'
 import { usePrinter } from './printer/usePrinter.ts'
 import o from './o.module.css'
-
-function ReportCard() {
-  const store = useStore()
-  const snap = useSnapshot()
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [count, setCount] = useState<number | null>(null)
-  const [msg, setMsg] = useState('')
-
-  useEffect(() => {
-    let alive = true
-    const t = setTimeout(() => { store.reportCount(from, to).then(n => { if (alive) setCount(n) }, () => {}) }, 250)
-    return () => { alive = false; clearTimeout(t) }
-  }, [store, from, to, snap.orders])
-
-  const download = async () => {
-    try {
-      const rows = await store.reportRows(from, to)
-      if (!rows.length) { setMsg('No hay pedidos en ese rango de fechas.'); return }
-      setMsg('Generando el reporte…')
-      const { blob, name } = await buildReport(rows, from, to)
-      downloadBlob(blob, name)
-      setMsg('Listo: ' + name + ' · ' + rows.length + ' pedidos.')
-    } catch {
-      setMsg('No se pudo generar el archivo. Revisa la conexión e intenta de nuevo.')
-    }
-  }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        <label style={{ flex: 1 }}><div className={o.small}>Desde</div><input type="date" className={o.dateInput} value={from} max={to || undefined} onChange={e => { setFrom(e.target.value); setMsg('') }} /></label>
-        <label style={{ flex: 1 }}><div className={o.small}>Hasta</div><input type="date" className={o.dateInput} value={to} min={from || undefined} onChange={e => { setTo(e.target.value); setMsg('') }} /></label>
-      </div>
-      <button type="button" className={o.greenBtn} onClick={download}>⬇ Descargar reporte en Excel (.xlsx)</button>
-      <div className={o.hint}>
-        Archivo con formato profesional: pedidos, cliente, detalle, pago, totales y resumen del periodo. Los pedidos rechazados o eliminados no se incluyen.
-        {count !== null && <> {count} {count === 1 ? 'pedido en el rango' : 'pedidos en el rango'}.</>}
-      </div>
-      {msg && <div className={o.msg} role="status">{msg}</div>}
-    </div>
-  )
-}
 
 /** WhatsApp wants the country code: Colombian mobiles are 10 digits starting with 3. */
 const waNumber = (digits: string) => (digits.length === 10 && digits.startsWith('3') ? '57' + digits : digits)
@@ -211,7 +165,7 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
 
 const PERIODS: { id: OrderPeriod; label: string }[] = [{ id: 'hoy', label: 'Hoy' }, { id: 'semana', label: 'Esta semana' }, { id: 'todos', label: 'Todos' }]
 
-export function OrdersTab({ onChat }: { onChat: (num: number) => void }) {
+export function OrdersTab({ onChat, onPrinter }: { onChat: (num: number) => void; onPrinter: () => void }) {
   const all = useSnapshot().orders
   const [openNum, setOpenNum] = useState<number | null>(null)
   const [period, setPeriod] = useState<OrderPeriod>('hoy')
@@ -221,6 +175,8 @@ export function OrdersTab({ onChat }: { onChat: (num: number) => void }) {
   const pr = usePrinter()
   const fees = useSnapshot().settings.deliveryFees
   const failed = pr.failed !== null ? all.find(x => x.num === pr.failed) : undefined
+  // a printer was set up here but is not connected: accepted orders would not come out
+  const printerDown = !failed && pr.auto && pr.name !== null && (pr.status === 'off' || pr.status === 'error')
   return (
     <>
       {failed && (
@@ -229,9 +185,13 @@ export function OrdersTab({ onChat }: { onChat: (num: number) => void }) {
           <button type="button" className={o.smallRed} onClick={() => void printer.printOrder(failed, fees)}>Reintentar</button>
         </div>
       )}
-      <PrinterPanel />
-      <Fold id="pedidos" icon="🧾" title="Pedidos" defaultOpen
-        sub={`${today.length} ${today.length === 1 ? 'pedido' : 'pedidos'} hoy${pending ? ` · ${pending} por atender` : ''}`}>
+      {printerDown && (
+        <div className={o.printAlert} role="alert">
+          <span>🖨 La impresora no está conectada: los pedidos no saldrán impresos.</span>
+          <button type="button" className={o.smallRed} onClick={onPrinter}>Conectar</button>
+        </div>
+      )}
+      <TabHead title="Pedidos" sub={`${today.length} ${today.length === 1 ? 'pedido' : 'pedidos'} hoy${pending ? ` · ${pending} por atender` : ''}`} />
       <div className={o.chipsWrap} role="tablist" aria-label="Mostrar pedidos de" style={{ marginBottom: 12 }}>
         {PERIODS.map(p => {
           const n = ordersInPeriod(all, p.id).length
@@ -249,10 +209,6 @@ export function OrdersTab({ onChat }: { onChat: (num: number) => void }) {
           <OrderCard key={ord.num} ord={ord} open={openNum === ord.num} onToggle={() => setOpenNum(v => (v === ord.num ? null : ord.num))} onChat={() => onChat(ord.num)} />
         ))}
       </div>
-      </Fold>
-      <Fold id="reporte" icon="📊" title="Reporte para facturación" sub="Descarga en Excel los pedidos de un rango de fechas">
-        <ReportCard />
-      </Fold>
     </>
   )
 }

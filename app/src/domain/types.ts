@@ -102,6 +102,8 @@ export interface Settings {
   customExtras: { id: string; name: string; price: number }[]
   /** the owner's barrios with their delivery price; null = the default list (ZONES) */
   zones: { id: string; label: string; fee: number }[] | null
+  /** the barrios lost by an older version were brought back from the orders (done once) */
+  zonesRestored: boolean
   /** plate add-ons the owner created (next to the proteins, rice and fries) */
   customAddons: { id: string; label: string; price: number }[]
   customDishes: CustomDish[]

@@ -186,6 +186,10 @@ export class LocalStore implements RestaurantStore {
 
   async reportRows(from: string, to: string) { const d = readDoc(); return reportRows(d.orders, from, to, d.settings.deliveryFees, d.settings.deletedOrders) }
   async reportCount(from: string, to: string) { const d = readDoc(); return reportRows(d.orders, from, to, {}, d.settings.deletedOrders).length }
+  async zoneHistory() {
+    return readDoc().orders.filter(o => o.origin === 'domicilio' && o.zoneId).reverse()
+      .map(o => ({ id: o.zoneId!, label: o.zoneLabel ?? '', fee: o.delivery }))
+  }
 
   async signIn() {}
   async signOut() {}

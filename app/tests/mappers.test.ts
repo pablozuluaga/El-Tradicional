@@ -52,3 +52,15 @@ test('order payload', () => {
   assert.equal(p.zone_id, null)
   assert.equal('customerId' in p, false)
 })
+
+test('saving a setting keeps the barrios and anything this version does not know', () => {
+  const stored = { paisa: 'Nueva', __app: { zones: [{ id: 'z1', label: 'Zúñiga', fee: 5000 }], somethingNewer: { a: 1 } } } as unknown as Record<string, string>
+  const base = rowToSettings({ id: 1, store_open: true, plato_dia: null, day_off: {}, sold_proteins: {}, sold_dishes: {}, juices: null, desc_overrides: stored })
+  assert.deepEqual(base.zones, [{ id: 'z1', label: 'Zúñiga', fee: 5000 }])
+  const row = settingsPatchToRow({ deletedOrders: { 1043: true } }, { ...base, deletedOrders: { 1043: true } }, stored)
+  const bag = (row.desc_overrides as unknown as Record<string, Record<string, unknown>>).__app
+  assert.deepEqual(bag.zones, [{ id: 'z1', label: 'Zúñiga', fee: 5000 }])
+  assert.deepEqual(bag.somethingNewer, { a: 1 })
+  assert.deepEqual(bag.deletedOrders, { 1043: true })
+  assert.equal((row.desc_overrides as Record<string, unknown>).paisa, 'Nueva')
+})

@@ -1,6 +1,7 @@
 import type { Order, OrderDraft, Settings } from '../domain/types.ts'
 import type { ReportRow } from '../domain/report.ts'
 import type { ZoneUse } from '../domain/pricing.ts'
+import type { Zone } from '../domain/catalog.ts'
 
 export type Role = 'customer' | 'owner'
 
@@ -32,6 +33,10 @@ export interface RestaurantStore {
   reportCount(from: string, to: string): Promise<number>
   /** every barrio customers chose on an order, newest first (to bring back barrios that were lost) */
   zoneHistory(): Promise<ZoneUse[]>
+  /** barrios: each one is saved on its own, so no other change can undo it */
+  addZone(z: Zone): Promise<void>
+  setZoneFee(id: string, fee: number): Promise<void>
+  removeZone(id: string): Promise<void>
 
   // customer
   placeOrder(draft: OrderDraft): Promise<Order>

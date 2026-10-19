@@ -199,4 +199,42 @@ do $$ declare o public.orders; begin
 end $$;
 commit;
 
+-- 10. barrios: everyone reads them, only the owner changes them, each one on its own
+begin;
+set local role anon;
+do $$ begin
+  assert (select count(*) from public.zones) = 28, 'original list seeded, readable by anyone';
+  assert (select label from public.zones order by ord limit 1) = 'La Magnolia', 'in the original order';
+  begin insert into public.zones (id, label, fee) values ('x', 'X', 1); assert false, 'anon cannot add';
+  exception when insufficient_privilege then null; end;
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'cust_b')::text, true);
+do $$ begin
+  begin insert into public.zones (id, label, fee) values ('x', 'X', 1); assert false, 'customer cannot add';
+  exception when insufficient_privilege then null; end;
+  update public.zones set fee = 1 where id = 'magnolia';
+  delete from public.zones where id = 'magnolia';
+  assert (select fee from public.zones where id = 'magnolia') = 0, 'customer cannot change or remove';
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'owner')::text, true);
+do $$ begin
+  insert into public.zones (id, label, fee) values ('zNuevo', 'Barrio Nuevo', 4500);
+  -- saving other settings with an old list inside does not touch the barrios
+  update public.settings set desc_overrides = jsonb_build_object('__app', jsonb_build_object('zones', '[]'::jsonb)) where id = 1;
+  assert (select fee from public.zones where id = 'zNuevo') = 4500, 'barrio stays after other settings are saved';
+  update public.zones set fee = 5000 where id = 'zNuevo';
+  assert (select fee from public.zones where id = 'zNuevo') = 5000, 'owner changes the price';
+  delete from public.zones where id = 'zNuevo';
+  assert not exists (select 1 from public.zones where id = 'zNuevo'), 'owner removes on purpose';
+end $$;
+commit;
+
 drop function public.t_payload(text, text, text, int);

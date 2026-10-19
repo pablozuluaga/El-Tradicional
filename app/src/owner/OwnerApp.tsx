@@ -34,11 +34,10 @@ function Panel() {
   useEffect(() => {
     if (!snap.ready || !snap.authorized || restored) return
     store.zoneHistory()
-      .then(uses => store.updateSettings(st => {
-        if (st.zonesRestored) return {}
-        const lost = missingZones(uses, zonesOf(st))
-        return lost.length ? { zones: [...zonesOf(st), ...lost], zonesRestored: true } : { zonesRestored: true }
-      }))
+      .then(async uses => {
+        for (const z of missingZones(uses, zonesOf(store.getSnapshot().settings))) await store.addZone(z)
+        await store.updateSettings(() => ({ zonesRestored: true }))
+      })
       .catch(() => { /* tried again next time the panel opens */ })
   }, [store, snap.ready, snap.authorized, restored])
 

@@ -1,6 +1,7 @@
 import { defaultSettings, ORDER_NUM_START } from '../domain/catalog.ts'
 import { advanceStep, canReject, lastMessageId, normalizeReason, rejectNote, visibleOrders, WELCOME_MSG } from '../domain/orders.ts'
-import { isOtherZone, orderTotal } from '../domain/pricing.ts'
+import { isOtherZone, orderTotal, zonesOf } from '../domain/pricing.ts'
+import type { Zone } from '../domain/catalog.ts'
 import { validateDraft } from '../domain/placement.ts'
 import { reportRows } from '../domain/report.ts'
 import type { ChatMessage, Order, OrderDraft, Settings } from '../domain/types.ts'
@@ -186,6 +187,15 @@ export class LocalStore implements RestaurantStore {
 
   async reportRows(from: string, to: string) { const d = readDoc(); return reportRows(d.orders, from, to, d.settings.deliveryFees, d.settings.deletedOrders) }
   async reportCount(from: string, to: string) { const d = readDoc(); return reportRows(d.orders, from, to, {}, d.settings.deletedOrders).length }
+  async addZone(z: Zone) {
+    this.write(d => { const list = zonesOf(d.settings); if (!list.some(x => x.id === z.id)) d.settings = { ...d.settings, zones: [...list, z] } })
+  }
+  async setZoneFee(id: string, fee: number) {
+    this.write(d => { d.settings = { ...d.settings, zones: zonesOf(d.settings).map(x => (x.id === id ? { ...x, fee } : x)) } })
+  }
+  async removeZone(id: string) {
+    this.write(d => { d.settings = { ...d.settings, zones: zonesOf(d.settings).filter(x => x.id !== id) } })
+  }
   async zoneHistory() {
     return readDoc().orders.filter(o => o.origin === 'domicilio' && o.zoneId).reverse()
       .map(o => ({ id: o.zoneId!, label: o.zoneLabel ?? '', fee: o.delivery }))

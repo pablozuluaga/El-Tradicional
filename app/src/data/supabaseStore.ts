@@ -1,5 +1,6 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
-import { defaultSettings } from '../domain/catalog.ts'
+import { defaultSettings, type Zone } from '../domain/catalog.ts'
+import { zonesOf } from '../domain/pricing.ts'
 import { reportRange, reportRows } from '../domain/report.ts'
 import type { Order, OrderDraft, Settings } from '../domain/types.ts'
 import { visibleOrders } from '../domain/orders.ts'
@@ -51,6 +52,12 @@ export class SupabaseStore implements RestaurantStore {
   private needsResync = false
   private disposed = false
   private unsubAuth: (() => void) | null = null
+  /**
+   * Barrios from their own table (supabase/barrios.sql): every add, price and removal is its own
+   * row, so a phone saving other settings from an old copy can't bring back an old list. null
+   * until that file has been run; then the list inside the settings is used, as before.
+   */
+  private zoneRows: Zone[] | null = null
 
   constructor(role: Role) {
     this.role = role
@@ -67,6 +74,7 @@ export class SupabaseStore implements RestaurantStore {
   getSnapshot = () => this.snap
   private set(p: Partial<Snapshot>) {
     if (this.disposed) return
+    if (p.settings && this.zoneRows) p = { ...p, settings: { ...p.settings, zones: this.zoneRows } }
     const next = { ...this.snap, ...p }
     if (p.orders || p.settings) next.orders = visibleOrders(next.orders, next.settings)
     this.snap = next
@@ -150,7 +158,19 @@ export class SupabaseStore implements RestaurantStore {
   private async loadSettings() {
     const { data, error } = await this.sb.from('settings').select('*').eq('id', 1).single()
     if (error) fail(error)
+    await this.loadZones()
     this.set({ settings: rowToSettings(data as SettingsRow) })
+  }
+
+  private async loadZones() {
+    const { data, error } = await this.sb.from('zones').select('id, label, fee').order('ord')
+    if (error) {
+      // the table isn't there yet (barrios.sql not run): keep using the list inside the settings
+      if (error.code === 'PGRST205' || error.code === '42P01' || /zones/.test(error.message ?? '')) this.zoneRows = null
+      return
+    }
+    this.zoneRows = (data ?? []).map(r => ({ id: String(r.id), label: String(r.label), fee: Number(r.fee) || 0 }))
+    this.set({ settings: this.snap.settings })
   }
 
   private async loadOrders() {
@@ -195,6 +215,7 @@ export class SupabaseStore implements RestaurantStore {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, p => {
         if (p.new && 'id' in p.new) this.set({ settings: rowToSettings(p.new as SettingsRow) })
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'zones' }, () => { void this.loadZones() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, p => {
         const r = p.new as OrderRow | undefined
         if (!r || !('num' in r)) return
@@ -292,6 +313,29 @@ export class SupabaseStore implements RestaurantStore {
       if (data?.length) { this.set({ settings: rowToSettings(data[0] as SettingsRow) }); return }
     }
     undo({ message: 'Otro celular estaba guardando cambios al mismo tiempo. Intenta de nuevo.' })
+  }
+
+  async addZone(z: Zone) {
+    if (!this.zoneRows) return this.updateSettings(st => (zonesOf(st).some(x => x.id === z.id) ? {} : { zones: [...zonesOf(st), z] }))
+    this.zoneRows = [...this.zoneRows.filter(x => x.id !== z.id), z]
+    this.set({ settings: this.snap.settings })
+    const { error } = await this.sb.from('zones').upsert({ id: z.id, label: z.label, fee: z.fee }, { onConflict: 'id', ignoreDuplicates: true })
+    await this.loadZones()
+    if (error) fail(error)
+  }
+
+  async setZoneFee(id: string, fee: number) {
+    if (!this.zoneRows) return this.updateSettings(st => ({ zones: zonesOf(st).map(x => (x.id === id ? { ...x, fee } : x)) }))
+    const { error } = await this.sb.from('zones').update({ fee }).eq('id', id)
+    await this.loadZones()
+    if (error) fail(error)
+  }
+
+  async removeZone(id: string) {
+    if (!this.zoneRows) return this.updateSettings(st => ({ zones: zonesOf(st).filter(x => x.id !== id) }))
+    const { error } = await this.sb.from('zones').delete().eq('id', id)
+    await this.loadZones()
+    if (error) fail(error)
   }
 
   async zoneHistory() {

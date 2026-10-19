@@ -126,6 +126,15 @@ test('Lengua is offered only on Saturdays; Friday brings costilla', () => {
   assert.equal(dailyDish({ ...defaultSettings(), platoDia: 'viernes' })!.protList![0].label, 'Costillas')
 })
 
+test('Posta Sudada is on the Sunday menu at $24.000, with the day\'s soup', () => {
+  const sunday = { ...defaultSettings(), platoDia: 'domingo' as const }
+  const posta = allDishes(sunday).find(d => d.id === 'postasudada')!
+  assert.equal(posta.name, 'Posta Sudada')
+  assert.equal(posta.price, 24000)
+  assert.ok(posta.soup && posta.drink)
+  assert.ok(!allDishes({ ...defaultSettings(), platoDia: 'jueves' }).some(d => d.id === 'postasudada'))
+})
+
 test('owner-created dishes join the menu with their options and can be sold out', () => {
   const s = { ...defaultSettings(), platoDia: 'jueves' as const,
     customDishes: [{ id: 'plato1', name: 'Lomo', cat: 'Especiales' as const, price: 30000, desc: 'Lomo', soup: true, proteins: false, drink: true, rem: ['Arroz', 'Papa'] }] }

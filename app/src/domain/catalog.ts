@@ -194,6 +194,7 @@ export const defaultSettings = (): Settings => ({
   zones: null,
   customDishes: [],
   deletedOrders: {},
+  zonesRestored: false,
 })
 
 export const ORDER_NUM_START = 1043

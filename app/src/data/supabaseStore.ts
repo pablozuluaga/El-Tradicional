@@ -271,15 +271,34 @@ export class SupabaseStore implements RestaurantStore {
   }
 
   // ---- owner -------------------------------------------------------------------------
+  /**
+   * The change is applied to the settings as they are in the database right now, not to this
+   * phone's copy: a phone that missed updates (asleep, offline) must not write back old barrios,
+   * prices or dishes. If someone else saved in between, it reads again and retries.
+   */
   async updateSettings(fn: (s: Settings) => Partial<Settings>) {
-    const patch = fn(this.snap.settings)
     const before = this.snap.settings
-    this.set({ settings: { ...before, ...patch } })
-    const { error } = await this.sb.from('settings').update(settingsPatchToRow(patch, { ...before, ...patch })).eq('id', 1)
-    if (error) {
-      this.set({ settings: before })
-      fail(error)
+    this.set({ settings: { ...before, ...fn(before) } })
+    const undo = (e: { message?: string } | null): never => { this.set({ settings: before }); return fail(e) }
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { data: row, error: readError } = await this.sb.from('settings').select('*').eq('id', 1).single()
+      if (readError || !row) return undo(readError)
+      const fresh = rowToSettings(row as SettingsRow)
+      const patch = fn(fresh)
+      let q = this.sb.from('settings').update(settingsPatchToRow(patch, { ...fresh, ...patch }, (row as SettingsRow).desc_overrides)).eq('id', 1)
+      if ((row as SettingsRow).updated_at) q = q.eq('updated_at', (row as SettingsRow).updated_at!)
+      const { data, error } = await q.select('*')
+      if (error) return undo(error)
+      if (data?.length) { this.set({ settings: rowToSettings(data[0] as SettingsRow) }); return }
     }
+    undo({ message: 'Otro celular estaba guardando cambios al mismo tiempo. Intenta de nuevo.' })
+  }
+
+  async zoneHistory() {
+    const { data, error } = await this.sb.from('orders').select('zone_id, zone_label, delivery')
+      .eq('origin', 'domicilio').not('zone_id', 'is', null).order('created_at', { ascending: false }).limit(5000)
+    if (error) fail(error)
+    return (data ?? []).map(r => ({ id: r.zone_id as string, label: (r.zone_label as string | null) ?? '', fee: Number(r.delivery) || 0 }))
   }
 
   async advanceOrder(num: number) {

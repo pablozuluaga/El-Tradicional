@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { hasUnread, isFinished } from '../domain/orders.ts'
+import { missingZones, zonesOf } from '../domain/pricing.ts'
 import { useSnapshot, useStore } from '../data/hooks.ts'
 import { StoreProvider } from '../data/StoreProvider.tsx'
 import { AdminChat } from './AdminChat.tsx'
@@ -27,6 +28,19 @@ function Panel() {
   // kitchen printer: reconnect on open, print each order as it gets accepted (see printer.ts)
   useEffect(() => { void printer.reconnect() }, [])
   useEffect(() => { if (snap.ready && snap.authorized) printer.onOrders(snap.orders, snap.settings.deliveryFees) }, [snap.ready, snap.authorized, snap.orders, snap.settings.deliveryFees])
+
+  // once: barrios that an older version of the panel overwrote come back from the orders placed with them
+  const restored = snap.settings.zonesRestored
+  useEffect(() => {
+    if (!snap.ready || !snap.authorized || restored) return
+    store.zoneHistory()
+      .then(uses => store.updateSettings(st => {
+        if (st.zonesRestored) return {}
+        const lost = missingZones(uses, zonesOf(st))
+        return lost.length ? { zones: [...zonesOf(st), ...lost], zonesRestored: true } : { zonesRestored: true }
+      }))
+      .catch(() => { /* tried again next time the panel opens */ })
+  }, [store, snap.ready, snap.authorized, restored])
 
   useEffect(() => {
     document.title = (newMsgs ? `(${newMsgs}) ` : '') + 'Panel · El Tradicional'

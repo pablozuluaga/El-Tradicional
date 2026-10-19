@@ -1,5 +1,6 @@
 import type { Order, OrderDraft, Settings } from '../domain/types.ts'
 import type { ReportRow } from '../domain/report.ts'
+import type { ZoneUse } from '../domain/pricing.ts'
 
 export type Role = 'customer' | 'owner'
 
@@ -29,6 +30,8 @@ export interface RestaurantStore {
   rejectOrder(num: number, reason: string): Promise<void>
   reportRows(from: string, to: string): Promise<ReportRow[]>
   reportCount(from: string, to: string): Promise<number>
+  /** every barrio customers chose on an order, newest first (to bring back barrios that were lost) */
+  zoneHistory(): Promise<ZoneUse[]>
 
   // customer
   placeOrder(draft: OrderDraft): Promise<Order>

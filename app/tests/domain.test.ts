@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { defaultSettings } from '../src/domain/catalog.ts'
 import { allDishes, bogotaDay, categories, dailyDish, dayOffKey, dishById, effRem, initialProtein, isDishSoldOut, serviceDay } from '../src/domain/menu.ts'
-import { deliveryFee, orderTotal, subtotal } from '../src/domain/pricing.ts'
+import { deliveryFee, missingZones, orderTotal, subtotal, zonesOf } from '../src/domain/pricing.ts'
 import { profileStats } from '../src/domain/stats.ts'
 import { advanceLabel, advanceStep, canReject, clientSteps, hasUnread, isFinished, itemsDetail, itemsSummary, OWNER_BADGE } from '../src/domain/orders.ts'
 import { reportRows } from '../src/domain/report.ts'
@@ -380,4 +380,21 @@ test('deleted orders leave the owner list and the billing report', async () => {
   assert.deepEqual(visibleOrders([a, b], s).map(o => o.num), [3001])
   assert.deepEqual(visibleOrders([a, b], defaultSettings()).map(o => o.num), [3001, 3002])
   assert.deepEqual(reportRows([a, b], '', '', {}, s.deletedOrders).map(r => r.numero), [3001])
+})
+
+test('lost barrios come back from the orders, with their last name and price', () => {
+  const current = zonesOf({ zones: [{ id: 'magnolia', label: 'La Magnolia', fee: 0 }] })
+  const uses = [
+    { id: 'zA1', label: 'Loma del Atravesado', fee: 7000 }, // newest
+    { id: 'zA1', label: 'Atravesado', fee: 6000 },
+    { id: 'otro', label: 'La Paz', fee: 0 },
+    { id: 'magnolia', label: 'La Magnolia', fee: 0 },
+    { id: 'zB2', label: 'la magnolia', fee: 3000 },
+    { id: 'zC3', label: 'Zúñiga', fee: 5000 },
+  ]
+  assert.deepEqual(missingZones(uses, current), [
+    { id: 'zA1', label: 'Loma del Atravesado', fee: 7000 },
+    { id: 'zC3', label: 'Zúñiga', fee: 5000 },
+  ])
+  assert.deepEqual(missingZones(uses, [...current, ...missingZones(uses, current)]), [])
 })

@@ -19,6 +19,8 @@ export interface SettingsRow {
   dessert_flavors?: Settings['dessertFlavors']
   juice_flavors?: Settings['juiceFlavors'] | null
   dish_on?: Settings['dishOn'] | null
+  /** set by the database on every change; used to save without overwriting someone else's change */
+  updated_at?: string
 }
 
 export interface OrderRow {
@@ -59,7 +61,7 @@ export interface MessageRow { id: number; order_num: number; sender: string; bod
  * ran a newer schema.sql may also have them as columns; the bag wins, the column is the fallback.
  */
 export const BAG_KEY = '__app'
-const BAG_FIELDS = ['daySoups', 'dayProteins', 'soldFlavors', 'dessertFlavors', 'juiceFlavors', 'dishOn', 'customDishes', 'deliveryFees', 'priceOverrides', 'customExtras', 'customAddons', 'zones', 'deletedOrders'] as const
+const BAG_FIELDS = ['daySoups', 'dayProteins', 'soldFlavors', 'dessertFlavors', 'juiceFlavors', 'dishOn', 'customDishes', 'deliveryFees', 'priceOverrides', 'customExtras', 'customAddons', 'zones', 'deletedOrders', 'zonesRestored'] as const
 type BagField = typeof BAG_FIELDS[number]
 const isBagField = (k: string): k is BagField => (BAG_FIELDS as readonly string[]).includes(k)
 
@@ -88,6 +90,7 @@ export function rowToSettings(r: SettingsRow): Settings {
     customAddons: bag.customAddons ?? [],
     zones: bag.zones ?? null,
     deletedOrders: bag.deletedOrders ?? {},
+    zonesRestored: bag.zonesRestored ?? false,
   }
 }
 
@@ -104,8 +107,9 @@ const SETTINGS_COLUMNS: Record<Exclude<keyof Settings, BagField>, keyof Settings
 /**
  * Only the changed columns, for `update settings set …`. `next` is the full settings after the
  * change: descriptions and the bag share `desc_overrides`, so that column is written whole.
+ * `stored` is that column as the database has it: bag keys this version doesn't know are kept.
  */
-export function settingsPatchToRow(p: Partial<Settings>, next: Settings): Partial<SettingsRow> {
+export function settingsPatchToRow(p: Partial<Settings>, next: Settings, stored: SettingsRow['desc_overrides'] = null): Partial<SettingsRow> {
   const out: Record<string, unknown> = {}
   let descColumn = false
   for (const k of Object.keys(p) as (keyof Settings)[]) {
@@ -113,8 +117,10 @@ export function settingsPatchToRow(p: Partial<Settings>, next: Settings): Partia
     else out[SETTINGS_COLUMNS[k]] = p[k]
   }
   if (descColumn) {
+    const prev = (stored ?? {})[BAG_KEY] as unknown
+    const keep = prev && typeof prev === 'object' ? prev as Record<string, unknown> : {}
     const bag = Object.fromEntries(BAG_FIELDS.map(f => [f, next[f]]))
-    out.desc_overrides = { ...next.descOverrides, [BAG_KEY]: bag }
+    out.desc_overrides = { ...next.descOverrides, [BAG_KEY]: { ...keep, ...bag } }
   }
   return out as Partial<SettingsRow>
 }

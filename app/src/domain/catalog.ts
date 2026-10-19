@@ -82,6 +82,10 @@ export const MENU: Dish[] = [
   { id: 'lengua', cat: 'Especiales', name: 'Lengua', price: 35000, tag: 'Sábados y domingos', img: '/assets/menu-dia.webp', avail: true, days: ['sabado', 'domingo'], soup: true, drink: true,
     desc: 'Lengua acompañada de arroz, papa cocinada, yuca cocinada, ensalada, arepa y la sopa del día.',
     rem: R('Arroz', 'Papa cocinada', 'Yuca cocinada', 'Ensalada', 'Arepa') },
+  // Thursday's posta sudada, also served on Sundays (with the Sunday soup)
+  { id: 'postasudada', cat: 'Especiales', name: 'Posta Sudada', price: 24000, tag: 'Domingos', img: '/assets/menu-jueves.webp', avail: true, days: ['domingo'], soup: true, drink: true,
+    desc: 'Posta sudada acompañada de arroz, papa y yuca cocinada, maduro, ensalada, arepa y la sopa del día.',
+    rem: R('Arroz', 'Papa cocinada', 'Yuca cocinada', 'Maduro', 'Ensalada', 'Arepa') },
   { id: 'trucha', cat: 'Pescados', name: 'Trucha', price: 35000, img: '/assets/trucha.webp', avail: true, drink: true,
     desc: 'Arroz con coco, patacón, ensalada y aguacate. Sopa de pescado y guandolo.',
     rem: R('Arroz con coco', 'Patacón', 'Ensalada', 'Aguacate', 'Sopa de pescado', 'Guandolo') },

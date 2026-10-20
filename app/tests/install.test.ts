@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { androidNeedsChrome, chromeIntentUrl, detectGuide, detectPlatform, openAppIntentUrl } from '../src/pwa/platform.ts'
+import { androidNeedsChrome, chromeIntentUrl, detectBrand, detectGuide, detectPlatform, INSTALL_VIDEOS, installVideo, openAppIntentUrl } from '../src/pwa/platform.ts'
 
 test('detectPlatform picks the right install instructions', () => {
   const android = 'Mozilla/5.0 (Linux; Android 14; SM-A546E) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36'
@@ -45,4 +45,38 @@ test('the open-the-app link targets the installed app, not a browser tab', () =>
     'intent://el-tradicional.vercel.app/#Intent;scheme=https;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end')
   assert.match(openAppIntentUrl('https://el-tradicional.vercel.app/', 'https://el-tradicional.vercel.app/instalar'),
     /;S\.browser_fallback_url=https%3A%2F%2Fel-tradicional\.vercel\.app%2Finstalar;end$/)
+})
+
+test('each phone gets the video of what its install page shows', () => {
+  const chrome = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Mobile Safari/537.36'
+  // the brand: from the user agent, or from the model Chrome reports
+  assert.equal(detectBrand(chrome, 'SM-A546E'), 'samsung')
+  assert.equal(detectBrand(chrome, '23090RA98G'), 'xiaomi')
+  assert.equal(detectBrand(chrome, 'Redmi Note 13'), 'xiaomi')
+  assert.equal(detectBrand(chrome, 'M2101K6G'), 'xiaomi')
+  assert.equal(detectBrand(chrome, 'moto g84 5G'), 'motorola')
+  assert.equal(detectBrand(chrome, 'motorola edge 50'), 'motorola')
+  assert.equal(detectBrand(chrome, 'ELE-L29'), 'huawei')
+  assert.equal(detectBrand(chrome, 'CPH2591'), 'android')
+  assert.equal(detectBrand(chrome), 'android')
+  // the browser decides the steps
+  assert.equal(installVideo('button', 'androidChrome', chrome, 'samsung'), 'samsung-boton')
+  assert.equal(installVideo('androidSteps', 'androidChrome', chrome, 'xiaomi'), 'xiaomi-menu')
+  assert.equal(installVideo('chrome', 'samsung', 'Mozilla/5.0 (Linux; Android 14; SM-S921B) SamsungBrowser/27.0 Chrome/125.0 Mobile Safari/537.36', 'samsung'), 'samsung-navegador')
+  assert.equal(installVideo('chrome', 'androidChrome', 'Mozilla/5.0 (Linux; U; Android 13; es-co; 2201117TG) XiaoMi/MiuiBrowser/14.2', 'xiaomi'), 'xiaomi-navegador')
+  assert.equal(installVideo('chrome', 'inapp', chrome + ' Instagram 400.0', 'android'), 'android-instagram')
+  assert.equal(installVideo('chrome', 'androidChrome', 'Mozilla/5.0 (Android 14; Mobile; rv:131.0) Gecko/131.0 Firefox/131.0', 'android'), 'android-navegador')
+  assert.equal(installVideo('iphone', 'ios27', '', 'android'), 'iphone-ios27')
+  assert.equal(installVideo('iphone', 'ios26', '', 'android'), 'iphone-ios26')
+  assert.equal(installVideo('iphone', 'ios18', '', 'android'), 'iphone-ios18')
+  assert.equal(installVideo('iphone', 'iosChrome', '', 'android'), 'iphone-chrome')
+  assert.equal(installVideo('iphone', 'inapp', '', 'android'), 'iphone-instagram')
+})
+
+test('every install video exists, with its cover', async () => {
+  const { existsSync } = await import('node:fs')
+  for (const v of INSTALL_VIDEOS) {
+    assert.ok(existsSync(new URL(`../public/videos/${v}.mp4`, import.meta.url)), v + '.mp4')
+    assert.ok(existsSync(new URL(`../public/videos/${v}.jpg`, import.meta.url)), v + '.jpg')
+  }
 })

@@ -50,7 +50,7 @@ export function StatusBar({ os, light = false }: { os: Os; light?: boolean }) {
 }
 
 /** The El Tradicional install page, as it looks behind the browser bars. */
-export function Site({ top = 40, cta = false }: { top?: number; cta?: boolean }) {
+export function Site({ top = 40, cta = false, ctaLabel = '⬇ Instalar la app' }: { top?: number; cta?: boolean; ctaLabel?: string }) {
   const id = uid(useId())
   return (
     <g>
@@ -70,7 +70,7 @@ export function Site({ top = 40, cta = false }: { top?: number; cta?: boolean })
       {cta && (
         <g>
           <rect x="30" y={top + 310} width="240" height="46" rx="14" fill="#C8161D" />
-          <text x="150" y={top + 338} fontSize="14" fill="#fff" textAnchor="middle" fontWeight="700">⬇ Instalar la app</text>
+          <text x="150" y={top + 338} fontSize="14" fill="#fff" textAnchor="middle" fontWeight="700">{ctaLabel}</text>
         </g>
       )}
     </g>

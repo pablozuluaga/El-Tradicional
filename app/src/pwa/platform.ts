@@ -37,6 +37,47 @@ export function androidNeedsChrome(ua: string): boolean {
   return !/Chrome\//.test(ua)
 }
 
+/** Android brand, only for the name in the install video (and the shortcut permission on Xiaomi and Huawei). */
+export type Brand = 'samsung' | 'xiaomi' | 'motorola' | 'huawei' | 'android'
+
+/**
+ * From the user agent and, on Chrome (which hides the model there), the model it reports through
+ * `navigator.userAgentData`: "SM-A546E" is a Samsung, "23090RA98G" or "Redmi Note 13" a Xiaomi…
+ */
+export function detectBrand(ua: string, model = ''): Brand {
+  const s = ua + ' ' + model
+  if (/SamsungBrowser|Samsung|\bSM-[A-Z]\d/i.test(s)) return 'samsung'
+  if (/Xiaomi|MiuiBrowser|Redmi|POCO|\bMi \d|\bM2\d{3}[A-Z]|\b2[0-4]\d{3}[A-Z0-9]{3,}\b/i.test(s)) return 'xiaomi'
+  if (/motorola|\bmoto\b|\bmoto [a-z]|\bXT\d{4}/i.test(s)) return 'motorola'
+  if (/HUAWEI|HONOR|HuaweiBrowser|\b[A-Z]{3}-[A-Z]{1,2}\d{2}[A-Z]?\b/.test(s)) return 'huawei'
+  return 'android'
+}
+
+/** Every install video in public/videos. */
+export const INSTALL_VIDEOS = ['iphone-ios27', 'iphone-ios26', 'iphone-ios18', 'iphone-chrome', 'iphone-instagram',
+  'samsung-boton', 'samsung-menu', 'samsung-navegador', 'xiaomi-boton', 'xiaomi-menu', 'xiaomi-navegador',
+  'motorola-boton', 'motorola-menu', 'huawei-boton', 'huawei-menu', 'huawei-navegador',
+  'android-boton', 'android-menu', 'android-navegador', 'android-instagram'] as const
+
+/** How the install page looks on this phone (see Install.tsx). */
+export type InstallMode = 'button' | 'chrome' | 'androidSteps' | 'iphone'
+
+/** The video for what this phone shows: public/videos/<name>.mp4 (and .jpg, its first frame). */
+export function installVideo(mode: InstallMode, guide: GuideId, ua: string, brand: Brand): string {
+  if (mode === 'iphone') {
+    return guide === 'ios27' ? 'iphone-ios27' : guide === 'ios26' ? 'iphone-ios26' : guide === 'iosChrome' ? 'iphone-chrome'
+      : guide === 'inapp' ? 'iphone-instagram' : 'iphone-ios18'
+  }
+  if (mode === 'chrome') {
+    if (detectPlatform(ua, 0) === 'inapp') return 'android-instagram'
+    if (/SamsungBrowser/i.test(ua)) return 'samsung-navegador'
+    if (/MiuiBrowser|XiaoMi/.test(ua)) return 'xiaomi-navegador'
+    if (/HuaweiBrowser/i.test(ua)) return 'huawei-navegador'
+    return 'android-navegador'
+  }
+  return `${brand}-${mode === 'button' ? 'boton' : 'menu'}`
+}
+
 /** Opens a page in Chrome from any Android browser (or the Play Store page of Chrome if missing). */
 export function chromeIntentUrl(href: string): string {
   const u = new URL(href)

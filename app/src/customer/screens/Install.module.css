@@ -27,3 +27,6 @@
 .altTitle { font-size: 16px; font-weight: 800; color: var(--ink); }
 .altText { margin: 0; font-size: 14px; line-height: 1.45; color: var(--body); }
 .wa { display: flex; align-items: center; justify-content: center; gap: 8px; height: 50px; border-radius: 16px; background: #25D366; color: #fff; font-weight: 700; font-size: 15px; text-decoration: none; }
+.video { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.videoTitle { font-size: 16px; font-weight: 800; color: var(--ink); }
+.videoEl { width: min(100%, 270px); aspect-ratio: 9 / 16; border-radius: 22px; background: #9E0F14; box-shadow: 0 18px 30px -18px rgba(20, 17, 14, .6); object-fit: cover; }

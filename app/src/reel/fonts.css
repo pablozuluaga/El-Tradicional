@@ -1,0 +1,5 @@
+@font-face { font-family: 'Geist'; font-weight: 400; src: url('./fonts/geist-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Geist'; font-weight: 600; src: url('./fonts/geist-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Geist'; font-weight: 700; src: url('./fonts/geist-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Geist'; font-weight: 800; src: url('./fonts/geist-latin-800-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Instrument Serif'; font-weight: 400; src: url('./fonts/instrument-serif-latin-400-normal.woff2') format('woff2'); }

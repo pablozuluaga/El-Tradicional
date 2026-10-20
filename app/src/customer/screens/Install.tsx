@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { useNavigate } from 'react-router-dom'
 import { WHATSAPP_URL } from '../../config.ts'
 import { canDetectInstalledApp, canPromptInstall, hasInstalledApp, isStandalone, promptInstall, subscribeInstall, wasInstalled } from '../../pwa/install.ts'
-import { androidNeedsChrome, chromeIntentUrl, detectGuide, detectPlatform, openAppIntentUrl } from '../../pwa/platform.ts'
+import { androidNeedsChrome, chromeIntentUrl, detectBrand, detectGuide, detectPlatform, INSTALL_VIDEOS, installVideo, openAppIntentUrl } from '../../pwa/platform.ts'
 import { WhatsAppIcon } from '../../ui/ui.tsx'
 import { GUIDES, START_AT, type Step } from '../install/guides.tsx'
 import { AndroidHome, IosHome } from '../install/scenes.tsx'
@@ -47,6 +47,17 @@ function Steps({ steps, firstRef }: { steps: Step[]; firstRef?: React.Ref<HTMLEl
   )
 }
 
+/** The short video of exactly what this phone shows, playing on its own (it has no sound). */
+function InstallVideo({ name }: { name: string }) {
+  return (
+    <section className={x.video} aria-label="Video de cómo instalar la app">
+      <div className={x.videoTitle}>▶ Mira cómo se hace en tu celular</div>
+      <video className={x.videoEl} src={`/videos/${name}.mp4`} poster={`/videos/${name}.jpg`}
+        autoPlay muted loop playsInline controls preload="auto" />
+    </section>
+  )
+}
+
 /** A big action card: what to do in one sentence, then the button. */
 function Action({ title, text, children }: { title: string; text?: ReactNode; children: ReactNode }) {
   return (
@@ -72,6 +83,12 @@ export function Install() {
   const [guideId] = useState(() => detectGuide(ua, navigator.maxTouchPoints ?? 0))
   const [platform] = useState(() => detectPlatform(ua, navigator.maxTouchPoints ?? 0))
   const [standalone] = useState(() => isStandalone())
+  // Chrome on Android hides the phone model in the user agent but tells it here (for the video's brand)
+  const [model, setModel] = useState('')
+  useEffect(() => {
+    const uad = (navigator as Navigator & { userAgentData?: { getHighEntropyValues(h: string[]): Promise<{ model?: string }> } }).userAgentData
+    uad?.getHighEntropyValues(['model']).then(v => setModel(v.model ?? ''), () => {})
+  }, [])
   const [waited, setWaited] = useState(false)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -123,6 +140,12 @@ export function Install() {
     : needsChrome ? 'chrome'
     : android ? (waited ? 'androidSteps' : 'waiting')
     : 'iphone'
+
+  // ?video=<name> shows any phone's video (to check them all from one phone)
+  const [forced] = useState(() => new URLSearchParams(location.search).get('video'))
+  const video = forced && (INSTALL_VIDEOS as readonly string[]).includes(forced) ? forced
+    : mode === 'button' || mode === 'chrome' || mode === 'androidSteps' || mode === 'iphone'
+      ? installVideo(mode, guideId, ua, detectBrand(ua, model)) : null
 
   const iosGuide = guideId === 'ios27' || guideId === 'ios26' || guideId === 'ios18' || guideId === 'iosChrome' || guideId === 'inapp' ? GUIDES[guideId] : GUIDES.ios18
   const showSteps = mode === 'androidSteps' || mode === 'iphone'
@@ -210,6 +233,8 @@ export function Install() {
           <div className={x.sub}>Gratis, sin tiendas y sin contraseñas.</div>
         </div>
         <div className={x.body}>
+          {/* where one button does it, the button comes first and the video right after */}
+          {video && mode !== 'button' && mode !== 'chrome' && <InstallVideo key={video} name={video} />}
           {mode === 'desktop' && (
             <div className={g.qrCard}>
               <div className={g.stepTitle}>Ábrela desde tu celular</div>
@@ -243,6 +268,8 @@ export function Install() {
               </details>
             </Action>
           )}
+
+          {video && (mode === 'button' || mode === 'chrome') && <InstallVideo key={video} name={video} />}
 
           {mode === 'androidSteps' && (
             <>

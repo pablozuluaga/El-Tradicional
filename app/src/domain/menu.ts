@@ -1,4 +1,4 @@
-import { DAILY_MENUS, DAY_ORDER, DESSERT_FLAVORS, DESSERT_ID, EXTRA_JUICE_IDS, EXTRAS_CAT, MENU, PROTEINS, proteinAddonPrice, R, SIDE_ADDONS, WEEKEND, type Addon } from './catalog.ts'
+import { DAILY_MENUS, DAY_ORDER, DESSERT_FLAVORS, DESSERT_ID, EXTRA_JUICE_IDS, EXTRAS_CAT, FRIJOLES_ADDON_PRICE, MENU, PROTEINS, proteinAddonPrice, R, SIDE_ADDONS, SOUP_ADDON_PRICE, WEEKEND, type Addon } from './catalog.ts'
 import type { CustomDish, DailyMenu, DayId, Dish, Opt, OptionGroup, Settings } from './types.ts'
 
 export const DAILY_ID = 'dia'
@@ -157,10 +157,24 @@ export function categories(s: Settings): string[] {
     : ['Todos', 'Especiales', 'Pescados', EXTRAS_CAT]
 }
 
+/** "Guineo" → "Sopa de guineo"; names that already say what they are stay as they are. */
+const soupAddonLabel = (label: string) => {
+  const l = label.trim()
+  return /^(sopa|crema|caldo|consom|sancocho|mondongo)/i.test(l) ? l : 'Sopa de ' + l.toLowerCase()
+}
+
+/** An extra soup for the plate: the soups the owner set for that day, plus frijoles, which are always there. */
+export const soupAddons = (s: Settings, day: DayId): Addon[] => [
+  ...soupsFor(s, day).filter(o => o.id !== 'sinsopa' && o.id !== 'frijoles')
+    .map(o => ({ id: 'sopa-' + o.id, label: soupAddonLabel(o.label), price: SOUP_ADDON_PRICE })),
+  { id: 'sopa-frijoles', label: 'Sopa de frijoles', price: FRIJOLES_ADDON_PRICE },
+]
+
 /** Every plate add-on with the owner's price (built-in and owner-created), including switched-off ones. */
-export const allAddons = (s: Settings): Addon[] => [
+export const allAddons = (s: Settings, now = new Date()): Addon[] => [
   ...PROTEINS.map(p => ({ id: 'prot-' + p.id, label: p.label, price: proteinAddonPrice(p.id) })),
   ...SIDE_ADDONS,
+  ...soupAddons(s, serviceDay(s, now)),
   ...(s.customAddons ?? []),
 ].map(a => ({ ...a, price: priceOf(s, addonKey(a.id), a.price) }))
 
@@ -168,8 +182,8 @@ export const allAddons = (s: Settings): Addon[] => [
 export const addonKey = (id: string) => 'addon:' + id
 
 /** Additions the customer can add to a plate now (switched-off and sold-out proteins left out). */
-export const addonsFor = (s: Settings): Addon[] =>
-  allAddons(s).filter(a => !s.soldDishes[addonKey(a.id)] && !(a.id.startsWith('prot-') && s.soldProteins[a.id.slice(5)]))
+export const addonsFor = (s: Settings, now = new Date()): Addon[] =>
+  allAddons(s, now).filter(a => !s.soldDishes[addonKey(a.id)] && !(a.id.startsWith('prot-') && s.soldProteins[a.id.slice(5)]))
 
 /** Juices and desserts sold apart (not a main dish). */
 export const isExtra = (d: Pick<Dish, 'cat'>) => d.cat === EXTRAS_CAT

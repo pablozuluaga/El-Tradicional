@@ -13,6 +13,14 @@ import { StoreError, type ReviewPatch, type RestaurantStore, type Role, type Sna
 
 const OWNER_WINDOW_DAYS = 7
 const OPEN_STATUSES = '(nuevo,aceptado,camino)'
+/**
+ * Realtime is the fast path, but on phones its connection can die without notice (sleep, a
+ * network change, an expired token…). While the app is on screen it also checks every few
+ * seconds for new orders, changes to open ones and new chat messages, so nothing waits for a
+ * restart.
+ */
+const POLL_MS = 5000
+const OPEN = ['nuevo', 'aceptado', 'camino']
 const REPORT_LIMIT = 5000
 
 /** Owner login errors, in Spanish, by Supabase auth error code. */
@@ -52,6 +60,11 @@ export class SupabaseStore implements RestaurantStore {
   private needsResync = false
   private disposed = false
   private unsubAuth: (() => void) | null = null
+  private pollTimer: ReturnType<typeof setInterval> | null = null
+  private polling = false
+  private rejoinTimer: ReturnType<typeof setTimeout> | null = null
+  /** barrios listen apart: if their table isn't there yet, Realtime would reject the orders too */
+  private zonesChannel: RealtimeChannel | null = null
   /**
    * Barrios from their own table (supabase/barrios.sql): every add, price and removal is its own
    * row, so a phone saving other settings from an old copy can't bring back an old list. null
@@ -66,6 +79,10 @@ export class SupabaseStore implements RestaurantStore {
     })
     document.addEventListener('visibilitychange', this.onVisible)
     window.addEventListener('online', this.onVisible)
+    // installed apps coming back from memory don't always fire visibilitychange
+    window.addEventListener('focus', this.onVisible)
+    window.addEventListener('pageshow', this.onVisible)
+    this.pollTimer = setInterval(() => { void this.poll() }, POLL_MS)
     void this.init()
   }
 
@@ -133,7 +150,51 @@ export class SupabaseStore implements RestaurantStore {
   }
 
   private onVisible = () => {
-    if (document.visibilityState === 'visible' && this.snap.authorized) void this.resync()
+    if (document.visibilityState !== 'visible' || !this.snap.authorized) return
+    void this.resync()
+    // the live connection may have died while the app was in the background
+    if (this.channel?.state !== 'joined') this.subscribeRealtime()
+  }
+
+  /** The quick check (see POLL_MS): new orders, open orders that changed, new messages. */
+  private async poll() {
+    if (this.polling || this.disposed || !this.snap.ready || !this.snap.authorized || document.visibilityState !== 'visible') return
+    this.polling = true
+    try {
+      const known = this.snap.orders
+      const lastNum = known.reduce((n, o) => Math.max(n, o.num), 0)
+      const open = known.filter(o => OPEN.includes(o.status)).map(o => o.num)
+      let q = this.sb.from('orders').select('*').order('num', { ascending: false }).limit(200)
+      // a customer only sees their own orders (row-level security), the owner all of them
+      q = open.length ? q.or(`num.gt.${lastNum},num.in.(${open.join(',')})`) : q.gt('num', lastNum)
+      const lastMsg = known.reduce((n, o) => o.chat.reduce((m, c) => Math.max(m, c.id), n), 0)
+      const [orders, msgs] = await Promise.all([
+        q,
+        known.length ? this.sb.from('order_messages').select('*').gt('id', lastMsg).order('id').limit(500) : Promise.resolve({ data: [], error: null }),
+      ])
+      if (orders.error || msgs.error) return
+      const fresh = (orders.data ?? []) as OrderRow[]
+      const added = fresh.filter(r => !this.snap.orders.some(o => o.num === Number(r.num))).map(r => Number(r.num))
+      const chats = added.length ? await this.loadMessages(added) : new Map()
+      let next = this.snap.orders
+      for (const r of fresh) {
+        const num = Number(r.num)
+        const prev = next.find(o => o.num === num)
+        const o = prev ? mergeOrderRow(prev, r) : rowToOrder(r, chats.get(num) ?? [])
+        // skip identical rows so the screen (and the printer) only react to real changes
+        if (prev && JSON.stringify({ ...prev, chat: [] }) === JSON.stringify({ ...o, chat: [] })) continue
+        next = [o, ...next.filter(x => x.num !== num)]
+      }
+      for (const m of (msgs.data ?? []) as MessageRow[]) {
+        const num = Number(m.order_num)
+        next = next.map(o => (o.num === num ? withMessage(o, rowToMessage(m)) : o))
+      }
+      if (next !== this.snap.orders) this.setOrders(() => next)
+    } catch (e) {
+      console.error('[supabase] poll', e)
+    } finally {
+      this.polling = false
+    }
   }
 
   private async resync() {
@@ -151,6 +212,11 @@ export class SupabaseStore implements RestaurantStore {
     this.unsubAuth?.()
     document.removeEventListener('visibilitychange', this.onVisible)
     window.removeEventListener('online', this.onVisible)
+    window.removeEventListener('focus', this.onVisible)
+    window.removeEventListener('pageshow', this.onVisible)
+    if (this.zonesChannel) void this.sb.removeChannel(this.zonesChannel)
+    if (this.pollTimer) clearInterval(this.pollTimer)
+    if (this.rejoinTimer) clearTimeout(this.rejoinTimer)
     this.listeners.clear()
   }
 
@@ -171,6 +237,11 @@ export class SupabaseStore implements RestaurantStore {
     }
     this.zoneRows = (data ?? []).map(r => ({ id: String(r.id), label: String(r.label), fee: Number(r.fee) || 0 }))
     this.set({ settings: this.snap.settings })
+    if (!this.zonesChannel && !this.disposed) {
+      this.zonesChannel = this.sb.channel(`et-zones-${Math.random().toString(36).slice(2, 8)}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'zones' }, () => { void this.loadZones() })
+        .subscribe()
+    }
   }
 
   private async loadOrders() {
@@ -210,12 +281,12 @@ export class SupabaseStore implements RestaurantStore {
   // ---- realtime ----------------------------------------------------------------
   private subscribeRealtime() {
     this.teardownChannel()
-    this.channel = this.sb
+    if (this.rejoinTimer) { clearTimeout(this.rejoinTimer); this.rejoinTimer = null }
+    const ch: RealtimeChannel = this.sb
       .channel(`et-${this.role}-${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, p => {
         if (p.new && 'id' in p.new) this.set({ settings: rowToSettings(p.new as SettingsRow) })
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'zones' }, () => { void this.loadZones() })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, p => {
         const r = p.new as OrderRow | undefined
         if (!r || !('num' in r)) return
@@ -232,12 +303,16 @@ export class SupabaseStore implements RestaurantStore {
         else void this.refreshOrder(num)
       })
       .subscribe(status => {
+        if (ch !== this.channel || this.disposed) return
         if (status === 'SUBSCRIBED') {
           if (this.needsResync) { this.needsResync = false; void this.resync() }
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           this.needsResync = true
+          // don't wait for the library: open a fresh connection in a few seconds (the quick check covers the gap)
+          if (!this.rejoinTimer) this.rejoinTimer = setTimeout(() => { this.rejoinTimer = null; if (this.snap.authorized && !this.disposed) this.subscribeRealtime() }, 5000)
         }
       })
+    this.channel = ch
   }
 
   private teardownChannel() {

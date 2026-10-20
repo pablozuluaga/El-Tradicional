@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { defaultSettings } from '../src/domain/catalog.ts'
-import { allDishes, bogotaDay, categories, dailyDish, dayOffKey, dishById, effRem, initialProtein, isDishSoldOut, serviceDay } from '../src/domain/menu.ts'
+import { addonsFor, allDishes, bogotaDay, categories, dailyDish, dayOffKey, dishById, effRem, initialProtein, isDishSoldOut, serviceDay } from '../src/domain/menu.ts'
 import { deliveryFee, missingZones, orderTotal, subtotal, zonesOf } from '../src/domain/pricing.ts'
 import { profileStats } from '../src/domain/stats.ts'
 import { advanceLabel, advanceStep, canReject, clientSteps, hasUnread, isFinished, itemsDetail, itemsSummary, OWNER_BADGE } from '../src/domain/orders.ts'
@@ -326,7 +326,7 @@ test('juice flavors: none until the owner creates them; dessert flavors can be e
 test('optional additions: each protein $10.000 except molida $5.000, arroz $6.000, papas $5.000', async () => {
   const { addonsFor } = await import('../src/domain/menu.ts')
   const s = defaultSettings()
-  const byLabel = Object.fromEntries(addonsFor(s).map(a => [a.label, a.price]))
+  const byLabel = Object.fromEntries(addonsFor(s).filter(a => !a.id.startsWith('sopa-')).map(a => [a.label, a.price]))
   assert.deepEqual(byLabel, { Res: 10000, Cerdo: 10000, Pollo: 10000, 'Chicharrón': 10000, 'Carne molida': 5000, Arroz: 6000, 'Papas a la francesa': 5000 })
   assert.ok(!addonsFor({ ...s, soldProteins: { pollo: true } }).some(a => a.label === 'Pollo'), 'sold-out protein not offered')
   assert.match(itemsDetail([line({ addons: ['Pollo', 'Arroz'] })])[0], /adición: pollo, arroz/)
@@ -406,4 +406,19 @@ test('lost barrios come back from the orders, with their last name and price', (
     { id: 'zC3', label: 'Zúñiga', fee: 5000 },
   ])
   assert.deepEqual(missingZones(uses, [...current, ...missingZones(uses, current)]), [])
+})
+
+test('soups as add-ons: the day\'s soups at $8.000, frijoles always at $10.000', () => {
+  const soups = (s: Parameters<typeof addonsFor>[0]) => addonsFor(s).filter(a => a.id.startsWith('sopa-')).map(a => [a.label, a.price])
+  // Thursday: sopa de guineo (owner's soup of the day) and frijoles
+  assert.deepEqual(soups({ ...defaultSettings(), platoDia: 'jueves' }), [['Sopa de guineo', 8000], ['Sopa de frijoles', 10000]])
+  // Friday's crema keeps its name
+  assert.deepEqual(soups({ ...defaultSettings(), platoDia: 'viernes' })[0], ['Crema de ahuyama', 8000])
+  // the owner's own soups for the day are offered; switched-off ones are not
+  const s = { ...defaultSettings(), platoDia: 'lunes' as const,
+    daySoups: { lunes: [{ id: 'sancocho', label: 'Sancocho' }, { id: 'arroz', label: 'Arroz' }, { id: 'frijoles', label: 'Frijoles' }, { id: 'sinsopa', label: 'Sin sopa' }] },
+    dayOff: { 'lunes:sopa:arroz': true } }
+  assert.deepEqual(soups(s), [['Sancocho', 8000], ['Sopa de frijoles', 10000]])
+  // weekends: frijoles is always there
+  assert.deepEqual(soups({ ...defaultSettings(), platoDia: 'sabado' }), [['Sopa de frijoles', 10000]])
 })

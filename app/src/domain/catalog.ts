@@ -107,6 +107,9 @@ export const DESSERT_FLAVORS: Opt[] = [
 /** Paid additions offered at the end of every dish: each protein apart, plus rice and fries. */
 export interface Addon { id: string; label: string; price: number }
 export const proteinAddonPrice = (id: string) => (id === 'molida' ? 5000 : 10000)
+/** Soups as an add-on: frijoles are always there; the other soups of the day cost less. */
+export const FRIJOLES_ADDON_PRICE = 10000
+export const SOUP_ADDON_PRICE = 8000
 export const SIDE_ADDONS: Addon[] = [
   { id: 'arroz', label: 'Arroz', price: 6000 },
   { id: 'papas', label: 'Papas a la francesa', price: 5000 },

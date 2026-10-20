@@ -183,7 +183,7 @@ export const IosChromeBar = () => (
 
 // ---- Android (Chrome) ------------------------------------------------------------
 
-function ChromeTopBar() {
+export function ChromeTopBar() {
   return (
     <g>
       <rect x="12" y="12" width="276" height="86" fill="#fff" />
@@ -302,7 +302,7 @@ export const XiaomiPermission = () => (
 
 // ---- Samsung Internet -------------------------------------------------------------
 
-function SamsungBars() {
+export function SamsungBars() {
   return (
     <g>
       <rect x="12" y="12" width="276" height="86" fill="#fff" />

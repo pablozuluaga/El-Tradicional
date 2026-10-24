@@ -9,6 +9,9 @@ import { layoutText } from './text.ts'
 import type { PrinterLang } from './encode.ts'
 import { buildTicket, type Block } from './ticket.ts'
 import { usePrinter } from './usePrinter.ts'
+import { chromeIntentUrl } from '../../pwa/platform.ts'
+
+const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
 
 /** A made-up order for the test print and the preview. */
 const SAMPLE: Order = {
@@ -50,7 +53,9 @@ export function PrinterPanel() {
 
   const sub = st.status === 'printing' && st.progress !== null
     ? `Imprimiendo… ${st.progress}%`
-    : st.status === 'ready' || st.status === 'printing'
+    : st.reconnecting && (st.status === 'off' || st.status === 'connecting')
+      ? 'Se perdió la conexión · reconectando sola…'
+      : st.status === 'ready' || st.status === 'printing'
       ? `${STATUS[st.status]}: ${st.name}${st.auto ? ' · imprime al aceptar' : ''}`
       : STATUS[st.status]
 
@@ -59,9 +64,18 @@ export function PrinterPanel() {
       <TabHead title="Impresora de comandas" sub={sub} />
       <div className={o.panel}>
       {st.status === 'unsupported' ? (
-        <div style={{ fontSize: 13, color: '#e7ddce', lineHeight: 1.5 }}>
-          Para imprimir, abre este panel en el <b>celular Android con Chrome</b> que queda junto a la impresora. Desde Safari (iPhone) no se puede conectar,
-          pero si aceptas los pedidos aquí, el Android los imprime solo.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13, color: '#e7ddce', lineHeight: 1.5 }}>
+          {isAndroid ? (
+            <>
+              <div>Este navegador no puede usar la impresora: solo <b>Google Chrome</b> se conecta por Bluetooth. Abre el panel en Chrome y conéctala allí.</div>
+              <a className={o.greenBtn} style={{ textAlign: 'center', textDecoration: 'none' }} href={chromeIntentUrl(location.href)}>Abrir el panel en Chrome</a>
+            </>
+          ) : (
+            <div>
+              Para imprimir, abre este panel en el <b>celular Android con Chrome</b> que queda junto a la impresora. Desde el iPhone no se puede conectar,
+              pero si aceptas los pedidos aquí, el Android los imprime solo.
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -85,8 +99,8 @@ export function PrinterPanel() {
             <Toggle on={st.auto} onBg="#2F7D46" offBg="#4a453c" label={`Imprimir al aceptar: ${st.auto ? 'sí' : 'no'}`} onClick={() => printer.setAuto(!st.auto)} />
           </div>
 
-          <button type="button" className={o.smallRed} style={{ padding: 11, fontSize: 13.5 }} disabled={st.status !== 'ready'}
-            onClick={() => void printer.printBlocks(sample)}>Imprimir comanda de prueba</button>
+          <button type="button" className={o.smallRed} style={{ padding: 11, fontSize: 13.5 }} disabled={st.status === 'connecting' || st.status === 'printing'}
+            onClick={() => void printer.connectAndPrint(() => printer.printBlocks(sample))}>Imprimir comanda de prueba</button>
 
           {st.status === 'printing' && st.progress !== null && (
             <div className={o.progress} aria-label={`Enviando a la impresora: ${st.progress}%`}><i style={{ width: st.progress + '%' }} /></div>
@@ -152,6 +166,18 @@ export function PrinterPanel() {
               <br />3. En <b>Tipo de papel</b> elige <b>Papel continuo</b> (o "Recibo"), no "Etiqueta" ni "Marca negra", y guarda.
               <br />4. Comprueba con la autoprueba (mantén el botón de papel al prenderla): debe decir <b>PAPER TYPE: CONTINUOUS</b> o similar.
               <br />5. Vuelve aquí y conéctala de nuevo.
+            </div>
+          </details>
+
+          <details className={o.details}>
+            <summary className={o.summary}><span>¿Se desconecta seguido?</span><span className={o.summarySub}>La app reconecta sola, pero esto lo evita</span></summary>
+            <div style={{ fontSize: 12.5, color: '#e7ddce', lineHeight: 1.55, paddingTop: 8 }}>
+              Si se cae la conexión, la app vuelve a conectar sola y los pedidos que no salieron se imprimen al volver. Para que casi no pase:
+              <br />1. <b>Ahorro de batería del celular:</b> en Ajustes → Aplicaciones → Chrome → Batería, elige <b>Sin restricciones</b>. Desactiva también el modo de ahorro de energía.
+              <br />2. <b>Apagado automático de la impresora:</b> en <b>Gprinter Life</b>, en los ajustes de la impresora, pon el apagado automático en <b>Nunca</b> o en el tiempo más largo.
+              <br />3. <b>Carga:</b> deja el celular y la impresora conectados al cargador; con poca batería el Bluetooth se debilita.
+              <br />4. <b>Ubicación:</b> a menos de 3 metros y sin paredes, neveras, hornos o microondas en medio (el microondas interfiere con el Bluetooth).
+              <br />5. <b>Pantalla:</b> deja este panel abierto en Chrome, en primer plano. Si el celular se bloquea, al desbloquearlo la impresora se reconecta sola.
             </div>
           </details>
 

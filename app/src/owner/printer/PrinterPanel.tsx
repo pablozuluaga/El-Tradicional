@@ -9,6 +9,9 @@ import { layoutText } from './text.ts'
 import type { PrinterLang } from './encode.ts'
 import { buildTicket, type Block } from './ticket.ts'
 import { usePrinter } from './usePrinter.ts'
+import { chromeIntentUrl } from '../../pwa/platform.ts'
+
+const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
 
 /** A made-up order for the test print and the preview. */
 const SAMPLE: Order = {
@@ -61,9 +64,18 @@ export function PrinterPanel() {
       <TabHead title="Impresora de comandas" sub={sub} />
       <div className={o.panel}>
       {st.status === 'unsupported' ? (
-        <div style={{ fontSize: 13, color: '#e7ddce', lineHeight: 1.5 }}>
-          Para imprimir, abre este panel en el <b>celular Android con Chrome</b> que queda junto a la impresora. Desde Safari (iPhone) no se puede conectar,
-          pero si aceptas los pedidos aquí, el Android los imprime solo.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13, color: '#e7ddce', lineHeight: 1.5 }}>
+          {isAndroid ? (
+            <>
+              <div>Este navegador no puede usar la impresora: solo <b>Google Chrome</b> se conecta por Bluetooth. Abre el panel en Chrome y conéctala allí.</div>
+              <a className={o.greenBtn} style={{ textAlign: 'center', textDecoration: 'none' }} href={chromeIntentUrl(location.href)}>Abrir el panel en Chrome</a>
+            </>
+          ) : (
+            <div>
+              Para imprimir, abre este panel en el <b>celular Android con Chrome</b> que queda junto a la impresora. Desde el iPhone no se puede conectar,
+              pero si aceptas los pedidos aquí, el Android los imprime solo.
+            </div>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -87,8 +99,8 @@ export function PrinterPanel() {
             <Toggle on={st.auto} onBg="#2F7D46" offBg="#4a453c" label={`Imprimir al aceptar: ${st.auto ? 'sí' : 'no'}`} onClick={() => printer.setAuto(!st.auto)} />
           </div>
 
-          <button type="button" className={o.smallRed} style={{ padding: 11, fontSize: 13.5 }} disabled={st.status !== 'ready'}
-            onClick={() => void printer.printBlocks(sample)}>Imprimir comanda de prueba</button>
+          <button type="button" className={o.smallRed} style={{ padding: 11, fontSize: 13.5 }} disabled={st.status === 'connecting' || st.status === 'printing'}
+            onClick={() => void printer.connectAndPrint(() => printer.printBlocks(sample))}>Imprimir comanda de prueba</button>
 
           {st.status === 'printing' && st.progress !== null && (
             <div className={o.progress} aria-label={`Enviando a la impresora: ${st.progress}%`}><i style={{ width: st.progress + '%' }} /></div>

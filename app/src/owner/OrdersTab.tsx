@@ -15,7 +15,7 @@ const waNumber = (digits: string) => (digits.length === 10 && digits.startsWith(
 const mapsUrl = (address: string) =>
   'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address + ', Envigado, Antioquia')
 
-function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean; onToggle: () => void; onChat: () => void }) {
+function OrderCard({ ord, open, onToggle, onChat, onPrinter }: { ord: Order; open: boolean; onToggle: () => void; onChat: () => void; onPrinter: () => void }) {
   const store = useStore()
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
@@ -33,7 +33,8 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
   const fees = useSnapshot().settings.deliveryFees
   const amounts = ownerAmounts(ord, fees)
   const extra = splitAddressNotes(ord.addressNotes)
-  const canPrint = usePrinter().status !== 'unsupported'
+  const pr = usePrinter()
+  const canPrint = pr.status !== 'unsupported'
   const phoneDigits = (ord.phone ?? '').replace(/\D/g, '')
   const saveFee = (v: number) => run(store.updateSettings(st => ({ deliveryFees: { ...st.deliveryFees, [String(ord.num)]: v } })).then(() => setFee('')))
 
@@ -109,9 +110,11 @@ function OrderCard({ ord, open, onToggle, onChat }: { ord: Order; open: boolean;
               {ord.reviewComment ? <div style={{ fontSize: 13, color: '#e7ddce' }}>“{ord.reviewComment}”</div> : null}
             </div>
           )}
-          {canPrint && (
-            <button type="button" className={o.printBtn} onClick={() => void printer.printOrder(ord, fees)}>🖨 Imprimir comanda</button>
-          )}
+          {/* on a phone that can't reach the printer (iPhone, a browser other than Chrome), the tab explains what to do */}
+          <button type="button" className={o.printBtn} disabled={pr.status === 'connecting'}
+            onClick={() => canPrint ? void printer.connectAndPrint(() => printer.printOrder(ord, fees)) : onPrinter()}>
+            {pr.status === 'connecting' ? 'Conectando la impresora…' : '🖨 Imprimir comanda'}
+          </button>
           <button type="button" className={o.deleteBtn}
             onClick={() => { if (confirm(`¿Eliminar el pedido ${orderId(ord.num)} de ${ord.name}?\n\nSe quita del panel y del reporte de facturación. No se puede deshacer.`)) run(store.updateSettings(st => ({ deletedOrders: { ...st.deletedOrders, [String(ord.num)]: true } }))) }}>
             🗑 Eliminar pedido
@@ -179,8 +182,15 @@ export function OrdersTab({ onChat, onPrinter }: { onChat: (num: number) => void
     <>
       {failed && (
         <div className={o.printAlert} role="alert">
+          <span>🖨 {pr.status === 'printing' || pr.status === 'connecting' ? `Imprimiendo el pedido #${failed.num}…` : pr.error ?? `No se pudo imprimir el pedido #${failed.num}.`}</span>
+          <button type="button" className={o.smallRed} disabled={pr.status === 'printing' || pr.status === 'connecting'}
+            onClick={() => void printer.connectAndPrint(() => printer.printOrder(failed, fees))}>Reintentar</button>
+        </div>
+      )}
+      {!failed && !printerDown && pr.error && (
+        <div className={o.printAlert} role="alert">
           <span>🖨 {pr.error}</span>
-          <button type="button" className={o.smallRed} onClick={() => void printer.printOrder(failed, fees)}>Reintentar</button>
+          <button type="button" className={o.smallRed} onClick={onPrinter}>Ver impresora</button>
         </div>
       )}
       {printerDown && (
@@ -204,7 +214,7 @@ export function OrdersTab({ onChat, onPrinter }: { onChat: (num: number) => void
           {all.length === 0 ? 'Todavía no hay pedidos. Los nuevos aparecen aquí al instante.' : period === 'hoy' ? 'Hoy todavía no hay pedidos. Los nuevos aparecen aquí al instante.' : 'No hay pedidos esta semana.'}
         </div>}
         {orders.map(ord => (
-          <OrderCard key={ord.num} ord={ord} open={openNum === ord.num} onToggle={() => setOpenNum(v => (v === ord.num ? null : ord.num))} onChat={() => onChat(ord.num)} />
+          <OrderCard key={ord.num} ord={ord} open={openNum === ord.num} onToggle={() => setOpenNum(v => (v === ord.num ? null : ord.num))} onChat={() => onChat(ord.num)} onPrinter={onPrinter} />
         ))}
       </div>
     </>

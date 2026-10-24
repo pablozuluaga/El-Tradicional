@@ -3,6 +3,7 @@ import { escposRaster, type PrinterLang } from './encode.ts'
 import { escposText, layoutText, TEST_BYTES } from './text.ts'
 import { ticketBitmap } from './render.ts'
 import { buildTicket, type Block } from './ticket.ts'
+import { TimeoutError, withTimeout } from './timeout.ts'
 import { shortUuid } from './uuid.ts'
 
 /*
@@ -110,12 +111,27 @@ function load(): Saved {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
+/** What to tell the owner when choosing or connecting the printer fails (null: they closed the list). */
+function connectError(e: unknown): string | null {
+  const msg = e instanceof Error ? e.message : String(e)
+  const name = e instanceof Error ? e.name : ''
+  if (name === 'NotFoundError' && /cancel/i.test(msg)) return null
+  if (/adapter|globally disabled|bluetooth is (off|disabled)/i.test(msg)) return 'El Bluetooth del celular está apagado. Préndelo y vuelve a tocar Conectar.'
+  if (name === 'SecurityError' || name === 'NotAllowedError') return 'Chrome no tiene permiso para usar Bluetooth. En Ajustes → Aplicaciones → Chrome → Permisos, permite "Dispositivos cercanos" y "Ubicación".'
+  if (name === 'NotFoundError') return null
+  return 'No se pudo conectar. Revisa que la impresora esté prendida, cerca y que no esté conectada a otro celular.'
+}
+
 /** Waits between reconnection attempts after the link drops: quick at first, then every 30 s. */
 const RETRY_MS = [1000, 2000, 4000, 8000, 15000, 30000]
 /** A small exchange this often keeps the link busy, so neither the printer nor Android drops it as idle. */
 const KEEPALIVE_MS = 45000
 /** ESC/POS real-time status request: prints nothing. */
 const STATUS_REQUEST = Uint8Array.of(0x10, 0x04, 0x01)
+/** Longest wait for the printer to accept the connection, list its channels, or take one piece of a ticket. */
+const CONNECT_MS = 12000
+const DISCOVER_MS = 10000
+const WRITE_MS = 5000
 
 class Printer {
   private saved = load()
@@ -126,7 +142,7 @@ class Printer {
   private readable: BtCharacteristic | null = null
   /** the owner tapped "Desconectar": don't reconnect on our own */
   private manualOff = false
-  private attaching: Promise<void> | null = null
+  private attaching: { device: BtDevice; p: Promise<void> } | null = null
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private retries = 0
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null
@@ -176,8 +192,7 @@ class Printer {
       const device = await b.requestDevice({ acceptAllDevices: true, optionalServices: SERVICES })
       await this.attach(device)
     } catch (e) {
-      const cancelled = e instanceof Error && e.name === 'NotFoundError'
-      this.set({ status: this.ch ? 'ready' : 'off', error: cancelled ? null : 'No se pudo conectar. Revisa que la impresora esté prendida y cerca.' })
+      this.set({ status: this.ch ? 'ready' : 'off', error: connectError(e), detail: e instanceof Error ? e.message : String(e) })
     }
   }
 
@@ -268,21 +283,38 @@ class Printer {
 
   /** One connection attempt at a time (a retry, a print and the owner's tap can coincide). */
   private attach(device: BtDevice): Promise<void> {
-    if (!this.attaching) this.attaching = this.doAttach(device).finally(() => { this.attaching = null })
-    return this.attaching
+    // the owner picking another printer doesn't wait behind a retry of the old one
+    if (this.attaching?.device !== device) {
+      const p = this.doAttach(device).finally(() => { if (this.attaching?.p === p) this.attaching = null })
+      this.attaching = { device, p }
+    }
+    return this.attaching.p
   }
 
   private async doAttach(device: BtDevice) {
     this.device?.removeEventListener('gattserverdisconnected', this.onDisconnected)
     this.device = device
     device.addEventListener('gattserverdisconnected', this.onDisconnected)
-    const server = await device.gatt!.connect()
+    try {
+      await this.discover(device)
+    } catch (e) {
+      // a connection left half open blocks the next try: close it
+      try { device.gatt?.disconnect() } catch { /* already closed */ }
+      this.ch = null
+      throw e
+    }
+  }
+
+  private async discover(device: BtDevice) {
+    // Android sometimes never answers when the printer is off or out of range: give up and retry instead of hanging on "Conectando…"
+    const server = await withTimeout(device.gatt!.connect(), CONNECT_MS, 'La impresora no respondió al conectar')
     // every channel the printer accepts data on; the print data one is picked below
     this.chars.clear()
     this.readable = null
     const channels: Channel[] = []
-    for (const sv of await server.getPrimaryServices()) {
-      for (const c of await sv.getCharacteristics()) {
+    const services = await withTimeout(server.getPrimaryServices(), DISCOVER_MS, 'La impresora no respondió al conectar')
+    for (const sv of services) {
+      for (const c of await withTimeout(sv.getCharacteristics(), DISCOVER_MS, 'La impresora no respondió al conectar')) {
         if (c.properties.read && c.readValue && !this.readable) this.readable = c
         if (!c.properties.writeWithoutResponse && !c.properties.write) continue
         const key = `${shortUuid(sv.uuid)}/${shortUuid(c.uuid)}`
@@ -332,15 +364,47 @@ class Printer {
 
   private async ensureConnected() {
     if (this.ch && this.device?.gatt?.connected) return
+    if (!this.device) await this.reconnect()
+    if (this.ch && this.device?.gatt?.connected) return
     if (this.device) { await this.attach(this.device); return }
     throw new Error('not connected')
   }
 
+  /** Whether a print can start right away, or the printer first has to be chosen from Chrome's list. */
+  needsChoosing() {
+    return !this.device && !this.ch
+  }
+
+  /**
+   * The "Imprimir" buttons: when no printer is set up on this phone yet (or Chrome forgot it), the
+   * same tap opens Chrome's list to choose it, and then prints.
+   */
+  async connectAndPrint(print: () => Promise<void>) {
+    if (this.needsChoosing() && !(await this.knownDevice())) {
+      await this.connect()
+      if (!this.ch) return
+    }
+    await print()
+  }
+
+  /** The saved printer, if Chrome still has permission for it (no list needed). */
+  private async knownDevice(): Promise<BtDevice | null> {
+    const b = bt()
+    if (!b?.getDevices || !this.saved.name) return null
+    try { return (await b.getDevices()).find(d => d.name === this.saved.name) ?? null } catch { return null }
+  }
+
   private async writeChunk(c: BtCharacteristic, part: Uint8Array<ArrayBuffer>) {
     // without response is faster; with response waits for the printer (safer, and the only way on some)
-    if (c.properties.writeWithoutResponse && c.writeValueWithoutResponse) await c.writeValueWithoutResponse(part)
-    else if (c.writeValueWithResponse) await c.writeValueWithResponse(part)
-    else await c.writeValue(part)
+    const w = c.properties.writeWithoutResponse && c.writeValueWithoutResponse ? c.writeValueWithoutResponse(part)
+      : c.writeValueWithResponse ? c.writeValueWithResponse(part) : c.writeValue(part)
+    try {
+      await withTimeout(w, WRITE_MS, 'La impresora dejó de responder')
+    } catch (e) {
+      // the link is dead even if Chrome hasn't noticed: drop it so the reconnection starts now
+      if (e instanceof TimeoutError) { this.ch = null; try { this.device?.gatt?.disconnect() } catch { /* closed */ } }
+      throw e
+    }
   }
 
   private async write(data: Uint8Array) {
@@ -377,12 +441,13 @@ class Printer {
       this.set({ status: 'printing', error: null })
       try {
         await this.ensureConnected()
+        this.set({ status: 'printing' })
         const data = this.saved.lang === 'texto' ? escposText(layoutText(blocks)) : escposRaster(ticketBitmap(blocks).bitmap)
         try {
           await this.write(data)
         } catch (e) {
-          // some printers only take 20-byte writes: retry once that way
-          if (this.saved.speed === 'lenta') throw e
+          // some printers only take 20-byte writes: retry once that way (not when the link died)
+          if (this.saved.speed === 'lenta' || e instanceof TimeoutError || !this.ch) throw e
           this.setSpeed('lenta')
           await this.write(data)
         }
@@ -395,7 +460,9 @@ class Printer {
           progress: null,
           detail: e instanceof Error ? e.message : String(e),
           failed: num,
-          error: num !== null ? `No se pudo imprimir el pedido #${num}. Saldrá solo cuando la impresora se reconecte, o toca Reintentar.` : 'No se pudo imprimir. Revisa que la impresora esté prendida y conectada.',
+          error: this.needsChoosing()
+            ? 'La impresora no está conectada en este celular. Toca Reintentar y elígela en la lista.'
+            : num !== null ? `No se pudo imprimir el pedido #${num}. Saldrá solo cuando la impresora se reconecte, o toca Reintentar.` : 'No se pudo imprimir. Revisa que la impresora esté prendida y conectada.',
         })
         if (!this.ch) this.scheduleRetry()
       }

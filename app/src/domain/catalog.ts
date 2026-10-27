@@ -32,7 +32,7 @@ export const DAILY_MENUS: DailyMenu[] = [
   { day: 'martes', label: 'Martes', price: 22000, priceDom: 22000, drink: true,
     desc: 'Carne especial del día: carne desmechada o sobrebarriga. Sopa de tortilla o de fríjoles acompañada de proteína al gusto, arroz, papa a la francesa, maduro y arepa.',
     sopas: sopa('tortilla', 'Sopa de tortilla'),
-    specialProts: [{ id: 'desmechada', label: 'Carne desmechada' }, { id: 'sobrebarriga', label: 'Sobrebarriga' }], proteinChoice: true, defProt: 'desmechada',
+    specialProts: [{ id: 'desmechada', label: 'Carne desmechada' }, { id: 'sobrebarriga', label: 'Sobrebarriga', surcharge: 3000 }], proteinChoice: true, defProt: 'res',
     rem: R('Arroz', 'Papa a la francesa', 'Maduro', 'Arepa') },
   { day: 'miercoles', label: 'Miércoles', price: 22000, priceDom: 22000, drink: true, img: '/assets/menu-miercoles.webp',
     desc: 'Carne especial del día: albóndigas. Sopa de pastas o de fríjoles acompañada de proteína al gusto, arroz, papas a la francesa, maduro, ensalada y arepa.',

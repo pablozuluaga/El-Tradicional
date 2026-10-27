@@ -3,7 +3,7 @@ export type OrderStatus = 'nuevo' | 'aceptado' | 'camino' | 'listo' | 'rechazado
 export type Origin = 'domicilio' | 'recoger'
 export type Sender = 'cliente' | 'dueno'
 
-export interface Opt { id: string; label: string; rem?: Opt[] }
+export interface Opt { id: string; label: string; rem?: Opt[]; surcharge?: number }
 
 export interface OptionGroup { id: string; short: string; title: string; sub: string; options: Opt[] }
 

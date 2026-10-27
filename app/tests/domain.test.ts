@@ -49,6 +49,13 @@ test('martes puts desmechada and sobrebarriga first; every day includes the juic
   assert.match(m.desc, /^Carne especial del día: carne desmechada o sobrebarriga\./)
 })
 
+test('martes: res por defecto y sobrebarriga cuesta 3.000 más', () => {
+  const m = dailyDish({ ...defaultSettings(), platoDia: 'martes' })!
+  assert.equal(m.defProt, 'res')
+  assert.equal(m.protList!.find(p => p.id === 'sobrebarriga')!.surcharge, 3000)
+  assert.equal(m.protList!.find(p => p.id === 'res')!.surcharge, undefined)
+})
+
 test('weekend dishes keep their names, go under Especiales, no protein choice', () => {
   const s = { ...defaultSettings(), platoDia: 'sabado' as const }
   const d = dailyDish(s)!

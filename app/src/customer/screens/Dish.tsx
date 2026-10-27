@@ -75,6 +75,8 @@ function DishDetail({ d, s, editLine }: { d: DishT; s: Settings; editLine: CartL
 
   const groups = d.groups ?? []
   const prots = d.proteins ? proteinsOf(d) : []
+  // extra charge for the chosen protein (e.g. sobrebarriga on Tuesday)
+  const protSurcharge = (d.proteins && protein ? prots.find(p => p.id === protein)?.surcharge : 0) ?? 0
   const rem = effRem(d, choices)
   const protOk = !d.proteins || (!!protein && !s.soldProteins[protein])
   const juiceObj = s.juices.find(j => j.id === juice && !j.out)
@@ -89,7 +91,7 @@ function DishDetail({ d, s, editLine }: { d: DishT; s: Settings; editLine: CartL
     if (!canAdd) return
     const line: CartLine = {
       key: editLine?.key ?? newId(),
-      dishId: d.id, name: d.name, cat: d.cat, basePrice: d.price + addonsUnit, domPrice: (d.priceDom || d.price) + addonsUnit, qty,
+      dishId: d.id, name: d.name, cat: d.cat, basePrice: d.price + addonsUnit + protSurcharge, domPrice: (d.priceDom || d.price) + addonsUnit + protSurcharge, qty,
       opts: groups.map(g => g.options.find(o => o.id === choices[g.id])?.label).filter((v): v is string => !!v),
       proteinLabel: d.proteins && protein ? prots.find(p => p.id === protein)?.label ?? null : null,
       juiceLabel: d.drink && juiceObj ? juiceObj.label : null,
@@ -149,7 +151,7 @@ function DishDetail({ d, s, editLine }: { d: DishT; s: Settings; editLine: CartL
                 const sel = protein === p.id
                 return (
                   <button key={p.id} type="button" role="radio" aria-checked={sel} className={`${c.optRow} ${sel ? c.sel : ''}`} onClick={() => setProtein(p.id)}>
-                    {p.label}<span className={c.optMark}>{sel ? '●' : '○'}</span>
+                    {p.label}{p.surcharge ? <span className={x.extraPrice} style={{ marginLeft: 6 }}>+{fmt(p.surcharge)}</span> : null}<span className={c.optMark}>{sel ? '●' : '○'}</span>
                   </button>
                 )
               })}
@@ -256,7 +258,7 @@ function DishDetail({ d, s, editLine }: { d: DishT; s: Settings; editLine: CartL
           <button type="button" className={x.stepBtn} aria-label="Más" onClick={() => setQty(q => Math.min(20, q + 1))}>+</button>
         </div>
         {canAdd
-          ? <button type="button" className={x.add} onClick={add}>{editLine ? 'Guardar cambios' : 'Agregar'} · {fmt((d.price + addonsUnit) * qty + extrasTotal)}</button>
+          ? <button type="button" className={x.add} onClick={add}>{editLine ? 'Guardar cambios' : 'Agregar'} · {fmt((d.price + addonsUnit + protSurcharge) * qty + extrasTotal)}</button>
           : <div className={x.blocked}>{hint}</div>}
       </div>
     </>

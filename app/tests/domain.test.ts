@@ -49,6 +49,13 @@ test('martes puts desmechada and sobrebarriga first; every day includes the juic
   assert.match(m.desc, /^Carne especial del día: carne desmechada o sobrebarriga\./)
 })
 
+test('viernes: res por defecto y costillas cuestan 3.000 más', () => {
+  const m = dailyDish({ ...defaultSettings(), platoDia: 'viernes' })!
+  assert.equal(m.defProt, 'res')
+  assert.equal(m.protList!.find(p => p.id === 'costilla')!.surcharge, 3000)
+  assert.equal(m.price, 22000)
+})
+
 test('martes: res por defecto y sobrebarriga cuesta 3.000 más', () => {
   const m = dailyDish({ ...defaultSettings(), platoDia: 'martes' })!
   assert.equal(m.defProt, 'res')
@@ -80,8 +87,8 @@ test('description overrides apply to specials and daily menus', () => {
 test('sold-out default protein is not preselected', () => {
   const s = { ...defaultSettings(), platoDia: 'viernes' as const }
   const d = dailyDish(s)!
-  assert.equal(initialProtein(s, d), 'costilla')
-  assert.equal(initialProtein({ ...s, soldProteins: { costilla: true } }, d), null)
+  assert.equal(initialProtein(s, d), 'res')
+  assert.equal(initialProtein({ ...s, soldProteins: { res: true } }, d), null)
   assert.equal(initialProtein(s, dishById(s, 'especial')!), null)
 })
 

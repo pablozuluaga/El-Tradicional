@@ -47,7 +47,7 @@ export const DAILY_MENUS: DailyMenu[] = [
   { day: 'viernes', label: 'Viernes', price: 22000, priceDom: 22000, drink: true, img: '/assets/menu-viernes.webp',
     desc: 'Carne especial del día: costillas. Crema de ahuyama o de fríjoles acompañada de proteína al gusto, arroz, papa criolla frita, maduro, ensalada y arepa.',
     sopas: sopa('ahuyama', 'Crema de ahuyama'),
-    specialProts: [{ id: 'costilla', label: 'Costillas' }], proteinChoice: true, defProt: 'costilla',
+    specialProts: [{ id: 'costilla', label: 'Costillas', surcharge: 3000 }], proteinChoice: true, defProt: 'res',
     rem: R('Arroz', 'Papa criolla frita', 'Maduro', 'Ensalada', 'Arepa') },
   // Mondongo and sancocho are soups themselves: no soup and no protein choice. The day's soups and
   // special proteins go to the other dishes that offer them (Bandeja Especial, Cazuela…).

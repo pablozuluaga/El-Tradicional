@@ -56,6 +56,11 @@ test('viernes: res por defecto y costillas cuestan 3.000 más', () => {
   assert.equal(m.price, 22000)
 })
 
+test('una lista de proteínas guardada por el dueño conserva el recargo del catálogo', () => {
+  const s = { ...defaultSettings(), platoDia: 'viernes' as const, dayProteins: { viernes: [{ id: 'costilla', label: 'Costillas' }] } }
+  assert.equal(dailyDish(s)!.protList!.find(p => p.id === 'costilla')!.surcharge, 3000)
+})
+
 test('martes: res por defecto y sobrebarriga cuesta 3.000 más', () => {
   const m = dailyDish({ ...defaultSettings(), platoDia: 'martes' })!
   assert.equal(m.defProt, 'res')

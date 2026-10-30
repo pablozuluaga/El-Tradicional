@@ -33,7 +33,16 @@ export const daySoupList = (s: Settings, day: DayId): Opt[] => s.daySoups?.[day]
 export const soupsFor = (s: Settings, day: DayId): Opt[] => daySoupList(s, day).filter(o => !isDayOff(s, day, 'sopa', o.id))
 
 /** The day's special proteins as the owner left them (including the ones switched off). */
-export const dayProteinList = (s: Settings, day: DayId): Opt[] => s.dayProteins?.[day] ?? dailyMenuFor(day)?.specialProts ?? []
+export const dayProteinList = (s: Settings, day: DayId): Opt[] => {
+  const catalog = dailyMenuFor(day)?.specialProts ?? []
+  const saved = s.dayProteins?.[day]
+  if (!saved) return catalog
+  // a list the owner saved before a protein got its surcharge still charges it
+  return saved.map(o => {
+    const surcharge = o.surcharge ?? catalog.find(c => c.id === o.id)?.surcharge
+    return surcharge ? { ...o, surcharge } : o
+  })
+}
 
 /** The day's special proteins a customer can pick. */
 export const specialProteinsFor = (s: Settings, day: DayId): Opt[] => dayProteinList(s, day).filter(o => !isDayOff(s, day, 'prot', o.id))

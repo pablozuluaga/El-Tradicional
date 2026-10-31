@@ -79,7 +79,7 @@ export const MENU: Dish[] = [
   // Saturday's mondongo, offered on Sundays only when the owner switches it on (when there is leftover).
   { id: 'mondongo', cat: 'Especiales', name: 'Mondongo', price: 35000, tag: 'Hoy también', img: '/assets/mondongo.webp', avail: true, days: ['domingo'], optIn: true, drink: true,
     desc: 'Sopa de mondongo acompañada con aguacate, arroz, ensalada y arepa.', rem: R('Aguacate', 'Arroz', 'Ensalada', 'Arepa') },
-  { id: 'lengua', cat: 'Especiales', name: 'Lengua', price: 35000, tag: 'Sábados y domingos', img: '/assets/menu-dia.webp', avail: true, days: ['sabado', 'domingo'], soup: true, drink: true,
+  { id: 'lengua', cat: 'Especiales', name: 'Lengua', price: 35000, tag: 'Sábados y domingos', img: '/assets/lengua.webp', avail: true, days: ['sabado', 'domingo'], soup: true, drink: true,
     desc: 'Lengua acompañada de arroz, papa cocinada, yuca cocinada, ensalada, arepa y la sopa del día.',
     rem: R('Arroz', 'Papa cocinada', 'Yuca cocinada', 'Ensalada', 'Arepa') },
   // Thursday's posta sudada, also served on Sundays (with the Sunday soup)

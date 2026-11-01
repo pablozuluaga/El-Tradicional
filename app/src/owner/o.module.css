@@ -118,6 +118,7 @@
 .foldGroup:first-child { margin-top: 4px; }
 .deleteBtn { width: 100%; margin-top: 4px; border: 1px solid rgba(240,160,160,.35); background: transparent; color: #F0A0A0; cursor: pointer; padding: 10px; border-radius: 11px; font-size: 12.5px; font-weight: 600; }
 .printBtn { width: 100%; margin-top: 4px; margin-bottom: 8px; border: none; background: #F5A524; color: #14110E; cursor: pointer; padding: 11px; border-radius: 11px; font-size: 13.5px; font-weight: 700; }
+.printBtn:disabled { opacity: .6; cursor: default; }
 .printAlert { display: flex; align-items: center; gap: 10px; justify-content: space-between; background: rgba(200,22,29,.18); border: 1px solid rgba(240,160,160,.45); color: #F6D2D2; border-radius: 14px; padding: 11px 13px; font-size: 12.5px; line-height: 1.4; margin-bottom: 10px; }
 .progress { height: 8px; border-radius: 4px; background: rgba(255,255,255,.1); overflow: hidden; }
 .progress i { display: block; height: 100%; background: #F5A524; transition: width .2s; }

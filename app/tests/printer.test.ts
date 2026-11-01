@@ -80,3 +80,11 @@ test('text comanda: ASCII only, 32 columns, banner between rules, SIN in big bol
   assert.deepEqual([...bytes.subarray(-3)], [0x1b, 0x64, 4], 'feed at the end, nothing after')
   assert.ok(bytes.length < 1500, 'a few hundred bytes, not a 30 KB image: ' + bytes.length)
 })
+
+test('a Bluetooth call that never answers gives up instead of hanging the panel', async () => {
+  const { withTimeout, TimeoutError } = await import('../src/owner/printer/timeout.ts')
+  const never = new Promise<void>(() => {})
+  await assert.rejects(withTimeout(never, 20, 'La impresora dejó de responder'), (e: unknown) => e instanceof TimeoutError && e.message === 'La impresora dejó de responder')
+  assert.equal(await withTimeout(Promise.resolve(7), 20, 'x'), 7)
+  await assert.rejects(withTimeout(Promise.reject(new Error('GATT error')), 20, 'x'), /GATT error/)
+})

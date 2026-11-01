@@ -14,7 +14,8 @@ import { shortUuid } from './uuid.ts'
 // Minimal Web Bluetooth types (not in TypeScript's DOM lib).
 interface BtCharacteristic {
   uuid: string
-  properties: { write: boolean; writeWithoutResponse: boolean }
+  properties: { write: boolean; writeWithoutResponse: boolean; read?: boolean }
+  readValue?(): Promise<DataView>
   writeValueWithoutResponse?(v: BufferSource): Promise<void>
   writeValueWithResponse?(v: BufferSource): Promise<void>
   writeValue(v: BufferSource): Promise<void>
@@ -90,6 +91,8 @@ export interface PrinterState {
   progress: number | null
   /** technical detail of the last failure, for support */
   detail: string | null
+  /** the link dropped and the app is bringing it back on its own */
+  reconnecting: boolean
 }
 
 interface Saved { lang: PrinterLang; auto: boolean; name: string | null; channel: string | null; speed: Speed }
@@ -107,20 +110,41 @@ function load(): Saved {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
+/** Waits between reconnection attempts after the link drops: quick at first, then every 30 s. */
+const RETRY_MS = [1000, 2000, 4000, 8000, 15000, 30000]
+/** A small exchange this often keeps the link busy, so neither the printer nor Android drops it as idle. */
+const KEEPALIVE_MS = 45000
+/** ESC/POS real-time status request: prints nothing. */
+const STATUS_REQUEST = Uint8Array.of(0x10, 0x04, 0x01)
+
 class Printer {
   private saved = load()
   private device: BtDevice | null = null
   private ch: BtCharacteristic | null = null
   private chars = new Map<string, BtCharacteristic>()
+  /** a characteristic that can be read, for the keep-alive (reading prints nothing) */
+  private readable: BtCharacteristic | null = null
+  /** the owner tapped "Desconectar": don't reconnect on our own */
+  private manualOff = false
+  private attaching: Promise<void> | null = null
+  private retryTimer: ReturnType<typeof setTimeout> | null = null
+  private retries = 0
+  private keepAliveTimer: ReturnType<typeof setInterval> | null = null
+  /** accepted orders that didn't print (printer off or out of range): printed when it comes back */
+  private pending = new Map<number, { o: Order; fees: Record<string, number> }>()
   private queue: Promise<void> = Promise.resolve()
   private seen = new Map<number, OrderStatus>()
   private primed = false
   private listeners = new Set<() => void>()
   private wakeLock: { release(): Promise<void> } | null = null
+  constructor() {
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVisible)
+  }
+
   state: PrinterState = {
     status: bt() ? 'off' : 'unsupported',
     name: this.saved.name, error: null, failed: null, lang: this.saved.lang, auto: this.saved.auto,
-    channels: [], channel: this.saved.channel, speed: this.saved.speed, progress: null, detail: null,
+    channels: [], channel: this.saved.channel, speed: this.saved.speed, progress: null, detail: null, reconnecting: false,
   }
 
   subscribe = (l: () => void) => { this.listeners.add(l); return () => { this.listeners.delete(l) } }
@@ -145,6 +169,8 @@ class Printer {
   async connect() {
     const b = bt()
     if (!b) return
+    this.manualOff = false
+    this.stopRetry()
     this.set({ status: 'connecting', error: null })
     try {
       const device = await b.requestDevice({ acceptAllDevices: true, optionalServices: SERVICES })
@@ -158,36 +184,106 @@ class Printer {
   /** On opening the panel: reconnect to the printer Chrome already has permission for, if any. */
   async reconnect() {
     const b = bt()
-    if (!b?.getDevices || !this.saved.name || this.ch) return
+    if (!b?.getDevices || !this.saved.name || this.ch || this.manualOff) return
     try {
       const known = (await b.getDevices()).find(d => d.name === this.saved.name)
       if (known) { this.set({ status: 'connecting' }); await this.attach(known) }
     } catch {
+      // printer off or out of reach when the panel opened: keep trying
       this.set({ status: 'off' })
+      this.scheduleRetry()
     }
   }
 
   disconnect() {
+    this.manualOff = true
+    this.stopRetry(); this.stopKeepAlive()
     this.device?.gatt?.disconnect()
-    this.device = null; this.ch = null; this.chars.clear()
+    this.device = null; this.ch = null; this.readable = null; this.chars.clear()
     this.set({ status: 'off', channels: [] })
+    void this.keepAwake()
   }
 
+  /**
+   * The Bluetooth link dropped (printer asleep or switched off, a moment out of range, Android
+   * saving battery…): try again on our own, quickly at first and then every 30 seconds.
+   */
   private onDisconnected = () => {
     this.ch = null
-    if (this.state.status !== 'off') this.set({ status: 'off' })
+    this.stopKeepAlive()
+    if (this.manualOff) return
+    this.set({ status: 'off' })
+    this.scheduleRetry()
   }
 
-  private async attach(device: BtDevice) {
+  private scheduleRetry() {
+    if (this.retryTimer || this.manualOff || !this.device) return
+    const wait = RETRY_MS[Math.min(this.retries, RETRY_MS.length - 1)]
+    this.retries++
+    if (!this.state.reconnecting) this.set({ reconnecting: true })
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null
+      if (this.ch || this.manualOff || !this.device) return
+      this.set({ status: 'connecting' })
+      this.attach(this.device).catch(() => {
+        if (!this.ch) { this.set({ status: 'off' }); this.scheduleRetry() }
+      })
+    }, wait)
+  }
+
+  private stopRetry() {
+    if (this.retryTimer) clearTimeout(this.retryTimer)
+    this.retryTimer = null
+    this.retries = 0
+    if (this.state.reconnecting) this.set({ reconnecting: false })
+  }
+
+  /** Back on screen (Chrome may have paused the tab): reconnect now instead of waiting. */
+  private onVisible = () => {
+    if (document.visibilityState !== 'visible') return
+    void this.keepAwake()
+    if (this.ch || this.manualOff) return
+    if (this.device) { this.stopRetry(); this.scheduleRetry() } else void this.reconnect()
+  }
+
+  private startKeepAlive() {
+    this.stopKeepAlive()
+    this.keepAliveTimer = setInterval(() => {
+      if (!this.ch || this.state.status !== 'ready') return
+      // through the print queue, so it never cuts into a ticket
+      this.queue = this.queue.then(async () => {
+        try {
+          const ping = this.readable?.readValue ? this.readable.readValue() : this.ch ? this.writeChunk(this.ch, STATUS_REQUEST) : null
+          // a half-dead link may never answer: don't let it hold up the next ticket
+          if (ping) await Promise.race([ping, sleep(5000)])
+        } catch { /* a dead link shows up as a disconnect */ }
+      })
+    }, KEEPALIVE_MS)
+  }
+
+  private stopKeepAlive() {
+    if (this.keepAliveTimer) clearInterval(this.keepAliveTimer)
+    this.keepAliveTimer = null
+  }
+
+  /** One connection attempt at a time (a retry, a print and the owner's tap can coincide). */
+  private attach(device: BtDevice): Promise<void> {
+    if (!this.attaching) this.attaching = this.doAttach(device).finally(() => { this.attaching = null })
+    return this.attaching
+  }
+
+  private async doAttach(device: BtDevice) {
     this.device?.removeEventListener('gattserverdisconnected', this.onDisconnected)
     this.device = device
     device.addEventListener('gattserverdisconnected', this.onDisconnected)
     const server = await device.gatt!.connect()
     // every channel the printer accepts data on; the print data one is picked below
     this.chars.clear()
+    this.readable = null
     const channels: Channel[] = []
     for (const sv of await server.getPrimaryServices()) {
       for (const c of await sv.getCharacteristics()) {
+        if (c.properties.read && c.readValue && !this.readable) this.readable = c
         if (!c.properties.writeWithoutResponse && !c.properties.write) continue
         const key = `${shortUuid(sv.uuid)}/${shortUuid(c.uuid)}`
         this.chars.set(key, c)
@@ -203,15 +299,32 @@ class Printer {
     this.ch = this.chars.get(pick.key)!
     this.set({ channels, channel: pick.key })
     this.save({ name: device.name ?? null })
+    this.manualOff = false
+    this.stopRetry()
     this.set({ status: 'ready', name: device.name ?? 'Impresora', error: null })
+    this.startKeepAlive()
     void this.keepAwake()
+    this.printPending()
+  }
+
+  /** Orders that couldn't print while the printer was away come out as soon as it is back. */
+  private printPending() {
+    for (const [num, { o, fees }] of [...this.pending].sort((a, b) => a[0] - b[0])) {
+      this.pending.delete(num)
+      void this.printOrder(o, fees)
+    }
   }
 
   /** Keeps this phone's screen on while it is the print station (Chrome may pause a sleeping tab). */
   private async keepAwake() {
     const nav = navigator as Navigator & { wakeLock?: { request(t: 'screen'): Promise<{ release(): Promise<void> }> } }
-    if (this.state.auto && this.ch && !this.wakeLock && nav.wakeLock) {
-      try { this.wakeLock = await nav.wakeLock.request('screen') } catch { /* not allowed now */ }
+    if (this.state.auto && this.ch && !this.wakeLock && nav.wakeLock && document.visibilityState === 'visible') {
+      try {
+        const lock = await nav.wakeLock.request('screen')
+        this.wakeLock = lock
+        // the browser lets go of it when the page is hidden; onVisible asks again
+        ;(lock as unknown as EventTarget).addEventListener?.('release', () => { if (this.wakeLock === lock) this.wakeLock = null })
+      } catch { /* not allowed now */ }
     } else if ((!this.state.auto || !this.ch) && this.wakeLock) {
       await this.wakeLock.release().catch(() => {}); this.wakeLock = null
     }
@@ -274,23 +387,27 @@ class Printer {
           await this.write(data)
         }
         if (num !== null) this.markPrinted(num)
-        this.set({ status: 'ready', progress: null, detail: null, failed: this.state.failed === num ? null : this.state.failed })
+        const next = this.pending.keys().next()
+        this.set({ status: 'ready', progress: null, detail: null, failed: this.state.failed === num ? (next.done ? null : next.value) : this.state.failed })
       } catch (e) {
         this.set({
           status: this.ch ? 'ready' : 'off',
           progress: null,
           detail: e instanceof Error ? e.message : String(e),
           failed: num,
-          error: num !== null ? `No se pudo imprimir el pedido #${num}. Revisa que la impresora esté prendida y conectada.` : 'No se pudo imprimir. Revisa que la impresora esté prendida y conectada.',
+          error: num !== null ? `No se pudo imprimir el pedido #${num}. Saldrá solo cuando la impresora se reconecte, o toca Reintentar.` : 'No se pudo imprimir. Revisa que la impresora esté prendida y conectada.',
         })
+        if (!this.ch) this.scheduleRetry()
       }
     }
     this.queue = this.queue.then(job)
     return this.queue
   }
 
-  printOrder(o: Order, fees: Record<string, number>) {
-    return this.printBlocks(buildTicket(o, fees), o.num)
+  async printOrder(o: Order, fees: Record<string, number>) {
+    this.pending.delete(o.num)
+    await this.printBlocks(buildTicket(o, fees), o.num)
+    if (this.state.failed === o.num) this.pending.set(o.num, { o, fees })
   }
 
   private printed(): number[] {

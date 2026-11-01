@@ -185,7 +185,7 @@ export function OrdersTab({ onChat, onPrinter }: { onChat: (num: number) => void
       )}
       {printerDown && (
         <div className={o.printAlert} role="alert">
-          <span>🖨 La impresora no está conectada: los pedidos no saldrán impresos.</span>
+          <span>🖨 {pr.reconnecting ? 'Se perdió la conexión con la impresora. Reconectando sola…' : 'La impresora no está conectada: los pedidos no saldrán impresos.'}</span>
           <button type="button" className={o.smallRed} onClick={onPrinter}>Conectar</button>
         </div>
       )}
